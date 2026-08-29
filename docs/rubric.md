@@ -10,6 +10,8 @@ This rubric defines, per `FieldType`, exactly what counts as a correct extractio
 
 It is authored and cryptographically timestamped (`docs/rubric.md.ots`, via OpenTimestamps) before any item in the golden set is labelled, so scores cannot be reverse-engineered into the rubric after the fact. Blind re-labelling of a 20% sample after a two-week gap, and a second labeller from the Ledger Sense design partner on a subset, are measured against this same frozen rubric; disagreement rates are reported honestly, not smoothed over. Changing a grading rule after labelling has started requires a new rubric version, never a silent edit of `v1`.
 
+Every bullet below is machine-parsed by `ground_truth/golden/rubric.py`; a bare `-` means "not applicable to this field type" (used consistently for `tolerance`, `normalisation`, and `acceptable_variants` — never leave a bullet's value blank, since the parser's whitespace handling will otherwise bleed into the next bullet).
+
 ## MONEY
 - grader: numeric_tolerance
 - tolerance: 0.01
