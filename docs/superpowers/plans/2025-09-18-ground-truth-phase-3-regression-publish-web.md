@@ -14,6 +14,56 @@
 
 **Phase deliverable:** the public artifact. Leaderboard deployed, methodology published, numbers regenerable by a stranger.
 
+## Review amendments — 2026-08-29 (read before Task 36)
+
+Audit: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**; evidence reproducible via
+`docs/superpowers/reviews/verify/`.
+
+| Task | Was | Now |
+|---|---|---|
+| 38 | The regression watch runs the sweep **in GitHub Actions** — but the private corpus and `data/*.duckdb` are both gitignored, so a runner has neither the items nor the baseline. Committing the DB would publish private raw outputs; running there needs provider keys on a public repo. | The watch runs **locally** on the pre-registered calendar (`regression/schedule.py` already models it). Actions keeps only what is safe there: opening the issue from a committed, redacted `artifacts/regression.json`, and the nightly smoke test in new Task 52. `test_dod_7`'s `assert "schedule:" in workflow` proves the wrong thing — assert on the `looks` calendar record instead. Audit H12. |
+| 40 | `emit_all` wrote **`triage.html`** — a `CLIENT_CONFIDENTIAL` artifact — into the directory Task 49 deploys to GitHub Pages. | Written to gitignored `deliverables/`. **Audit B2, the most serious privacy defect in the three plans.** |
+| 40 | `emit_all` had no analysis seed, so published intervals could not regenerate; and `reproduce.py` (stdlib-only) cannot re-run BCa at all, so the intervals were never independently reproducible. | `analysis_seed` parameter, published; percentile interval alongside BCa. Audit H11. |
+| 41 | `test_private_item_ids_never_appear_in_published_output` could **never pass** — `item_id` was a prefix of the published `content_hash`. | Fixed in Phase 1 Task 8. Audit H1. |
+| 41 | The label scan fired on `"2026-09-01"`, `"approved"` and shared party names, and the obvious fix disables the control. | High-entropy field types only, plus a structural source assertion. Audit M10. |
+| 44 | `test_no_characterisation_of_vendor_honesty` substring-scans whole files for `fabricated`, `misleading` — words `docs/methodology.md` legitimately needs about *the market* (`04` §2 is built on them). | Scope the scan to paragraphs naming a configured provider. |
+| 45–47 | *"a static import, no fetch, because both the static export and the eventual CSP forbid runtime data loading"* is **factually wrong**: `output: 'export'` supports `fetch()` of a same-origin asset and `connect-src 'self'` permits it. The premise forces static-importing ~57,600 verdict rows into the JS chunk. | Put `verdicts_public.jsonl` in `public/`, `fetch()` it, virtualise the table (spec §5.4 already specifies `FindingsTable` as virtualised). Audit P4. |
+| 49 | `test_reproducibility.py` and `test_contamination.py` are called "blocking", but both `pytest.skip` without `data/results.duckdb` — which a fresh checkout never has. A skipped test is a green tick with nothing behind it. | `GT_REQUIRE_DB=1` turns those skips into failures; set it in `publish.yml`. |
+| 50 | `test_dod_10` runs pytest inside pytest and inherits the coverage gate, so it always fails. `test_dod_1` compares the **latest** rubric commit, so a legitimate rubric v2 fails it. | `-o addopts=`; compare the **first** rubric commit and assert separately that no post-labelling edit lacks a version bump. Audit H14. |
+| 51 | Rotation retires the oldest items, so after five rotations `cohort_intersection` returns ∅ and long-baseline drift becomes impossible. | Hold a permanent non-rotating anchor subset (~60 items) and **report** its higher contamination risk, or state that comparisons beyond four releases are unavailable. |
+
+### New Task 52 — the `00` security baseline, which no task currently builds
+
+Eight requirements from the shared foundation appear in **none** of the three plans. Each is small;
+together they are the difference between a credible public artifact and one whose supply chain a
+buyer's security team can pick apart.
+
+1. **`Dockerfile` + `docker-compose.yml`.** `00` §3.5 is a **hard constraint**: everything runs from
+   `docker compose up` on a fresh machine with no step beyond copying `.env.example`. Multi-stage,
+   non-root, read-only rootfs. No Postgres service — this repo needs none (spec §1, `00` Q4).
+2. **`SECURITY.md` and `docs/security.md`.** Task 44 *modifies* `SECURITY.md`; nothing creates it.
+   Same for `README.md`, modified by Tasks 43 and 44 and never written. Create all three.
+3. **Dependency scanning and SBOM** (`00` §8): `pip-audit` and `npm audit` in CI, Dependabot config,
+   CycloneDX SBOM generated per release and attached to the tag.
+4. **Pin the supply chain.** `actions/checkout@v4`, `astral-sh/setup-uv@v3` and every pre-commit
+   `rev:` are mutable tags. Pin to commit SHAs.
+5. **Workflow permissions.** Every workflow declares a least-privilege `permissions:` block.
+   `regression-watch.yml` is `schedule`-only, never `pull_request_target`, and — per H12 — no longer
+   holds provider keys at all.
+6. **Custom `gitleaks` rules** for `GT_.*_SEED` and `GT_HASH_SALT`. The default ruleset matches
+   neither, so the private seed and the hash salt could be committed without tripping the pre-commit
+   hook that `00` §3.4 relies on. Add `test_no_seed_value_in_any_tracked_file`.
+7. **Web hardening:** self-host the OFL fonts (`00` §5.2 forbids the Google Fonts CDN as a privacy
+   and offline-demo liability — the web tasks never mention it), and set
+   `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; …">`, because GitHub
+   Pages cannot set headers.
+8. **`vcrpy` cassettes plus a nightly live smoke test** that opens an issue on failure without
+   breaking CI (`00` §7). This is the stated mitigation for `00` B4 — models deleted without notice
+   — and `04` B6. A weekly full sweep is not a smoke test, and it will not run once quota is spent.
+
+Also state in `scripts/reproduce.py`'s header that it must never use `eval`, `pickle` or
+`yaml.load`: it parses attacker-supplied JSON and it is the one script strangers are invited to run.
+
 ## Global Constraints
 
 Every task's requirements implicitly include this section. Restated because plan files are read independently.
@@ -653,7 +703,34 @@ Expected: FAIL — module does not exist.
 
 `emit_private_verdicts_by_hash` does the same for `split='private'` but selects `items.content_hash` **instead of** `item_id`, and never touches `outputs.raw_output` or `item_fields.expected_value` — **the SQL does not select those columns at all.** The safest way not to publish something is not to read it.
 
-`emit_all` writes `leaderboard.json`, `verdicts_public.jsonl`, `verdicts_private_by_hash.jsonl`, `manifest_private.json`, `calibration.json`, `judge_agreement.json`, `regression.json` and `triage.html` into `out_dir`, stamping each with the supplied `as_of` rather than `datetime.now` — otherwise reproduction is impossible by construction.
+`emit_all(con, out_dir, *, as_of, analysis_seed)` writes `leaderboard.json`, `verdicts_public.jsonl`, `verdicts_private_by_hash.jsonl`, `manifest_private.json`, `calibration.json`, `judge_agreement.json` and `regression.json` into `out_dir`, stamping each with the supplied `as_of` rather than `datetime.now` — otherwise reproduction is impossible by construction.
+
+> **`triage.html` is NOT in that list (amended 2026-08-29, audit B2). This was the most serious
+> privacy defect in the three plans.** `emit_all` originally wrote it into `out_dir`, Task 49
+> deploys `artifacts/` to GitHub Pages, and Task 50's `test_dod_8` actively *required* it to be
+> there. The triage intake carries the client's volumes, their cost-of-error figures and — by
+> design (`04` B11) — their **verbatim words**. Under `00` §2.2 R4 that is `CLIENT_CONFIDENTIAL`,
+> which may never reach a free tier and certainly never a public web page. A paid engagement's
+> confidential task distribution would have been published, and no test forbade it:
+> `tests/test_contamination.py` checks only golden-set private items.
+>
+> Three rules, each with a test in Task 41:
+> 1. Triage output is written to **`deliverables/`**, which is **gitignored**. Add it to
+>    `.gitignore` in Phase 1 Task 1.
+> 2. The web `/triage` screen (Task 47) renders a **synthetic worked example**
+>    (`docs/triage-example.csv`), never a real engagement.
+> 3. `test_dod_8` reads `deliverables/triage.html`, not `ARTIFACTS/triage.html`.
+
+> **`analysis_seed` is required (amended 2026-08-29, audit H11).** `build_leaderboard` needs a seed
+> for the BCa bootstrap and `emit_all` had none, so regeneration drew different interval endpoints
+> and `test_published_numbers_regenerate` could never pass on byte comparison. The seed goes into
+> `leaderboard.json` and into `docs/analysis-plan.md`. Separately: `scripts/reproduce.py` is
+> stdlib-only by requirement, so it **cannot** re-run a BCa bootstrap — a stranger could recompute
+> the point estimate and nothing else, meaning the published *intervals*, which are the entire
+> brand, were not independently reproducible, and the plan did not say so. Each row therefore also
+> publishes a **percentile** interval; percentile bootstrap is ~20 lines of stdlib, so a stranger
+> regenerates it exactly. `README.md` states which numbers regenerate without our package and which
+> do not. A stated limitation beats an unverifiable claim.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
@@ -708,6 +785,13 @@ def emitted(tmp_path):
 
 
 def test_private_item_ids_never_appear_in_published_output(emitted):
+    """Depends on Phase 1's item_id fix (audit H1).
+
+    item_id was content_hash[:16] -- a PREFIX of the hash that manifest_private.json and
+    verdicts_private_by_hash.jsonl both publish -- so this assertion could never pass, and
+    the finding was real rather than a test artifact: publishing the hash published the id.
+    Phase 1 Task 8 now derives item_id = sha256(b"item-id:" + content_hash)[:16].
+    """
     con, paths = emitted
     ids = {r[0] for r in con.execute("SELECT item_id FROM items WHERE split='private'").fetchall()}
     for path in paths:
@@ -717,12 +801,20 @@ def test_private_item_ids_never_appear_in_published_output(emitted):
 
 
 def test_private_labels_never_appear_in_published_output(emitted):
+    """High-entropy field types only -- see audit M10.
+
+    The original scanned every private expected_value longer than 6 characters. Private
+    labels include "2026-09-01" (in every artifact carrying a date), "approved", and
+    PARTY_NAME strings shared with public items, so spurious failures were certain and the
+    obvious response -- raising the length threshold until it passes -- silently disables
+    the control. Restricting to MONEY / PERCENT / IDENTIFIER keeps the signal.
+    """
     con, paths = emitted
     values = {
         r[0]
         for r in con.execute(
             "SELECT f.expected_value FROM item_fields f JOIN items i ON i.item_id = f.item_id "
-            "WHERE i.split='private'"
+            "WHERE i.split='private' AND f.field_type IN ('money','percent','identifier')"
         ).fetchall()
         if len(r[0]) > 6
     }
@@ -730,6 +822,38 @@ def test_private_labels_never_appear_in_published_output(emitted):
         blob = path.read_text(encoding="utf-8")
         leaked = sorted(v for v in values if v in blob)
         assert leaked == [], f"{path.name} leaks private labels: {leaked[:5]}"
+
+
+def test_private_emitter_never_reads_the_columns_it_must_not_publish():
+    """The structural guarantee, which holds regardless of what any scan happens to catch."""
+    import inspect
+
+    from ground_truth.publish import artifacts
+
+    src = inspect.getsource(artifacts.emit_private_verdicts_by_hash)
+    for column in ("expected_value", "raw_output", "item_id"):
+        assert column not in src, f"the safest way not to publish {column} is not to read it"
+
+
+def test_triage_output_is_never_a_published_artifact(emitted):
+    """audit B2: the triage deliverable is CLIENT_CONFIDENTIAL (00 R4) and artifacts/ deploys."""
+    _, paths = emitted
+    assert not any(p.name == "triage.html" for p in paths)
+
+
+def test_no_client_quote_appears_in_any_published_artifact(emitted):
+    import csv
+
+    _, paths = emitted
+    intake_dir = REPO / "deliverables"
+    if not intake_dir.exists():
+        pytest.skip("no client intake present")
+    quotes = {r["client_quote"] for p in intake_dir.glob("*.csv")
+              for r in csv.DictReader(p.open(encoding="utf-8")) if r["client_quote"]}
+    for path in paths:
+        blob = path.read_text(encoding="utf-8")
+        leaked = sorted(q for q in quotes if q in blob)
+        assert leaked == [], f"{path.name} leaks a client's verbatim words"
 
 
 def test_private_model_outputs_never_appear_in_published_output(emitted):
@@ -881,6 +1005,17 @@ def test_methodology_defines_every_published_term():
 
 def test_required_terms_covers_the_published_vocabulary():
     assert {"accurate", "correct", "field", "item", "replicate", "split"} <= required_terms()
+
+
+def test_methodology_states_the_population():
+    """audit M1: `04` §12 requires the methodology to define every published term — the
+    missing definition was the **population**. "No claim without its sample" needs its twin:
+    no claim without its population. The corpus is synthetic; every headline number's
+    external validity to real pay applications is unmeasured, and the Scope section must
+    say so before any number does."""
+    text = METHODOLOGY.read_text(encoding="utf-8").lower()
+    for phrase in ("synthetic", "not real pay applications", "external validity"):
+        assert phrase in text, f"methodology Scope section must state: {phrase}"
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -900,6 +1035,8 @@ Expected: FAIL — module does not exist.
 
 A `## Definitions` section covering every term from `required_terms()`. Be specific exactly where the incumbents are vague: *accurate* means the deterministic grader for that field type returned `correct=True` under rubric version X; *correct* is defined per field type by the rubric, not by judgement; *item* is one synthetic pay application; *replicate* is one of five independent calls for the same (item, slot).
 
+**Audit M1.** Before the definitions, open a `## Scope` section stating the population: the corpus is **synthetic**, **not real pay applications**, generated per `docs/superpowers/plans/...-phase-1-....md` Task 8; every headline number's **external validity** to real invoices is unmeasured and unmeasured-by-design at this stage. "No claim without its sample" needs its twin — no claim without its population.
+
 - [ ] **Step 5: Write `CHANGELOG.md`**
 
 Keep-a-Changelog format, first entry this release. Record the release rule at the top: **numbers are never silently edited; a corrected number appears as a new dated entry with the superseded value shown struck through.**
@@ -911,7 +1048,7 @@ Renders `docs/methodology.md` to HTML for the site and — importantly — injec
 - [ ] **Step 7: Run the test to verify it passes**
 
 Run: `uv run pytest tests/publish/test_leaderboard.py -v`
-Expected: PASS, 8 passed.
+Expected: PASS, 9 passed.
 
 - [ ] **Step 8: Commit**
 
@@ -1733,8 +1870,17 @@ def test_dod_7_regression_watch_scheduled_and_alerts_state_their_test():
 
 
 def test_dod_8_triage_produced_end_to_end_with_sensitivity():
-    body = (ARTIFACTS / "triage.html").read_text(encoding="utf-8")
+    """Reads deliverables/, NOT artifacts/ -- audit B2. The triage report is
+    CLIENT_CONFIDENTIAL and artifacts/ is deployed to a public web page."""
+    path = REPO / "deliverables" / "triage.html"
+    if not path.exists():
+        pytest.skip("no triage engagement delivered yet")
+    body = path.read_text(encoding="utf-8")
     assert "costs more than" in body and "n=" in body
+    assert "synthetic" in body.lower(), (
+        "audit M8: the report must state that its accuracy was measured on a synthetic "
+        "corpus, not on this client's documents"
+    )
 
 
 def test_dod_9_public_leaderboard_ships_its_whole_evidence_chain():
@@ -1748,9 +1894,13 @@ def test_dod_9_public_leaderboard_ships_its_whole_evidence_chain():
 
 
 def test_dod_10_reproducibility_test_runs_and_does_not_skip():
+    # -o addopts= is load-bearing (audit H14): without it the nested run inherits the parent's
+    # options, measures coverage from three tests, scores far under any floor, and exits
+    # non-zero after passing. A nested run must never carry the parent's gate.
     result = subprocess.run(
-        ["uv", "run", "pytest", "tests/test_reproducibility.py", "-v", "--no-header"],
-        cwd=REPO, capture_output=True, text=True,
+        ["uv", "run", "pytest", "tests/test_reproducibility.py", "-v", "--no-header",
+         "-p", "no:cacheprovider", "-o", "addopts="],
+        cwd=REPO, capture_output=True, text=True, env={**os.environ, "GT_REQUIRE_DB": "1"},
     )
     assert result.returncode == 0, result.stdout
     assert "skipped" not in result.stdout.lower(), (
