@@ -16,4 +16,4 @@ jobs:
           if grep -rn "float(" ground_truth/graders/ ground_truth/triage/ 2>/dev/null; then
             echo "float() is forbidden in the money path"; exit 1
           fi
-      - run: uv run pytest -v
+      - run: uv run pytest -v --cov=ground_truth --cov-report=term-missing --cov-fail-under=75
