@@ -29,18 +29,21 @@ def test_no_task_registry():
     for path in _py_files(SRC):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id in BANNED_NAMES
-            ):
-                offenders.append(f"{path}: call to {node.func.id}()")
+            # Catch bare-name references: calls, attributes, decorators, assignments
+            if isinstance(node, ast.Name) and node.id in BANNED_NAMES:
+                offenders.append(f"{path}: bare reference to {node.id}")
             if isinstance(node, ast.Attribute) and node.attr in BANNED_NAMES:
                 offenders.append(f"{path}: attribute .{node.attr}")
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 mod = getattr(node, "module", None) or ""
                 names = [a.name for a in node.names]
-                if mod in BANNED_MODULES or any(n in BANNED_MODULES for n in names):
+                # Check exact module, imported names, and combined form (e.g. importlib.metadata)
+                combined = [f"{mod}.{n}" for n in names] if mod else []
+                if (
+                    mod in BANNED_MODULES
+                    or any(n in BANNED_MODULES for n in names)
+                    or any(c in BANNED_MODULES for c in combined)
+                ):
                     offenders.append(f"{path}: imports {mod or names}")
     assert offenders == [], TRAP + "\n" + "\n".join(offenders)
 
@@ -50,16 +53,23 @@ def test_no_module_scope_callable_registry():
     for path in _py_files(SRC):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in tree.body:
-            if not isinstance(node, ast.Assign):
+            # Check both ast.Assign (PLUGINS = {...}) and ast.AnnAssign (PLUGINS: dict = {...})
+            is_assign = isinstance(node, ast.Assign)
+            is_annassign = isinstance(node, ast.AnnAssign) and node.value is not None
+            if not (is_assign or is_annassign):
                 continue
+            dict_value = node.value if (is_assign or is_annassign) else None
             if (
-                isinstance(node.value, ast.Dict)
-                and node.value.keys
+                isinstance(dict_value, ast.Dict)
+                and dict_value.keys
                 and all(
-                    isinstance(v, (ast.Name, ast.Attribute, ast.Lambda)) for v in node.value.values
+                    isinstance(v, (ast.Name, ast.Attribute, ast.Lambda)) for v in dict_value.values
                 )
             ):
-                target = getattr(node.targets[0], "id", "<expr>")
+                if is_assign:
+                    target = getattr(node.targets[0], "id", "<expr>")
+                else:  # is_annassign
+                    target = getattr(node.target, "id", "<expr>")
                 offenders.append(f"{path}: module-scope dict[str, Callable] named {target}")
     assert offenders == [], TRAP + "\n" + "\n".join(offenders)
 
