@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
+.coverage
 htmlcov/
 data/*.duckdb
 golden/corpus/private/
