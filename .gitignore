@@ -3,3 +3,6 @@ __pycache__/
 node_modules/
 .env
 .DS_Store
+
+# Source briefs: 00 R4 CLIENT_CONFIDENTIAL / commercial terms. Never committed.
+Starting_Documents/

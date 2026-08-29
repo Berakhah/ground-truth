@@ -17,6 +17,22 @@ The briefs win over anything summarised here. This file exists so a fresh sessio
 
 superpowers, in order: `brainstorming` → `using-git-worktrees` → `writing-plans` → `subagent-driven-development` → `test-driven-development` → `requesting-code-review` → `verification-before-completion`. TDD is RED-GREEN-REFACTOR, no exceptions.
 
+## Skill map
+
+Phase-triggered, not a catalog — each entry is gated because this project's own audit history shows what happens without it, not as generic advice.
+
+- **Golden set / rubric authoring** → `writing-plans`. The rubric is versioned and published *before* labelling starts, never reverse-engineered from labelled items.
+- **Any publish step touching `golden/`, `triage/`, or the private split** → `security-review`, mandatory. This repo has already leaked confidential client data once — `triage.html` published to GitHub Pages, caught in the 2026-08-29 audit — this gate exists because of that incident, not in the abstract.
+- **New code in `graders/`, `runner/`, `stats/`, `calibrate/`** → `test-driven-development`. RED-GREEN-REFACTOR, no exceptions (restates the Workflow line — this is where it actually bites).
+- **`stats/` changes, before merge** → `code-review` at high or max effort. This module has already produced two audit-caught arithmetic bugs (Krippendorff's alpha test misalignment, sequential-testing boundary constant) — treat it as the highest-risk directory in the repo, not just another module.
+- **`judge/` design** (prompt construction, output parsing, model selection) → the `claude-api` skill. Judge harnesses are LLM-facing code with the provider often left unstated; don't answer pricing/limits/behaviour questions from memory.
+- **`judge/` prompts built from invoice or pay-application text** → the prompt-injection controls in `agent-security-super-skill`. Untrusted document content flows directly into a judge prompt; treat it as adversarial input, not trusted context.
+- **`matrix/` cost figures** → fetch and cite a dated source for every list price. No hardcoded or remembered numbers — rule 5 exists because a fabricated cost comparison is the exact failure this programme corrects.
+- **Any chart** — leaderboard intervals, calibration curves, confusion matrix, regression-watch plots → `dataviz`, read before the first line of chart code, not after the first draft looks wrong.
+- **`web/`** — component and screen work → `frontend-design`, plus the TypeScript/React reviewer skills for anything touching `.tsx`.
+- **Any bug, failed test, or regression alert** → `systematic-debugging` before proposing a fix. Root cause, not the symptom the alert named.
+- **Start of any session** → check auto-memory / `mem-search` before re-deriving context. This project already has a documented 46-defect audit; don't rediscover what's already logged.
+
 ## The single most important instruction
 
 **Do not build an eval platform.** The category fails structurally: the buyer must be technical enough to want APIs but not technical enough to run their own evals — a narrow band — and the feature keeps getting absorbed into observability tooling.

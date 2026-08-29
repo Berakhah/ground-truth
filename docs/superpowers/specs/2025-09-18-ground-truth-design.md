@@ -190,6 +190,28 @@ The boundary is a filesystem fact, not a code check:
 - `golden/corpus/private/` — **gitignored.** Only `manifest_private.json` is committed: hashes, count, generation date. Nothing else.
 - **The private generator seed is never committed.** Publishing the seed alongside the generator would let anyone reconstruct the private split exactly. The seed lives in `.env`, is backed up outside the repo, and `docs/methodology.md` states that it is withheld and why.
 
+**Amended 2026-08-29 (audit B4). Secrecy is not enough; the commitment needs entropy and a salt.**
+Two defects, both fatal to this section's claim:
+
+1. **Public and private items must be generated from two independent seeds, into two disjoint
+   corpora.** A single 300-item pool split by `assign_splits(..., seed=GT_PUBLIC_SEED)` — where
+   `.env.example` ships `GT_PUBLIC_SEED=42` — makes every private item reconstructible *with its
+   labels* from committed data alone. `assign_splits` is restricted to the public pool.
+2. **`content_hash = sha256(f"{seed}:{n}:{payload}")` is a commitment over a fully enumerable
+   message space,** because `generate.py` is published (§13.1) and the repo is public from commit
+   one (`00` §12 Q5). Its strength is therefore *exactly the seed's entropy*: a 32-bit seed is
+   4.3e9 generator runs to invert, which is brute-forceable. Published hashes become
+   `sha256(salt || canonical_item_bytes)` with a 128-bit `GT_HASH_SALT` in `.env`, revealed only
+   when an item is disclosed. `build.py` refuses any seed or salt under 32 hex characters.
+
+Two tests carry this: `test_public_seed_cannot_regenerate_any_private_item` and
+`test_seeds_and_salt_meet_the_entropy_floor`. `docs/methodology.md` states the salt scheme and the
+entropy floor in place of "the seed is withheld" — a claim that survives the repo being public.
+
+Relatedly (**audit H1**), `item_id` was `content_hash[:16]`, so publishing the hash published the
+id and `test_private_item_ids_never_appear_in_published_output` could never pass. `item_id` is now
+`sha256(b"item-id:" + content_hash)[:16]`, putting preimage resistance between the two namespaces.
+
 Rotation: 20% of private (36 items) regenerated from a fresh seed at each published release, minimum quarterly. New hashes published at generation time, proving existence at a date without revealing content.
 
 **Reproducibility without revealing.** For the public split, publish outputs *and* verdicts. For the private split, publish **verdicts keyed by item hash only** — grade, grader id, grader version, rubric version. Never item content, never model output (output leaks the item). The reproducibility test then regenerates every headline aggregate from published verdicts plus the published analysis script, on both splits, without exposing a single private item.
@@ -231,8 +253,18 @@ Statistics code without tests is how a benchmark becomes fiction. Each module be
 
 Cohen's kappa (two raters, nominal) and Krippendorff's alpha (any number of raters, tolerates the missing-data pattern a partial second labeller produces).
 
-- `test_krippendorff_alpha_matches_published_worked_example` — Krippendorff's canonical example, to 3dp.
-- `test_cohens_kappa_zero_on_independent_raters`.
+- `test_krippendorff_alpha_matches_published_worked_example` — Krippendorff's canonical example (3 observers, 12 units, **with missing data**), to 3dp. The missing-data pattern is the point: it is the shape a partial second labeller produces (`04` B1), and Cohen's kappa cannot consume it.
+- `test_krippendorff_alpha_matches_hand_derivable_two_rater_table` — a second anchor, fully derivable by hand: 15 units, 2 raters, 13 agreements, `D_o = 4`, `D_e = 664/29`, **alpha = 0.8253**.
+- `test_cohens_kappa_zero_on_independent_raters`, `test_cohens_kappa_matches_worked_example` (Po=0.70, Pe=0.50, kappa=0.40 — re-derived and correct).
+
+> **Corrected 2026-08-29 (audit B5).** Plan 2 Task 26 asserted `alpha == 0.743` against a
+> 2-observer / 15-unit / no-missing-data table. Re-deriving the coincidence matrix for exactly
+> those ratings gives **0.8253**, so the test fails — and it mislabels itself, because 0.743 is
+> the *3-observer, 12-unit, missing-data* canonical example, not this one. That matters more than
+> an ordinary wrong constant: alpha drives the pre-registered judge rejection threshold (§8.2), so
+> an implementer bending the estimator to reach 0.743 would put every published accept/reject
+> decision on a broken statistic. Keep **both** anchors — one worked example is not a validation.
+> Evidence: `docs/superpowers/reviews/verify/verify_stats.py`.
 
 Prefer the `krippendorff` PyPI package **only after verifying its licence is permissive** (`00` §3). Nominal alpha is ~40 lines if it is not.
 
@@ -247,8 +279,42 @@ Benjamini–Hochberg via `scipy.stats.false_discovery_control`, wrapped to carry
 
 **Alpha-spending on a pre-declared analysis calendar.** Thirteen weekly looks per quarter, O'Brien–Fleming spending across them, re-registered each quarter. Chosen over always-valid confidence sequences because it is standard machinery, implementable and testable inside a six-week phase, and explicable on a methodology page to a non-statistical buyer. An unscheduled look costs alpha and must be declared.
 
-- `test_sequential_controls_type_i_under_null` — 2,000 null trajectories x 13 looks; proportion with *any* rejection <= 0.05 + Monte Carlo error.
-- `test_fixed_threshold_inflates_alpha` — the same simulation under a naive per-look threshold, asserting it materially exceeds 0.05. This test makes the methodology page's central claim executable rather than rhetorical.
+> **Corrected 2026-08-29 (audit B3). The original construction did not control alpha, and its two
+> null simulations measured the wrong process.** Plan 2 Task 34 specified the boundary as
+> `norm.ppf(1 - alpha/2) / sqrt(t)`. The O'Brien–Fleming boundary is `C / sqrt(t)` where **C is
+> solved so the overall type-I error equals alpha** — it is not `z_{alpha/2}`. Using 1.96 spends
+> the full alpha at the final look alone, before any interim look is counted.
+>
+> Simulated over 200,000 correlated Brownian trajectories (`corr(Z_j,Z_k) = sqrt(t_j/t_k)`), 13 looks:
+>
+> | Procedure | True type-I error |
+> |---|---|
+> | The original boundary (C = 1.960) | **0.0721** against a nominal 0.05 |
+> | Correctly calibrated (C = 2.1023) | 0.0500 |
+> | Naive fixed 1.96 at every look | 0.2153 |
+>
+> Both tests also drew **13 independent** normals per trial. Sequential looks accumulate on the
+> same data and are highly correlated; independent draws are a different stochastic process.
+> Under that wrong simulation `test_sequential_controls_type_i_under_null` returns **0.1794**
+> against its own `<= 0.06` assertion (it fails), and `test_fixed_threshold_inflates_alpha`
+> returns **0.4867** — which Task 34 Step 5 instructed be published on the methodology page as a
+> measured finding. The truthful figure is **0.2153**. Publishing 0.487 would have been this
+> programme's own §2 failure, arriving from inside.
+>
+> **The corrected design.** Alpha spending is the Lan–DeMets O'Brien–Fleming function, a correct
+> closed form in one line: `alpha(t) = 2 * (1 - Phi(z_{alpha/2} / sqrt(t)))`. Verified cumulative
+> spend: look 4 -> 0.000410, look 7 -> 0.007563, look 10 -> 0.025437, look 13 -> 0.050000 exactly —
+> monotone and totalling alpha with no normalisation fudge, which also removes the tautology in the
+> old `spent_alpha` test. The boundary constant `C_OBF_13_LOOKS = 2.1023` is calibrated once by
+> simulation and committed *with that simulation as its test*; requesting any other calendar or
+> alpha raises, because the constant is calibrated for the pre-registered calendar only.
+>
+> This changes `docs/analysis-plan.md`, which freezes before the first sweep. **Settle it before
+> the freeze.** Evidence: `docs/superpowers/reviews/verify/verify_seq.py`.
+
+- `test_sequential_controls_type_i_under_null` — 20,000 **correlated Brownian** trajectories x 13 looks; proportion with *any* rejection <= 0.055.
+- `test_fixed_threshold_inflates_alpha` — the same correlated simulation under a naive per-look threshold, asserting `0.18 <= rate <= 0.25`. **This is the figure that goes on the methodology page.** The test makes the page's central claim executable rather than rhetorical, which is exactly why the simulation behind it has to be the right one.
+- `test_calibrated_constant_controls_alpha` — binary-searches `C` under the same simulation and asserts the committed constant lands within Monte Carlo error of nominal alpha.
 
 ### 7.5 `mde.py`
 
@@ -327,10 +393,18 @@ A CSV, not an importer framework. Columns: `intent`, `volume_per_month`, `curren
 Per intent, comparing automate against route-to-human:
 
 ```
-EV = volume * [ accuracy * saving_per_item
-              - (1 - accuracy) * cost_of_error
-              - automation_cost_per_item ]
+EV = volume * [ accuracy * (current_cost_per_item - automation_cost_per_item)
+              - (1 - accuracy) * cost_of_error ]
 ```
+
+**Corrected 2026-08-29 (audit M7).** This read
+`accuracy * saving_per_item - (1-accuracy)*cost_of_error - automation_cost_per_item`,
+which subtracts `automation_cost_per_item` **twice** — once inside `saving_per_item` and again
+as a standalone term. Plan 1 Task 19's implementation was already correct; the spec was wrong.
+The formula is rendered into the client-facing report with the numbers substituted, so the error
+would have been published in a paid deliverable. `test_report_formula_matches_the_implementation`
+now asserts the rendered string is generated from the expression the code evaluates rather than
+typed into the template.
 
 Where the two derived terms come from, so the formula is unambiguous:
 
@@ -352,6 +426,25 @@ That paragraph is the product. A `never_automate` override fires on unbounded-er
 ### 11.4 Report
 
 HTML with a print stylesheet, rendered to PDF through the browser. No PDF library. One page per intent plus a summary table, with the calculation shown.
+
+**The triage report is `CLIENT_CONFIDENTIAL` and is never published (added 2026-08-29, audit B2).**
+The intake carries the client's volumes, their cost-of-error figures, and — by design (`04` B11) —
+their **verbatim words**. Under `00` §2.2 R4 that is `CLIENT_CONFIDENTIAL`, which may never reach
+a free tier and must never reach a public web page. Plan 3 Task 40 routed `triage.html` into
+`artifacts/` and Task 49 deployed `artifacts/` to GitHub Pages, so a paid engagement's confidential
+task distribution would have been published. Three rules, each with a test:
+
+- Triage output is written to `deliverables/`, which is **gitignored**. `emit_all` never writes it.
+- The web `/triage` screen renders a synthetic worked example (`docs/triage-example.csv`), never a
+  real engagement.
+- `test_triage_output_is_never_a_published_artifact` and
+  `test_no_client_quote_appears_in_any_published_artifact` walk the real emitted files.
+
+The report must also state what its accuracy figure was measured on (**audit M8**): a synthetic
+corpus, not the client's documents. `render_report` refuses to render without that provenance
+string, because multiplying the client's real volumes by our synthetic accuracy and presenting the
+product as a dollar recommendation is the one place this deliverable could mislead a buyer who
+trusted it.
 
 ### 11.5 The legality gate
 
@@ -411,6 +504,17 @@ Ground Truth **does not build the substrate**. It designs against these interfac
 
 Rubric · public split · grader code · analysis scripts · raw results (public split) · verdicts-by-hash (private split) · private hash manifest · changelog · methodology · right-of-reply process.
 
+**Never published:** the triage report or any client intake (§11.4) · private item content · any
+model output on a private item · the private generator seed or the hash salt (§5.4).
+
+Publication also carries the analysis seed (**audit H11**): `emit_all(con, out_dir, *, as_of,
+analysis_seed)`, with the seed recorded in `leaderboard.json` and in `docs/analysis-plan.md`.
+Without it the bootstrap endpoints differ between runs and `test_published_numbers_regenerate`
+cannot pass. Because `scripts/reproduce.py` is stdlib-only and cannot re-run a BCa bootstrap, each
+row publishes a **percentile** interval alongside the BCa one — percentile bootstrap is ~20 lines
+of stdlib, so a stranger regenerates it exactly. `README.md` states plainly which numbers
+regenerate without our package and which do not. A stated limitation beats an unverifiable claim.
+
 ### 13.2 Publication rules
 
 - **No claim without its sample.** Every headline number carries its `n` and its interval.
@@ -448,7 +552,19 @@ Drift is detected statistically, never by threshold: bootstrap CI on the score, 
 
 ## 15. Run economics
 
-300 items x 6 slots x 5 replicates = **9,000 calls per full sweep.** Design consequences:
+300 items x 6 slots x 5 replicates = **9,000 extraction calls**, plus **5,400 judge calls**
+(300 x 6 x 3 — the judge scores the *modal* output per `(item, slot)`, not every replicate) =
+**14,400 calls per full sweep.**
+
+**Corrected 2026-08-29 (audit H8).** This section previously said 9,000 and omitted the judge
+entirely. Plan 2 Task 24 as written called `sample_judgements` per `(output, field)` with n>=3,
+which is 300 x 6 x 5 x 3 = **27,000** judge calls — a 4x underestimate of the free-tier budget,
+in the week that already carries the full sweep. Judging the modal output per `(item, slot)`
+costs 5,400 and loses nothing: replicate variance is already captured by the deterministic
+graders and by the calibration signal, and judging five near-identical strings measures the
+same string five times. `test_judge_samples_are_one_output_per_item_slot` enforces it.
+
+Design consequences:
 
 - Batched scheduling across providers with different limits; governor-aware dispatch; overnight runs; a documented run schedule in `docs/methodology.md`.
 - **Response cache disabled for benchmark execution** (§12) — replicate variance is the measurement.
@@ -524,3 +640,84 @@ Coverage floor 75%. Coverage is a floor, not a goal.
 | Judge agreement below alpha=0.667 on `LINE_ITEM_DESCRIPTION` | week 23 | Publish the rejection; that field type scores deterministically or is marked *not measured*. Designed for, not a failure |
 | Week 23 slips | week 23 | Blind re-label round 2 slips with it; intra-rater agreement is not reportable in this phase. Say so rather than shortening the gap |
 | Client pressure to widen the harness to their other task types | week 22+ | The non-goal guard tests fail the change. Escalate rather than accommodate — this is the platform trap wearing a cheque |
+| **Every model scores ~1.00 and no pair is distinguishable** | week 23 | Not a sample-size result — a ceiling effect from a corpus whose document is a key→value dump using the requested JSON keys (§20 A8). Verify the corpus is a real extraction task **before** attributing a flat leaderboard to n |
+| **A slot scores 180/180 and publishes `[1.000, 1.000]`** | week 24 | The bootstrap's degenerate branch, not a real zero-width interval (§20 A6). Exact binomial interval; correct lower bound at 180/180 is 0.9835 |
+
+---
+
+## 20. Review amendments — 2026-08-29
+
+Full evidence, severity and per-finding fixes: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**.
+Every numeric claim there was re-derived or simulated; reproduce with
+`docs/superpowers/reviews/verify/` (stdlib only, no dependencies, no network).
+
+The architecture survived the review unchanged. The two-phase split, the non-goal AST guards, the
+pre-registration chaining, the fail-closed commercial gate and the decision to publish the judge's
+weakness are all correct. What follows are defects in the arithmetic, in three payload and
+identifier bugs, and in what the plans forgot to build.
+
+### Amendments folded into this spec
+
+| # | Amendment | Section |
+|---|---|---|
+| A1 | EV formula double-counted `automation_cost_per_item`; the spec was wrong and the plan was right | §11.2 |
+| A2 | Run economics omitted the judge entirely: 9,000 → **14,400** calls, with the judge scoring the modal output per `(item, slot)` rather than every replicate | §15 |
+| A3 | Public and private corpora need **two independent seeds**; the published manifest needs a **128-bit salt**, because the commitment's message space is fully enumerable from published code | §5.4 |
+| A4 | `item_id` was a prefix of the published `content_hash` | §5.4 |
+| A5 | O'Brien–Fleming used `z_{α/2}` where the calibrated constant is **2.1023**; both null simulations drew independent rather than correlated normals; the methodology-page figure was **0.487** where the truth is **0.215** | §7.4 |
+| A6 | Krippendorff test expected 0.743 against data that yields **0.8253**, and mislabelled itself as the canonical example | §7.2 |
+| A7 | The triage report is `CLIENT_CONFIDENTIAL` and was routed into the deployed `artifacts/` directory | §11.4, §13.1 |
+| A8 | Publication now carries the **analysis seed**, plus a percentile interval so a stdlib-only stranger can reproduce the intervals and not merely the point estimates | §13.1 |
+
+### Amendments that land in the plans, not here
+
+These change task steps rather than design. They are listed so the spec records the full set.
+
+**Blocking:** the runner sends `item.content_hash` where `render_document(item)` belongs, so the
+entire sweep would measure a model's ability to extract fields from a hex string (audit B1). Once
+fixed, the rendered document is still a key→value dump whose keys are the requested JSON keys —
+a string-copy task, not extraction (audit M1). Both are Plan 1, Tasks 8 and 15.
+
+**High:** `--cov-fail-under` in `addopts` makes ~50 per-task verification steps exit non-zero after
+passing (H2) · `mypy --strict` fails for want of `types-PyYAML` and module overrides (H13) ·
+judge execution under `graders/` breaks `test_phase2_imports_no_gateway` (H3) · `parse_judgement`
+inverts the verdict on any prose negation (H4) · the flip-point test cannot pass at a 5.00 grid
+step (H6) · `runs.resolved_model_ref` and `models_yaml_hash` are placeholder literals, and `Handle`
+has no field to carry the resolved reference (H7) · the sweep resume path is wired to nothing and
+would duplicate work rather than resume (H9) · `build_leaderboard` has no parameter for the judge
+rejection it is required to honour (H10) · the regression watch cannot run in GitHub Actions,
+because the private corpus and results DB are both gitignored (H12) · `test_dod_10` runs pytest
+inside pytest and inherits the coverage gate (H14).
+
+**Medium:** three of six `ErrorClass` members are labelled but never injected · the BH null test
+measures the per-comparison rate rather than FDR · order and length effects publish bare numbers
+against this project's own "no claim without its sample" rule · `parse_decimal` silently strips
+currency and prose, so `"1234.56 EUR"` grades equal to USD 1234.56 · the Phase 1 triage report
+presents synthetic accuracy as the client's · `DATE_LOCALE_AMBIGUOUS` items are unanswerable by
+construction · the contamination label scan will fire on innocent short values · `example.invalid`
+placeholders satisfy the provenance test · timestamps are naive, including the pre-registration
+proof · `list_price > 0` forces inventing a price for genuinely free models.
+
+**Security gaps against `00`, absent from all three plans:** no `Dockerfile` or `docker-compose.yml`
+(§3.5 is a hard constraint) · no `pip-audit`, `npm audit`, Dependabot or SBOM (§8) · nothing
+*creates* `SECURITY.md`, `docs/security.md` or `README.md` · provider keys in Actions on a public
+repo with no `permissions:` block · mutable action and pre-commit pins · no CSP and no self-hosted
+fonts (§5.2) · no `vcrpy` cassettes and no nightly smoke test, which is the stated mitigation for
+`00` B4 · `gitleaks` will not match `GT_*_SEED`.
+
+**Performance:** the sweep is fully serial across providers with independent rate limits, where
+one worker per provider is roughly a 6× reduction (`04` B8 requires this and the design states but
+does not implement it) · ~144,000 single-row DuckDB inserts in `grade.py` · slow simulations run on
+every invocation · the item explorer static-imports ~57,600 rows on the false premise that a static
+export forbids `fetch()`.
+
+### Sequencing consequence
+
+**A5 and A6 change `docs/analysis-plan.md`, which §7.6 freezes before the first sweep.** Settle
+both before the freeze. Fixing them afterwards means the first release ships an amended plan and a
+changelog entry saying why — survivable, and honest. Discovering them after publication is not.
+
+Order of work: **B1 · B2 · A3 · A4 · H7 · A2 · M1 · M2** before any provider call, because they
+change what gets measured or leaked. **A5 · A6 · H4 · H5 · H10 · M3 · M5 · M6 · A1 · M8** before
+any number is published, because they change what the numbers mean. **H2 · H13** first of all, or
+nothing runs.

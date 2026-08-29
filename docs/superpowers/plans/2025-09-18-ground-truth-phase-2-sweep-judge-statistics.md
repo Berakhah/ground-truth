@@ -14,6 +14,31 @@
 
 **Phase deliverable:** leaderboard-ready numbers with intervals, a published judge-agreement table including where the judge was rejected, and a calibration export file.
 
+## Review amendments — 2026-08-29 (read before Task 23)
+
+Audit: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**. Every numeric claim was
+re-derived or simulated; reproduce with `docs/superpowers/reviews/verify/` (stdlib only). Fixes are
+folded into the tasks below.
+
+| Task | Was | Now |
+|---|---|---|
+| 23 | `pending_work` and `plan_batches` produce `WorkUnit`s that **nothing consumes**. `execute_sweep` takes items and slots and writes replicates `1..n` under a fresh `run_id` each call, so "re-run the identical command to resume" would **duplicate** every completed call and double the quota spend. | `execute_sweep(units, …)`, one `run_id` per `(sweep_id, slot)`; `test_resuming_does_not_duplicate_rows`. Audit H9. |
+| 23 | The sweep is fully serial: 14,400 calls one at a time, every provider idle but one. `04` B8 requires batched scheduling across providers with different limits — stated, never implemented. | One worker **per provider** (`ThreadPoolExecutor(max_workers=len(providers))`), which preserves per-provider rate-limit semantics and is ~6× faster. DuckDB connections are not thread-safe: give each worker `con.cursor()` and funnel writes through one queue. Audit P1. |
+| 24 | Judge execution under `graders/` breaks `test_phase2_imports_no_gateway` — the declared degraded-mode floor fails its own test. | Moved to `ground_truth/judge_runner.py`. Audit H3. |
+| 24 | 27,000 judge calls the plan never counted; the real sweep was 36,000, not 9,000. | Judge the modal output per `(item, slot)`: 5,400, total 14,400. Audit H8. |
+| 24 | Presentation order seeded from Python's `hash()`, which is randomised per process — so the order is irreproducible and no seed is recorded. | `sha256` of a stable string. Audit H4 note. |
+| 25 | `parse_judgement` **inverts the verdict** on `"not equivalent"`, `"NOT EQUIVALENT"`, `"Not-equivalent"` and any prose negation. | Word-boundary regex; ambiguity → `INCONCLUSIVE`. Audit H4. |
+| 25 | `OrderEffect` and `LengthEffect` publish bare numbers with no interval, and `n` counts samples rather than outputs — against this project's own "no claim without its sample" rule, on the Judge screen. | Cluster over `output_id`; attach an `Interval` to `difference` and to each quintile rate. Audit M5. |
+| 26 | Krippendorff test expected **0.743** against data that yields **0.8253**, and mislabelled itself as the canonical example. | Two anchors: the hand-derivable table at 0.8253, and the real canonical 3-observer example. Audit B5. |
+| 28 | The "FDR" null test computed the **per-comparison** rate, so it passed for almost any procedure. | Complete-null FWER, plus a with-effects `E[V/max(R,1)]` test. Audit M3. |
+| 31 | `build_leaderboard` had no parameter for the judge rejection it was required to honour. | `judge_decisions` table, joined. Audit H10. |
+| 34 | **The O'Brien–Fleming boundary used `z_{α/2}` (true α = 0.0721), both null simulations drew independent rather than correlated normals, one of them fails outright at 0.179, and Step 5 instructed publishing 0.487 where the truth is 0.215.** | Calibrated `C = 2.1023`, Lan–DeMets spending function, correlated Brownian simulations. **Audit B3 — the most consequential defect in the three plans.** |
+
+**Sequencing:** Task 26's threshold and Task 34's calendar are both written into
+`docs/analysis-plan.md`, which Phase 1 §7.6 freezes **before the first sweep**. B3 and B5 change
+that document. Settle them before the freeze, or the first release ships an amended plan plus a
+changelog entry saying why — survivable and honest, unlike discovering it after publication.
+
 ## Global Constraints
 
 Every task's requirements implicitly include this section. Identical to Phase 1's, restated because plan files are read independently.
@@ -198,9 +223,31 @@ git commit -m "feat: resumable quota-aware sweep scheduling"
 ### Task 24: Judge execution — constrained output and recorded presentation order
 
 **Files:**
+- Create: `ground_truth/judge_runner.py`  ← **not** `graders/judge/prompt.py`; see the note below
 - Create: `ground_truth/graders/judge/__init__.py`
-- Create: `ground_truth/graders/judge/prompt.py`
-- Test: `tests/graders/judge/test_prompt.py`
+- Test: `tests/test_judge_runner.py`
+
+> **Relocated 2026-08-29 (audit H3).** This task originally created
+> `ground_truth/graders/judge/prompt.py`, which imports `_bok_shim`. `test_phase2_imports_no_gateway`
+> walks every module in `PHASE_2_MODULES` — which includes `"graders"` — recursively, and fails on
+> any import containing `gateway` or ending `_bok_shim`. So the moment the judge landed, Ground
+> Truth's **declared degraded-mode floor** (contract amendment A4, "zero gateway calls in phase 2",
+> the strongest of the four repos' claims) would have failed its own test.
+>
+> The architecture was right and only the address was wrong: judge *sampling* is phase 1, judge
+> *aggregation* is phase 2. Execution therefore lives at `ground_truth/judge_runner.py`, beside
+> `runner.py`. `graders/judge/` keeps `aggregate.py` (Task 25) and `agreement.py` (Task 27), both
+> pure and both correctly inside the phase-2 tree.
+
+> **Call budget corrected 2026-08-29 (audit H8).** `sample_judgements` was called per
+> `(output, field)` with n>=3 — 300 x 6 x 5 x 3 = **27,000 judge calls** on top of the 9,000-call
+> sweep, in the week that already carries that sweep. Spec §15 stated 9,000 total and sized the
+> entire free-tier schedule around it; the real figure was 36,000. The judge now scores the
+> **modal output per `(item, slot)`**: 300 x 6 x 3 = **5,400**, for a total of 14,400. Nothing is
+> lost — replicate variance is already captured by the deterministic graders and by the calibration
+> signal, and judging five near-identical strings measures the same string five times.
+> `test_judge_samples_are_one_output_per_item_slot` asserts
+> `count(DISTINCT output_id) == n_items * n_slots`.
 
 **Interfaces:**
 - Consumes: `_bok_shim.{Handle, Labelled, Sensitivity, CallContext, CacheMode, FailoverMode}`, `providers.load_slots`, `store.db`, `golden.schema.ItemField`.
@@ -373,9 +420,14 @@ def sample_judgements(
             "A fallback cannot judge; report the field type as not measured instead."
         )
     for i in range(n):
-        presentation = randomise_presentation(
-            field.expected_value, observed, seed=hash((output_id, field.field_name, i)) & 0xFFFF
+        # audit: never Python's hash() here. str hashing is randomised per process
+        # (PYTHONHASHSEED), so the presentation order would be irreproducible across runs and
+        # judge_samples.presentation_order could never be regenerated -- which defeats both the
+        # reproducibility test and spec 8.1's "randomised with a RECORDED seed".
+        order_seed = int.from_bytes(
+            hashlib.sha256(f"{output_id}:{field.field_name}:{i}".encode()).digest()[:4], "big"
         )
+        presentation = randomise_presentation(field.expected_value, observed, seed=order_seed)
         payload = Labelled(
             value=build_judgement_prompt(field, presentation),
             sensitivity=Sensitivity.SYNTHETIC,
@@ -527,7 +579,36 @@ Expected: FAIL — module does not exist.
 
 - [ ] **Step 3: Write `ground_truth/graders/judge/aggregate.py`**
 
-`parse_judgement` upper-cases and strips, then checks `"NOT_EQUIVALENT" in text` **before** `"EQUIVALENT" in text` — order matters, because the second is a substring of the first — returning `INCONCLUSIVE` otherwise.
+> **Corrected 2026-08-29 (audit H4). The substring form inverts the verdict on any prose negation.**
+> Checking `"NOT_EQUIVALENT" in text` before `"EQUIVALENT" in text` is right for the underscore
+> token and wrong for everything a model actually emits. Verified:
+>
+> | Judge response | Old parse | |
+> |---|---|---|
+> | `NOT_EQUIVALENT` | NOT_EQUIVALENT | correct |
+> | `not equivalent` | **EQUIVALENT** | inverted |
+> | `They are not equivalent.` | **EQUIVALENT** | inverted |
+> | `NOT EQUIVALENT` | **EQUIVALENT** | inverted |
+> | `Not-equivalent` | **EQUIVALENT** | inverted |
+>
+> A judge that obeys "reply with exactly one token" only some of the time then produces a
+> **systematically biased** verdict set — biased toward flattering the model under test — and the
+> bias is invisible in the agreement statistic, because the human labels are compared against the
+> corrupted parse. Every row above joins the parametrised table, plus
+> `"EQUIVALENT, but not really"` → `INCONCLUSIVE`.
+
+`parse_judgement` anchors on word boundaries and tolerates space or hyphen in place of the underscore. Anything absent, or ambiguous because both tokens appear, is `INCONCLUSIVE` — which this design already treats as a first-class outcome rather than an error.
+
+```python
+_TOKEN = re.compile(r"\bNOT[\s_\-]?EQUIVALENT\b|\bEQUIVALENT\b")
+
+def parse_judgement(raw: str) -> JudgeVerdict:
+    hits = {("NOT_EQUIVALENT" if m.startswith("NOT") else "EQUIVALENT")
+            for m in _TOKEN.findall(raw.strip().upper())}
+    if len(hits) != 1:
+        return JudgeVerdict.INCONCLUSIVE      # absent, or both present -> not a verdict
+    return JudgeVerdict(hits.pop())
+```
 
 `majority_vote` raises `ValueError("at least 3 samples required")` below three. It counts `EQUIVALENT` and `NOT_EQUIVALENT`, ignoring `INCONCLUSIVE` in the comparison, and returns the strict winner. Equal counts, or no non-inconclusive samples at all, return `INCONCLUSIVE`. There is no tiebreak — a coin flip would manufacture a verdict the evidence does not support.
 
@@ -595,8 +676,19 @@ def test_mismatched_lengths_raise():
         cohens_kappa(["a"], ["a", "b"])
 
 
-def test_krippendorff_alpha_matches_published_worked_example():
-    # Krippendorff's canonical nominal example: alpha = 0.743
+def test_krippendorff_alpha_matches_hand_derivable_two_rater_table():
+    """15 units, 2 raters, 13 agreements (units 6 and 15 disagree).
+
+    Derived in the audit: coincidence total n = 30, marginals {1:9, 2:7, 3:9, 4:5},
+    D_observed = 4, D_expected = 664/29 = 22.896552, alpha = 1 - (4/30)/(664/870) = 0.825301.
+
+    This expectation was 0.743 until 2026-08-29. That figure belongs to Krippendorff's
+    canonical THREE-observer, twelve-unit, missing-data example -- not to this table -- so
+    the test both failed and mislabelled itself. It matters more than an ordinary wrong
+    constant: alpha drives the pre-registered judge rejection threshold, so an implementer
+    bending the estimator to reach 0.743 would put every published accept/reject decision
+    on a broken statistic. Evidence: docs/superpowers/reviews/verify/verify_stats.py
+    """
     ratings = {
         "obs_a": {"1": "1", "2": "2", "3": "3", "4": "3", "5": "2", "6": "1", "7": "4",
                   "8": "1", "9": "2", "10": "1", "11": "1", "12": "3", "13": "3", "14": "4",
@@ -605,6 +697,19 @@ def test_krippendorff_alpha_matches_published_worked_example():
                   "8": "1", "9": "2", "10": "1", "11": "1", "12": "3", "13": "3", "14": "4",
                   "15": "4"},
     }
+    assert krippendorff_alpha(ratings) == pytest.approx(0.8253, abs=0.0005)
+
+
+def test_krippendorff_alpha_matches_published_worked_example():
+    """Krippendorff's canonical nominal example: 3 observers, 12 units, WITH missing data.
+
+    The missing-data pattern is the point -- it is the shape a partial second labeller
+    produces (04 B1), and Cohen's kappa cannot consume it. Transcribe the ratings from the
+    source and VERIFY the published alpha against them before committing this expectation.
+    Do not copy a figure from memory: that is exactly how the 0.743 error above arrived.
+    One worked example is not a validation -- keep both anchors.
+    """
+    ratings = {...}   # transcribe from Krippendorff, "Computing Krippendorff's Alpha-Reliability"
     assert krippendorff_alpha(ratings) == pytest.approx(0.743, abs=0.005)
 
 
@@ -843,14 +948,40 @@ def test_invalid_p_value_raises_and_names_the_comparison():
 
 
 @pytest.mark.slow
-def test_bh_controls_fdr_under_null():
-    rng = random.Random(0)
-    false_discoveries, trials, per_trial = 0, 1000, 48
+def test_bh_controls_fdr_under_complete_null():
+    """Under the complete null, FDR = FWER, so the meaningful quantity is the proportion of
+    TRIALS with any rejection.
+
+    This test previously computed false_discoveries / (trials * per_trial) -- the
+    per-comparison error rate, not the FDR. FDR is E[V / max(R,1)]. Under the complete null
+    BH rejects in ~5% of trials and rejects few when it does, so that ratio came out near
+    0.001 and the assertion passed for almost any procedure. A statistics test that measures
+    a different quantity from the one it names is how a benchmark becomes fiction. Audit M3.
+    """
+    rng, trials, m = random.Random(0), 2000, 48
+    any_rejection = sum(
+        any(c.significant for c in benjamini_hochberg(
+            [Comparison(f"h{i}", rng.random()) for i in range(m)], fdr=0.05))
+        for _ in range(trials)
+    )
+    rate = any_rejection / trials
+    assert rate <= 0.06, f"complete-null FWER {rate:.4f} exceeds the nominal 0.05"
+
+
+@pytest.mark.slow
+def test_bh_controls_fdr_with_true_effects_present():
+    """The case that distinguishes BH from Bonferroni: 12 of 48 hypotheses non-null,
+    assert the mean of V/max(R,1) over trials stays at or below 0.05."""
+    rng, trials, m, n_true = random.Random(1), 2000, 48, 12
+    ratios = []
     for _ in range(trials):
-        comps = [Comparison(f"h{i}", rng.random()) for i in range(per_trial)]
-        false_discoveries += sum(c.significant for c in benjamini_hochberg(comps, fdr=0.05))
-    rate = false_discoveries / (trials * per_trial)
-    assert rate <= 0.05, f"empirical false-discovery rate {rate:.4f} exceeds the nominal 0.05"
+        comps = [Comparison(f"true{i}", rng.random() * 0.001) for i in range(n_true)]
+        comps += [Comparison(f"null{i}", rng.random()) for i in range(m - n_true)]
+        result = benjamini_hochberg(comps, fdr=0.05)
+        rejected = [c for c in result if c.significant]
+        false_ = sum(c.label.startswith("null") for c in rejected)
+        ratios.append(false_ / max(len(rejected), 1))
+    assert sum(ratios) / trials <= 0.05
 ```
 
 - [ ] **Step 2: Run the fast tests to verify they fail**
@@ -1267,7 +1398,26 @@ Expected: FAIL — module does not exist.
 
 - [ ] **Step 3: Write `ground_truth/matrix/build.py`**
 
-`build_leaderboard` queries `verdicts` joined to `outputs`, `runs`, `items` and `item_fields`, filters to the requested split, **excludes verdicts from any judge whose field type was rejected in Task 27**, and assembles `(item_id, correct)` observations per slot — overall and per field type — feeding each through `cluster_bootstrap_ci`. Latency comes from `outputs.latency_ms` for that slot via `summarise_latency`; cost from `cost_per_1k_items` using the mean token counts recorded for the run.
+> **Amended 2026-08-29 (audit H10). The exclusion below had no way to happen.** The signature was
+> `build_leaderboard(con, *, split, seed, specs)` — nothing carried the rejection decision from
+> Task 27, so a rejected judge's verdicts would have flowed straight into the headline number, and
+> spec §8.2's guarantee ("a vendor cannot claim they were scored by a bad judge, because they were
+> not") was unimplementable as written. Persist the decision so it is auditable rather than passed
+> around, and join it:
+>
+> ```sql
+> CREATE TABLE IF NOT EXISTS judge_decisions (
+>     field_type TEXT PRIMARY KEY, rubric_version TEXT NOT NULL, alpha DOUBLE NOT NULL,
+>     alpha_low DOUBLE NOT NULL, alpha_high DOUBLE NOT NULL, n_units INTEGER NOT NULL,
+>     threshold DOUBLE NOT NULL, status TEXT NOT NULL CHECK (status IN ('accepted','rejected')),
+>     decided_at TIMESTAMPTZ NOT NULL);
+> ```
+>
+> Task 27's `assess` writes one row per field type it touched. Add `"judge_decisions"` to `TABLES`
+> and to `EXPECTED` in `tests/store/test_db.py`, and add
+> `test_rejected_field_type_is_absent_from_headline_accuracy`.
+
+`build_leaderboard` queries `verdicts` joined to `outputs`, `runs`, `items` and `item_fields`, filters to the requested split, **left-joins `judge_decisions` and drops every verdict whose field type is `rejected`**, and assembles `(item_id, correct)` observations per slot — overall and per field type — feeding each through `cluster_bootstrap_ci`. Latency comes from `outputs.latency_ms` for that slot via `summarise_latency`; cost from `cost_per_1k_items` using the mean token counts recorded for the run.
 
 `distinguishability_statements` walks every unordered pair, calls `a.accuracy.overlaps(b.accuracy)`, and for each overlap emits:
 
@@ -1619,27 +1769,54 @@ def test_a_null_result_is_not_reported_as_no_change():
     assert "does not mean no change occurred" in result.statement
 
 
+def _brownian_z(rng: random.Random, k_total: int) -> list[float]:
+    """Z_k = B(t_k)/sqrt(t_k): what sequential monitoring actually produces.
+
+    Successive looks read the SAME accumulating data, so corr(Z_j, Z_k) = sqrt(t_j/t_k).
+    Both tests below drew 13 INDEPENDENT normals until 2026-08-29, which is a different
+    process entirely -- it reported 0.179 for a procedure whose true error is 0.072, and
+    0.487 for a naive threshold whose true error is 0.215. See audit B3.
+    """
+    b, out = 0.0, []
+    for k in range(1, k_total + 1):
+        b += rng.gauss(0, math.sqrt(1.0 / k_total))
+        out.append(b / math.sqrt(k / k_total))
+    return out
+
+
 @pytest.mark.slow
 def test_sequential_controls_type_i_under_null():
-    rng = random.Random(0)
-    trials = 2000
+    rng, trials = random.Random(0), 20_000
     rejected = sum(
-        any(evaluate_look(rng.gauss(0, 1), look=k, total_looks=13).reject for k in range(1, 14))
+        any(evaluate_look(z, look=k, total_looks=13).reject
+            for k, z in enumerate(_brownian_z(rng, 13), start=1))
         for _ in range(trials)
     )
     rate = rejected / trials
-    assert rate <= 0.06, f"family-wise type I error {rate:.4f} exceeds nominal 0.05"
+    assert rate <= 0.055, f"family-wise type I error {rate:.4f} exceeds nominal 0.05"
+
+
+@pytest.mark.slow
+def test_calibrated_constant_controls_alpha():
+    """The committed C_OBF_13_LOOKS is a calibrated constant, so its calibration is its test."""
+    rng, trials = random.Random(11), 20_000
+    rate = sum(
+        any(abs(z) > C_OBF_13_LOOKS / math.sqrt(k / 13)
+            for k, z in enumerate(_brownian_z(rng, 13), start=1))
+        for _ in range(trials)
+    ) / trials
+    assert 0.043 <= rate <= 0.057, f"C = {C_OBF_13_LOOKS} yields alpha = {rate:.4f}, not 0.05"
 
 
 @pytest.mark.slow
 def test_fixed_threshold_inflates_alpha():
-    rng = random.Random(0)
-    trials = 2000
-    rejected = sum(any(abs(rng.gauss(0, 1)) > 1.96 for _ in range(13)) for _ in range(trials))
-    rate = rejected / trials
-    assert rate > 0.20, (
+    rng, trials = random.Random(0), 20_000
+    rate = sum(any(abs(z) > 1.96 for z in _brownian_z(rng, 13)) for _ in range(trials)) / trials
+    assert 0.18 <= rate <= 0.25, (
         f"a naive per-look threshold rejects {rate:.3f} of null trajectories — this is why "
-        "the regression watch uses alpha spending, and this number goes on the methodology page"
+        "the regression watch uses alpha spending, and THIS number goes on the methodology page. "
+        "The independent-draw version of this simulation reports ~0.487, which is not a property "
+        "of sequential monitoring and must never be published."
     )
 ```
 
@@ -1652,9 +1829,61 @@ Expected: FAIL — module does not exist.
 
 - [ ] **Step 3: Write `ground_truth/stats/sequential.py`**
 
-`obrien_fleming_boundary(look, total_looks, alpha)` raises `ValueError` outside `1 <= look <= total_looks`, computes the information fraction `t = look / total_looks`, and returns `norm.ppf(1 - alpha / 2) / sqrt(t)` — strict early, approaching the fixed-sample critical value at the final look.
+> **Corrected 2026-08-29 (audit B3). The original construction did not control alpha, and both
+> null simulations measured the wrong stochastic process.** This was the most consequential defect
+> in the three plans. Evidence: `docs/superpowers/reviews/verify/verify_seq.py`.
+>
+> The boundary was specified as `norm.ppf(1 - alpha/2) / sqrt(t)`. The O'Brien–Fleming boundary is
+> `C / sqrt(t)` where **C is solved so the overall type-I error equals alpha** — it is not
+> `z_{alpha/2}`. Using 1.96 spends the full alpha at the final look alone, before a single interim
+> look is counted. Over 200,000 correlated Brownian trajectories at 13 looks:
+>
+> | Procedure | True type-I error |
+> |---|---|
+> | The original boundary (C = 1.960) | **0.0721** against a nominal 0.05 |
+> | Correctly calibrated (C = 2.1023) | 0.0500 |
+> | Naive fixed 1.96 at every look | 0.2153 |
+>
+> Both tests also drew **13 independent** normals per trial. Sequential looks accumulate on the
+> same data and are correlated as `corr(Z_j, Z_k) = sqrt(t_j/t_k)`. Under that wrong simulation
+> `test_sequential_controls_type_i_under_null` returns **0.1794** against its own `<= 0.06`
+> assertion — it fails — and `test_fixed_threshold_inflates_alpha` returns **0.4867**, which Step 5
+> instructed be published as a measured finding. The truthful figure is **0.2153**. Publishing
+> 0.487 would have been this programme's own §2 failure arriving from inside the project built to
+> correct it.
+>
+> `spent_alpha` was also normalised to hit alpha by construction, which made
+> `test_alpha_spent_is_monotone_and_totals_alpha` a tautology testing the rescaling rather than the
+> function.
 
-`spent_alpha(look, total_looks, alpha)` returns the cumulative alpha spent through that look under the same boundary, computed as the accumulated `2 * (1 - norm.cdf(boundary_k))` across looks `1..look`, normalised so the value at the final look equals `alpha` exactly.
+`obrien_fleming_boundary(look, total_looks, alpha)` raises `ValueError` outside `1 <= look <= total_looks`, computes the information fraction `t = look / total_looks`, and returns `C_OBF_13_LOOKS / sqrt(t)` — strict early, approaching the calibrated critical value at the final look. It raises for any calendar or alpha other than the pre-registered pair, because the constant is calibrated for that pair only.
+
+```python
+C_OBF_13_LOOKS = 2.1023  # calibrated by test_calibrated_constant_controls_alpha; see the audit
+
+def obrien_fleming_boundary(look: int, total_looks: int, *, alpha: float = 0.05) -> float:
+    _check(look, total_looks)
+    if (total_looks, alpha) != (LOOKS_PER_QUARTER, 0.05):
+        raise ValueError(
+            "the boundary constant is calibrated for the pre-registered calendar only; "
+            "changing the calendar requires re-calibration and a new analysis-plan version"
+        )
+    return C_OBF_13_LOOKS / math.sqrt(look / total_looks)
+
+
+def spent_alpha(look: int, total_looks: int, *, alpha: float = 0.05) -> float:
+    """Lan-DeMets O'Brien-Fleming spending function -- a correct closed form, one line.
+
+    alpha(t) = 2 * (1 - Phi(z_{alpha/2} / sqrt(t)))
+
+    Verified cumulative spend at 13 looks: look 4 -> 0.000410, look 7 -> 0.007563,
+    look 10 -> 0.025437, look 13 -> 0.050000 exactly. Monotone and totalling alpha with no
+    normalisation, which is what makes its test a test rather than a tautology.
+    """
+    _check(look, total_looks)
+    t = look / total_looks
+    return 2.0 * (1.0 - float(norm.cdf(float(norm.ppf(1 - alpha / 2)) / math.sqrt(t))))
+```
 
 `evaluate_look` compares `abs(z)` to the boundary and composes a statement that always names the test, the look, and the boundary:
 

@@ -12,6 +12,30 @@
 
 **Phase deliverable:** a triage report that can be sold. This phase stands alone (`00` B5).
 
+## Review amendments — 2026-08-29 (read before Task 1)
+
+Audit: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**. Evidence is reproducible via
+`docs/superpowers/reviews/verify/` (stdlib only). Fixes are folded into the tasks below; this list
+exists so a worker starting at any task knows what changed and why.
+
+| Task | Was | Now |
+|---|---|---|
+| 1 | `addopts` carried `--cov-fail-under=75`, so **every** per-task `pytest` step exited non-zero after passing — starting with Task 1 Step 7. `slow` was declared and never deselected. | Coverage gate moved to CI; `addopts = "-m 'not slow' --strict-markers"`. |
+| 1 | `mypy --strict` failed on `import yaml` (no `types-PyYAML`) and later on `sklearn`. | `types-PyYAML` added; bounded `ignore_missing_imports` overrides for `sklearn`/`scipy`/`duckdb`. |
+| 8 | `item_id = content_hash[:16]` — a prefix of the hash the manifest publishes, so Phase 3's contamination test could never pass. | `item_id = sha256(b"item-id:" + content_hash)[:16]`. |
+| 8 | `TRANSPOSED_DIGITS`, `OFF_BY_ONE_CENT` and `MISSING_FIELD` are labelled and **never injected**; the test checks only that labels exist. | Implement all six; `test_every_injected_error_class_actually_corrupts_the_item`. |
+| 8 | `render_document` emits `f"{field_name:<32}{expected_value}"` using the exact keys the prompt asks for — a string-copy task, not extraction. | Realistic layout; `test_document_does_not_use_the_json_key_names`. See audit M1. |
+| 9 | `.env.example` ships `GT_PUBLIC_SEED=42` and the step never says which seed generates the 300 items — so the private split may be reconstructible **with labels** from committed data. | Two independent seeds, two disjoint corpora; 128-bit `GT_HASH_SALT` on published hashes; entropy floor enforced. Audit B4. |
+| 11 | `parse_decimal` strips every letter: `"1234.56 EUR"` grades equal to USD 1234.56, `"about 40"` parses as 40, `"1e5"` becomes 15. | Decide it in `docs/rubric.md` first, then implement the rubric. Audit M6. |
+| 15 | **`build_prompt` sent `item.content_hash` instead of `render_document(item)`.** The whole sweep would measure extraction from a hex string. | Fixed, with `test_prompt_contains_the_document_not_its_hash`. Audit B1. |
+| 15 | `runs.resolved_model_ref` and `models_yaml_hash` were placeholder literals; `_code_version()` returned `"unknown"` on failure. | `Handle.model_ref` added; real hash; `_code_version` raises on a dirty or unknown tree. Audit H7. |
+| 16 | A perfect score returned `low == high == point`, publishing `1.000 [1.000, 1.000] n=180`. | Exact Clopper–Pearson at the boundary (0.9835 at 180/180). Audit H5. |
+| 20 | `find_flip_point` scanned a 5.00 grid while its own test probed ±1.00 — the test cannot pass, and the reported flip point is $1.90 wrong. | Bisection to a stated precision. Audit H6. |
+
+**Two things this phase must add that no task currently creates:** `README.md` (Task 44 modifies a
+file nothing writes) and the `00` §3.5 hard constraint that everything runs from `docker compose up`
+— no `Dockerfile` or `docker-compose.yml` appears in any of the three plans. Add both to Task 1.
+
 ## Global Constraints
 
 Every task's requirements implicitly include this section.
@@ -127,7 +151,8 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.3", "pytest-cov>=5.0", "hypothesis>=6.112", "mypy>=1.11", "ruff>=0.6"]
+dev = ["pytest>=8.3", "pytest-cov>=5.0", "hypothesis>=6.112", "mypy>=1.11", "ruff>=0.6",
+       "types-PyYAML>=6.0"]
 
 [tool.ruff]
 line-length = 100
@@ -141,11 +166,29 @@ python_version = "3.12"
 strict = true
 files = ["ground_truth"]
 
+# Bounded, documented exceptions: these ship no stubs (sklearn) or partial ones
+# (scipy, duckdb). Without them `mypy --strict` fails on the first import, at Step 7.
+# This is ignore_missing_imports, never ignore_errors -- our own code stays strict.
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "scipy.*", "duckdb.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
-addopts = "--cov=ground_truth --cov-report=term-missing --cov-fail-under=75"
+addopts = "-m 'not slow' --strict-markers"
 testpaths = ["tests"]
-markers = ["slow: coverage simulations; run in CI, skippable locally with -m 'not slow'"]
+markers = ["slow: coverage and null simulations; run as a separate CI step"]
 ```
+
+> **Amended 2026-08-29 (audit H2, H13).** `addopts` previously carried
+> `--cov=ground_truth --cov-report=term-missing --cov-fail-under=75`, which applies to **every**
+> invocation — including this plan's own `uv run pytest tests/test_repo_hygiene.py -v` two steps
+> below. One test file measured against the whole package scores far under 75, so pytest exits
+> non-zero **after the tests pass**, and roughly fifty "Expected: PASS" steps across the three
+> plans become unreachable, starting with the very first one. The coverage floor is unchanged; it
+> now lives in CI, where it belongs. `-m 'not slow'` is added for the same reason in reverse: the
+> `slow` marker was declared and never deselected, so every run paid the 1,000 / 1,000 / 2,000-trial
+> simulations. `types-PyYAML` and the module overrides are what make Step 11's `uv run mypy` pass
+> at all — `import yaml` under `--strict` errors immediately without them.
 
 - [ ] **Step 6: Create the package and the private corpus placeholder**
 
@@ -628,7 +671,7 @@ from __future__ import annotations
 from decimal import Decimal
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 
 class FieldType(StrEnum):
@@ -669,6 +712,10 @@ class Item(BaseModel):
     source: Source
     content_hash: StrictStr
     fields: list[ItemField]
+    # Row descriptions and distractor figures, so render_document can lay out a realistic
+    # sheet without re-drawing from the rng (audit M1). Generation metadata, never a label:
+    # write_manifest must not emit it, and the Task 9 leak test proves it does not.
+    layout: dict[str, object] = Field(default_factory=dict)
     injected_error: StrictStr | None = None
 ```
 
@@ -1054,7 +1101,7 @@ git commit -m "feat: rubric parsing and immutable freeze"
 
 - [ ] **Step 1: Author `docs/analysis-plan.md`**
 
-It must state, before any number exists: the primary metric (per-field accuracy on the private split); the unit of analysis (**item**, with replicates clustered); the interval method (cluster BCa bootstrap, 10,000 resamples, 95%); the multiplicity procedure (Benjamini–Hochberg across model × field-type, FDR 0.05); the MDE multiplicity treatment (Bonferroni α/m, conservative and stated); **the judge rejection threshold, Krippendorff's α ≥ 0.667**; the sequential look calendar (13 weekly looks per quarter, O'Brien–Fleming spending, re-registered quarterly); and the rule that an unscheduled look costs alpha and must be declared in the changelog.
+It must state, before any number exists: the primary metric (per-field accuracy on the private split); the unit of analysis (**item**, with replicates clustered); the interval method (cluster BCa bootstrap, 10,000 resamples, 95%); the multiplicity procedure (Benjamini–Hochberg across model × field-type, FDR 0.05); the MDE multiplicity treatment (Bonferroni α/m, conservative and stated); **the judge rejection threshold, Krippendorff's α ≥ 0.667**; the sequential look calendar (13 weekly looks per quarter, O'Brien–Fleming spending, re-registered quarterly), **stating the calibrated boundary constant `C = 2.1023` explicitly — not the naive `z_{α/2} = 1.96`, which understates true α as 0.0721 against the nominal 0.05 (audit B3)**; and the rule that an unscheduled look costs alpha and must be declared in the changelog.
 
 - [ ] **Step 2: Commit the plan alone, before any sweep**
 
@@ -1095,6 +1142,13 @@ def _insert_run(con, started_at):
 
 def test_plan_states_the_judge_threshold():
     assert "0.667" in PLAN.read_text(encoding="utf-8"), "the rejection threshold must be pre-registered"
+
+
+def test_plan_states_the_calibrated_obf_constant():
+    """audit B3: the naive z_{alpha/2}=1.96 boundary understates true alpha as 0.0721
+    against the nominal 0.05. The pre-registered plan must commit to the calibrated
+    constant before any sweep, not just the code in Phase 2."""
+    assert "2.1023" in PLAN.read_text(encoding="utf-8"), "the calibrated OBF constant must be pre-registered"
 
 
 def test_plan_names_the_sampling_unit():
@@ -1163,7 +1217,7 @@ def assert_frozen_before_first_sweep(con: duckdb.DuckDBPyConnection) -> None:
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `uv run pytest tests/test_analysis_plan.py -v`
-Expected: PASS, 5 passed.
+Expected: PASS, 6 passed.
 
 - [ ] **Step 7: Commit**
 
@@ -1182,7 +1236,7 @@ git commit -m "feat: enforced pre-registration of the analysis plan"
 
 **Interfaces:**
 - Consumes: `golden.schema.{Item, ItemField, FieldType, Source, Split}`.
-- Produces: `ErrorClass` (`StrEnum`: `TRANSPOSED_DIGITS`, `OFF_BY_ONE_CENT`, `MISSING_FIELD`, `RETAINAGE_MISMATCH`, `STORED_MATERIALS_DOUBLE_COUNT`, `DATE_LOCALE_AMBIGUOUS`); `generate(count: int, seed: int, rubric_version: str) -> list[Item]`; `render_document(item: Item) -> str`.
+- Produces: `ErrorClass` (`StrEnum`: `TRANSPOSED_DIGITS`, `OFF_BY_ONE_CENT`, `MISSING_FIELD`, `RETAINAGE_MISMATCH`, `STORED_MATERIALS_DOUBLE_COUNT`, `DATE_LOCALE_AMBIGUOUS`); `generate(count: int, seed: int | str, rubric_version: str, *, salt: str = "dev-salt-do-not-use-in-production", inject: bool = True) -> list[Item]`; `render_document(item: Item) -> str`.
 
 - [ ] **Step 1: Decide the source, and record the decision**
 
@@ -1192,6 +1246,7 @@ Check whether `../ledger-sense/` exists with a working synthetic pay-application
 
 ```python
 # tests/golden/test_generate.py
+import re
 from decimal import Decimal
 
 from ground_truth.golden.generate import ErrorClass, generate, render_document
@@ -1216,25 +1271,90 @@ def test_every_field_type_appears_in_the_corpus():
     assert seen == set(FieldType)
 
 
+def _as_printed(field) -> str:
+    """The form the document uses. MONEY is comma-grouped there and bare in the label,
+    which is the normalisation the extraction task is supposed to require."""
+    if field.field_type is FieldType.MONEY:
+        return f"{Decimal(field.expected_value):,.2f}"
+    return field.expected_value
+
+
 def test_labels_are_present_in_the_rendered_document():
     item = generate(count=1, seed=3, rubric_version="v1")[0]
     doc = render_document(item)
     for field in item.fields:
-        if field.field_type is not FieldType.LINE_ITEM_DESCRIPTION:
-            assert field.expected_value in doc, f"{field.field_name} label absent from document"
+        if field.field_type is FieldType.LINE_ITEM_DESCRIPTION or not field.expected_value:
+            continue
+        assert _as_printed(field) in doc, f"{field.field_name} label absent from document"
 
 
-def test_error_classes_are_injected_and_labelled():
-    items = generate(count=60, seed=11, rubric_version="v1")
-    injected = {i.injected_error for i in items if i.injected_error is not None}
-    assert injected == {e.value for e in ErrorClass}, "every error class must be exercised"
+def test_document_does_not_use_the_json_key_names():
+    """audit M1. The prompt asks for `contract_sum`; the document says CONTRACT SUM TO DATE.
+    If the key appears verbatim this is a string-copy task and the leaderboard measures
+    nothing a real invoice would exercise."""
+    for item in generate(count=20, seed=4, rubric_version="v1"):
+        doc = render_document(item).lower()
+        for field in item.fields:
+            assert field.field_name.lower() not in doc, (
+                f"{field.field_name} appears verbatim in the document"
+            )
+
+
+def test_document_carries_a_distractor_number_that_is_not_a_label():
+    """A document in which every number is an answer is not an extraction task."""
+    item = generate(count=1, seed=6, rubric_version="v1")[0]
+    doc = render_document(item)
+    labels = {_as_printed(f) for f in item.fields}
+    numbers = set(re.findall(r"\d[\d,]*\.?\d*", doc))
+    assert numbers - labels, "no distractor number in the document"
+
+
+def test_line_item_count_varies_and_matches_the_count_field():
+    counts = set()
+    for item in generate(count=20, seed=9, rubric_version="v1"):
+        lines = [f for f in item.fields if re.fullmatch(r"line_\d+", f.field_name)]
+        declared = next(f for f in item.fields if f.field_name == "line_count")
+        if declared.expected_value:  # MISSING_FIELD may blank it
+            assert len(lines) == int(declared.expected_value)
+        counts.add(len(lines))
+    assert len(counts) > 1, "a fixed line count makes every document the same shape"
+    assert min(counts) >= 3 and max(counts) <= 8
+
+
+def test_every_injected_error_class_actually_corrupts_the_item():
+    """audit M2. Three classes were labelled and never injected, and the old test checked
+    only that the labels existed. Injection must never draw from the rng, or the clean and
+    dirty streams diverge and this comparison stops meaning anything."""
+    dirty = generate(count=60, seed=11, rubric_version="v1")
+    clean = generate(count=60, seed=11, rubric_version="v1", inject=False)
+    seen = set()
+    for d, c in zip(dirty, clean, strict=True):
+        if d.injected_error is None:
+            assert d.fields == c.fields, "an uninjected item differs from its clean twin"
+            continue
+        assert d.fields != c.fields, f"{d.injected_error} is labelled but injects nothing"
+        seen.add(d.injected_error)
+    assert seen == {e.value for e in ErrorClass}, "every error class must be exercised"
 
 
 def test_money_labels_are_clean_decimal_strings():
     for item in generate(count=20, seed=5, rubric_version="v1"):
         for f in item.fields:
-            if f.field_type is FieldType.MONEY:
+            if f.field_type is FieldType.MONEY and f.expected_value:
                 Decimal(f.expected_value)  # raises if not a clean decimal string
+
+
+def test_missing_field_is_labelled_empty_and_absent_from_the_document():
+    """The rubric grades an empty label as "absent": a model that invents a value is wrong."""
+    items = [
+        i
+        for i in generate(count=60, seed=11, rubric_version="v1")
+        if i.injected_error == ErrorClass.MISSING_FIELD.value
+    ]
+    assert items, "seed 11 must produce at least one MISSING_FIELD item"
+    for item in items:
+        blank = [f for f in item.fields if not f.expected_value]
+        assert len(blank) == 1, "exactly one field is dropped"
 
 
 def test_no_aia_form_strings_anywhere():
@@ -1267,11 +1387,30 @@ from enum import StrEnum
 from ground_truth.golden.schema import FieldType, Item, ItemField, Source, Split
 
 NON_AFFILIATION = (
-    "This document is not developed, endorsed, approved, sponsored by or affiliated with "
-    "the AIA. References describe column semantics only."
+    "This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. "
+    "References describe column semantics only."
 )
 _LEGAL_SUFFIXES = ("Inc.", "LLC", "Ltd.", "Pty Ltd", "GmbH")
 _TRADES = ("Sitework", "Concrete", "Masonry", "Structural Steel", "Roofing", "Glazing")
+
+# audit M1: the document's wording, which must never contain the JSON key it answers.
+# `test_document_does_not_use_the_json_key_names` enforces this. Underscores do most of
+# the work; the entries that needed real thought are the retainage family, because
+# "retainage" is both a bare JSON key and the obvious English word -- hence "AMOUNT
+# RETAINED" throughout, which is also what a real certificate for payment says.
+_WORDING = {
+    "work_completed": "TOTAL COMPLETED & STORED TO DATE",
+    "stored_materials": "MATERIALS PRESENTLY STORED",
+    "retainage": "LESS AMOUNT RETAINED",
+    "total_earned_less_retainage": "TOTAL EARNED LESS AMOUNT RETAINED",
+    "contract_sum": "CONTRACT SUM TO DATE",
+    "balance_to_finish": "BALANCE TO FINISH, PLUS AMOUNT RETAINED",
+    "line_count": "ITEMS ON THIS SHEET",
+    "period_to": "PERIOD ENDING",
+    "application_no": "APPLICATION NO.",
+    "contractor": "CERTIFIED BY",
+    "status": "CERTIFICATION",
+}
 
 
 class ErrorClass(StrEnum):
@@ -1287,81 +1426,205 @@ def _money(rng: random.Random, low: int, high: int) -> Decimal:
     return (Decimal(rng.randint(low * 100, high * 100)) / Decimal(100)).quantize(Decimal("0.01"))
 
 
-def _build_fields(rng: random.Random, injected: ErrorClass | None) -> list[ItemField]:
-    line_1 = _money(rng, 10_000, 90_000)
-    line_2 = _money(rng, 5_000, 60_000)
-    work_completed = line_1 + line_2
-    retainage_rate = Decimal("0.10")
-    retainage = (work_completed * retainage_rate).quantize(Decimal("0.01"))
+def _transpose_digits(value: str) -> str:
+    """Swap the rightmost adjacent pair of unequal digits. Deterministic; draws no rng."""
+    chars = list(value)
+    digits = [i for i, c in enumerate(chars) if c.isdigit()]
+    for a, b in zip(reversed(digits[:-1]), reversed(digits[1:])):
+        if chars[a] != chars[b]:
+            chars[a], chars[b] = chars[b], chars[a]
+            return "".join(chars)
+    return value  # every digit identical; the corruption test is the guard
+
+
+def _build_fields(
+    rng: random.Random, injected: ErrorClass | None
+) -> tuple[list[ItemField], dict[str, object]]:
+    """Injection MUST NOT draw from `rng`. The clean and dirty streams are compared
+    position-by-position in `test_every_injected_error_class_actually_corrupts_the_item`,
+    and one extra draw silently desynchronises them (audit M2)."""
+    n_lines = rng.randint(3, 8)
+    line_values = [_money(rng, 5_000, 90_000) for _ in range(n_lines)]
+    descriptions = [f"{rng.choice(_TRADES)} works, phase {n}" for n in range(1, n_lines + 1)]
+    work_completed = sum(line_values, Decimal("0.00"))
+    retainage_rate = Decimal("10.00")  # percentage points, as a certificate for payment prints it
+    retainage = (work_completed * retainage_rate / Decimal(100)).quantize(Decimal("0.01"))
     stored = _money(rng, 0, 5_000)
+    previous_certificates = _money(rng, 1_000, 40_000)  # distractor: never a labelled field
+    project_no = f"{rng.randint(1000, 9999)}-{rng.choice(('A', 'B', 'C', 'D', 'E'))}"  # distractor
+
     if injected is ErrorClass.RETAINAGE_MISMATCH:
         retainage += Decimal("500.00")
     if injected is ErrorClass.STORED_MATERIALS_DOUBLE_COUNT:
         work_completed += stored
     earned_less_retainage = work_completed + stored - retainage
+    if injected is ErrorClass.OFF_BY_ONE_CENT:
+        # Exactly on the tolerance boundary: the document is internally inconsistent by one
+        # cent, and a correct extraction still reproduces it. This is the boundary probe.
+        earned_less_retainage += Decimal("0.01")
     contract_sum = work_completed + stored + _money(rng, 10_000, 50_000)
     balance = contract_sum - earned_less_retainage
+    contract_sum_text = str(contract_sum)
+    if injected is ErrorClass.TRANSPOSED_DIGITS:
+        contract_sum_text = _transpose_digits(contract_sum_text)
     date_value = "2026-09-01" if injected is not ErrorClass.DATE_LOCALE_AMBIGUOUS else "01/09/2026"
+    application_no = f"APP-{rng.randint(1, 999):06d}"
+    if injected is ErrorClass.MISSING_FIELD:
+        application_no = ""  # dropped from the document; an empty label means "absent"
 
     def f(name: str, ftype: FieldType, value: str, tol: Decimal | None = None) -> ItemField:
         return ItemField(field_name=name, field_type=ftype, expected_value=value, tolerance=tol)
 
     cents = Decimal("0.01")
-    return [
-        f("line_1", FieldType.MONEY, str(line_1), cents),
-        f("line_2", FieldType.MONEY, str(line_2), cents),
+    fields = [
+        f(f"line_{n}", FieldType.MONEY, str(v), cents) for n, v in enumerate(line_values, start=1)
+    ]
+    fields += [
         f("work_completed", FieldType.MONEY, str(work_completed), cents),
         f("stored_materials", FieldType.MONEY, str(stored), cents),
         f("retainage", FieldType.MONEY, str(retainage), cents),
         f("total_earned_less_retainage", FieldType.MONEY, str(earned_less_retainage), cents),
-        f("contract_sum", FieldType.MONEY, str(contract_sum), cents),
+        f("contract_sum", FieldType.MONEY, contract_sum_text, cents),
         f("balance_to_finish", FieldType.MONEY, str(balance), cents),
-        f("retainage_rate", FieldType.PERCENT, str(retainage_rate), Decimal("0.001")),
+        f("retainage_rate", FieldType.PERCENT, str(retainage_rate), Decimal("0.01")),
         f("period_to", FieldType.DATE, date_value),
-        f("application_no", FieldType.IDENTIFIER, f"APP-{rng.randint(1, 999):06d}"),
-        f("contractor", FieldType.PARTY_NAME, f"{rng.choice(_TRADES)} Partners {rng.choice(_LEGAL_SUFFIXES)}"),
+        f("application_no", FieldType.IDENTIFIER, application_no),
+        f("contractor", FieldType.PARTY_NAME,
+          f"{rng.choice(_TRADES)} Partners {rng.choice(_LEGAL_SUFFIXES)}"),
         f("status", FieldType.ENUM_CATEGORY, rng.choice(("approved", "pending", "rejected"))),
-        f("line_count", FieldType.COUNT, "2"),
-        f("line_1_description", FieldType.LINE_ITEM_DESCRIPTION, f"{rng.choice(_TRADES)} works, phase 1"),
+        f("line_count", FieldType.COUNT, str(n_lines)),
+        f("line_1_description", FieldType.LINE_ITEM_DESCRIPTION, descriptions[0]),
     ]
+    # Layout metadata, carried so render_document can lay out rows and distractors without
+    # re-drawing from rng. Never a label; write_manifest must not emit it.
+    layout = {
+        "descriptions": descriptions,
+        "previous_certificates": str(previous_certificates),
+        "project_no": project_no,
+    }
+    return fields, layout
 
 
-def generate(count: int, seed: int, rubric_version: str) -> list[Item]:
+def generate(
+    count: int, seed: int | str, rubric_version: str, *,
+    salt: str = "dev-salt-do-not-use-in-production", inject: bool = True
+) -> list[Item]:
+    """`inject=False` replays the identical rng stream with every corruption skipped, which
+    is what makes "does this error class actually corrupt anything?" a testable question.
+
+    audit B4: `content_hash` is salted. `generate.py` is published (spec §13.1), so without a
+    salt the message space is fully enumerable from the seed alone — the manifest's commitment
+    strength would be exactly the seed's entropy. `build.py` (Task 9) passes the real
+    `GT_HASH_SALT`; the default here is a fixed placeholder so every existing test call site
+    is unaffected and no test pins a literal hash value.
+    """
     rng = random.Random(seed)
     errors = list(ErrorClass)
     items: list[Item] = []
     for n in range(count):
         injected = errors[(n // 2) % len(errors)] if n % 2 == 0 else None
-        fields = _build_fields(rng, injected)
+        fields, layout = _build_fields(rng, injected if inject else None)
         payload = "|".join(f"{f.field_name}={f.expected_value}" for f in fields)
-        content_hash = hashlib.sha256(f"{seed}:{n}:{payload}".encode()).hexdigest()
+        content_hash = hashlib.sha256(f"{salt}:{seed}:{n}:{payload}".encode()).hexdigest()
+        # audit H1: item_id must NOT be a prefix of the published content_hash, or publishing
+        # the hash publishes the id and test_private_item_ids_never_appear_in_published_output
+        # can never pass. Preimage resistance keeps the two namespaces apart.
+        item_id = hashlib.sha256(b"item-id:" + content_hash.encode()).hexdigest()[:16]
         items.append(
             Item(
-                item_id=content_hash[:16],
-                split=Split.PUBLIC,  # splits.py reassigns; see Task 9
+                item_id=item_id,
+                split=Split.PUBLIC,  # build.py generates the two splits separately; see Task 9
                 rubric_version=rubric_version,
                 source=Source.SYNTHETIC,
                 content_hash=content_hash,
                 fields=fields,
-                injected_error=injected.value if injected else None,
+                layout=layout,
+                injected_error=injected.value if (injected and inject) else None,
             )
         )
     return items
 
 
+def _amount(value: str) -> str:
+    return f"{Decimal(value):,.2f}" if value else ""
+
+
 def render_document(item: Item) -> str:
-    lines = ["PROGRESS BILLING SUMMARY", "=" * 40]
-    lines += [f"{f.field_name:<32}{f.expected_value}" for f in item.fields]
-    lines += ["=" * 40, NON_AFFILIATION]
-    return "\n".join(lines)
+    """A continuation sheet and a summary block, in the document's own wording.
+
+    audit M1: the previous version emitted `f"{field_name:<32}{expected_value}"` using the
+    exact keys the prompt asks for, which made the entire benchmark a string-copy task with
+    no external validity at all. Every number a model must find is now where a real form
+    would put it, beside numbers it must ignore.
+    """
+    by_name = {f.field_name: f for f in item.fields}
+
+    def v(name: str) -> str:
+        return by_name[name].expected_value
+
+    rule, thin = "=" * 78, "-" * 78
+    out = [
+        rule,
+        f"  PROGRESS BILLING SUMMARY{'':<28}Project No. {item.layout['project_no']}",
+        f"  {_WORDING['application_no']} {v('application_no') or '(not issued)':<24}"
+        f"{_WORDING['period_to']}  {v('period_to')}",
+        thin,
+        "  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD",
+        thin,
+    ]
+    rows = [
+        f
+        for f in item.fields
+        if f.field_name.startswith("line_") and f.field_name.removeprefix("line_").isdigit()
+    ]
+    for n, (field, description) in enumerate(zip(rows, item.layout["descriptions"]), start=1):
+        out.append(f"  {n:>4}  {description:<52}{_amount(field.expected_value):>18}")
+    out += [
+        thin,
+        f"  {_WORDING['line_count']:<58}{v('line_count'):>18}",
+        rule,
+        f"  {_WORDING['contract_sum']:<58}{_amount(v('contract_sum')):>18}",
+        f"  {_WORDING['work_completed']:<58}{_amount(v('work_completed')):>18}",
+        f"  {_WORDING['stored_materials']:<58}{_amount(v('stored_materials')):>18}",
+        f"  {_WORDING['retainage'] + '  ' + v('retainage_rate') + ' % OF COMPLETED WORK':<58}"
+        f"{_amount(v('retainage')):>18}",
+        f"  {_WORDING['total_earned_less_retainage']:<58}"
+        f"{_amount(v('total_earned_less_retainage')):>18}",
+        f"  LESS PREVIOUS CERTIFICATES FOR PAYMENT{'':<20}"
+        f"{_amount(str(item.layout['previous_certificates'])):>18}",
+        f"  {_WORDING['balance_to_finish']:<58}{_amount(v('balance_to_finish')):>18}",
+        rule,
+        f"  {_WORDING['contractor']}: {v('contractor')}",
+        f"  {_WORDING['status']}: {v('status')}",
+        "",
+        NON_AFFILIATION,
+    ]
+    return "\n".join(out)
 ```
 
-The generator's own layout, its own column names. `count` must be at least `2 * len(ErrorClass)` for `test_error_classes_are_injected_and_labelled` to hold — the test uses 60.
+Three things in that layout are load-bearing, and each has a test:
+
+- **The wording never repeats a JSON key.** `contract_sum` is asked for; the sheet says
+  `CONTRACT SUM TO DATE`. The retainage family needed the most care, because `retainage` is a bare
+  key *and* the obvious English word — hence `AMOUNT RETAINED`, which is what a real certificate
+  for payment says anyway.
+- **Not every number is an answer.** `Project No.`, the row descriptions past row 1, and
+  `LESS PREVIOUS CERTIFICATES FOR PAYMENT` are distractors. A document in which every figure is
+  extractable teaches nothing about a document in which most figures are not.
+- **`retainage_rate` is in percentage points (`10.00`), not the fraction `0.10`.** That is what the
+  form prints, so it is what the label must be. Rule 2 of the arithmetic grader (Task 14) divides
+  by 100 accordingly.
+
+`Item` gains `layout: dict[str, object]` in Task 5's schema, holding the row descriptions and the
+distractors. It is generation metadata, never a label — `write_manifest` must not emit it, and the
+Task 9 leak test covers that.
+
+`count` must be at least `2 * len(ErrorClass)` for every error class to appear — the tests use 60.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
 Run: `uv run pytest tests/golden/test_generate.py -v`
-Expected: PASS, 8 passed.
+Expected: PASS, 12 passed.
 
 - [ ] **Step 6: Commit**
 
@@ -1390,6 +1653,7 @@ git commit -m "feat: seeded synthetic corpus generator with labelled injected er
 ```python
 # tests/golden/test_splits.py
 import json
+import os
 
 import pytest
 
@@ -1448,6 +1712,31 @@ def test_verify_manifest_detects_tampering(tmp_path):
     path.write_text(json.dumps(body), encoding="utf-8")
     with pytest.raises(ValueError, match="manifest mismatch"):
         verify_manifest(items, path)
+
+
+def test_public_seed_cannot_regenerate_any_private_item(monkeypatch):
+    """audit B4a. The committed public seed must be useless against the private split —
+    build.py generates the two splits from two independent seeds into disjoint corpora,
+    never by shuffling one seed-derived pool with `assign_splits`."""
+    monkeypatch.setenv("GT_PUBLIC_SEED", "42")
+    monkeypatch.setenv("GT_PRIVATE_SEED", "a" * 32)
+    monkeypatch.setenv("GT_HASH_SALT", "b" * 32)
+    private = generate(count=180, seed=os.environ["GT_PRIVATE_SEED"], rubric_version="v1",
+                        salt=os.environ["GT_HASH_SALT"])
+    forged = generate(count=180, seed=int(os.environ["GT_PUBLIC_SEED"]), rubric_version="v1",
+                       salt=os.environ["GT_HASH_SALT"])
+    assert not ({i.content_hash for i in forged} & {i.content_hash for i in private}), (
+        "the private split is derivable from committed data"
+    )
+
+
+def test_seeds_and_salt_meet_the_entropy_floor(monkeypatch):
+    """audit B4b. 128-bit floor — a year, a ticket id, or `random.randint(0, 2**32)` are all
+    brute-forceable once generate.py is public."""
+    monkeypatch.setenv("GT_PRIVATE_SEED", "a" * 32)
+    monkeypatch.setenv("GT_HASH_SALT", "b" * 32)
+    for key in ("GT_PRIVATE_SEED", "GT_HASH_SALT"):
+        assert len(os.environ[key]) >= 32, f"{key} must carry at least 128 bits"
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -1520,20 +1809,25 @@ The manifest carries **hashes only** — no labels, no document text. That is th
 
 - [ ] **Step 5: Write `ground_truth/golden/build.py` and `.env.example`**
 
-`build.py` reads `GT_PUBLIC_SEED` and `GT_PRIVATE_SEED` from the environment, generates 300 items, calls `assign_splits(items, public_n=120, seed=int(GT_PUBLIC_SEED))`, writes each item's `render_document` output to `golden/corpus/<split>/<item_id>.txt`, writes `golden/manifest_public.json` and `golden/manifest_private.json`, and inserts `items` and `item_fields` rows into `data/results.duckdb`. It exposes `if __name__ == "__main__":` and nothing else.
+**audit B4a — this step used to generate one 300-item pool and split it with `assign_splits(items, public_n=120, seed=int(GT_PUBLIC_SEED))`. Because `GT_PUBLIC_SEED=42` is committed in `.env.example`, that design lets anyone regenerate the pool and reproduce the split — including the 180 private items and their labels — from data already in the repo.** `assign_splits` (Step 3) stays as a tested pure function, but `build.py` never calls it on a pool that will become the private corpus.
+
+`build.py` reads `GT_PUBLIC_SEED`, `GT_PRIVATE_SEED` and `GT_HASH_SALT` from the environment and refuses any of the three that is under 32 hex characters, naming which one and why (128-bit entropy floor, audit B4b — `generate.py` is published, so a short seed makes the message space brute-forceable). It then calls `generate` **twice, into two disjoint corpora**: `generate(count=120, seed=int(GT_PUBLIC_SEED), rubric_version="v1", salt=GT_HASH_SALT)` tagged `Split.PUBLIC`, and `generate(count=180, seed=GT_PRIVATE_SEED, rubric_version="v1", salt=GT_HASH_SALT)` tagged `Split.PRIVATE`. It writes each item's `render_document` output to `golden/corpus/<split>/<item_id>.txt`, writes `golden/manifest_public.json` and `golden/manifest_private.json`, and inserts `items` and `item_fields` rows into `data/results.duckdb`. It exposes `if __name__ == "__main__":` and nothing else.
 
 ```
 # .env.example
 GT_PUBLIC_SEED=42
 GT_PRIVATE_SEED=change-me-and-never-commit-this
+GT_HASH_SALT=change-me-and-never-commit-this
 ```
 
-`.env.example` carries a placeholder. The real `GT_PRIVATE_SEED` goes in `.env`, which `.gitignore` excludes and Task 1's `test_env_file_not_tracked` enforces. **Back it up outside the repository** — losing it means the private split can never be regenerated or rotated.
+`.env.example` carries placeholders. The real `GT_PRIVATE_SEED` and `GT_HASH_SALT` go in `.env`, which `.gitignore` excludes and Task 1's `test_env_file_not_tracked` enforces — both must be at least 32 hex characters (`secrets.token_hex(16)`, never a year or a ticket number). **Back them up outside the repository** — losing either means the private split can never be regenerated, rotated, or re-proven to exist.
+
+`docs/methodology.md` states the salt scheme and the entropy floor, replacing any claim that the split's security rests on the seed being withheld — the repo is public from commit one, so it never was (audit B4).
 
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `uv run pytest tests/golden/test_splits.py -v`
-Expected: PASS, 6 passed.
+Expected: PASS, 8 passed.
 
 - [ ] **Step 7: Build the corpus and verify the boundary holds**
 
@@ -2149,7 +2443,7 @@ TOL = Decimal("0.01")
 
 BALANCED = dict(
     line_1="100.00", line_2="50.00", work_completed="150.00",
-    stored_materials="0.00", retainage="15.00", retainage_rate="0.10",
+    stored_materials="0.00", retainage="15.00", retainage_rate="10.00",
     total_earned_less_retainage="135.00", contract_sum="200.00", balance_to_finish="65.00",
 )
 
@@ -2229,13 +2523,13 @@ def test_generator_injected_arithmetic_errors_are_all_caught():
 def test_property_any_internally_consistent_document_passes(line_1, line_2, stored, extra):
     """Every document built to satisfy the four rules must pass, for any amounts."""
     work = line_1 + line_2
-    retainage = (work * Decimal("0.10")).quantize(Decimal("0.01"))
+    retainage = (work * Decimal("10.00") / Decimal(100)).quantize(Decimal("0.01"))
     earned = work + stored - retainage
     contract = work + stored + extra
     values = {
         "line_1": str(line_1), "line_2": str(line_2), "work_completed": str(work),
         "stored_materials": str(stored), "retainage": str(retainage),
-        "retainage_rate": "0.10", "total_earned_less_retainage": str(earned),
+        "retainage_rate": "10.00", "total_earned_less_retainage": str(earned),
         "contract_sum": str(contract), "balance_to_finish": str(contract - earned),
     }
     verdict = grade_arithmetic(build(values), values, TOL)
@@ -2264,14 +2558,30 @@ Expected: FAIL — module does not exist.
 
 Check four rules, accumulating **every** failure into the reason rather than short-circuiting — a document can break more than one:
 
-1. **line sum** — `line_1 + line_2 == work_completed`. Reason text contains `"line sum"`.
-2. **retainage** — `retainage == retainage_rate * work_completed`. Reason contains `"retainage"`.
+1. **line sum** — `sum(observed[k] for k in observed if re.fullmatch(r"line_\d+", k)) ==
+   work_completed`. The row count varies from 3 to 8 per item (Task 8), so this rule sums
+   whatever `line_N` keys the item declares rather than a fixed pair. Reason contains
+   `"line sum"`.
+2. **retainage** — `retainage == work_completed * retainage_rate / 100`. `retainage_rate` is in
+   **percentage points** (`10.00`), because that is what the document prints and therefore what
+   the label is. Dividing by 100 here is what keeps the two consistent. Reason contains
+   `"retainage"`.
 3. **stored materials** — `total_earned_less_retainage == work_completed + stored_materials - retainage`. Reason contains `"stored materials"`.
 4. **balance to finish** — `balance_to_finish == contract_sum - total_earned_less_retainage`. Reason contains `"balance to finish"`.
 
 All comparisons are `abs(a - b) <= tolerance` on `Decimal` values from `parse_decimal`. A field absent from `observed` fails the rule that needs it and names the missing field. The verdict is `correct=True` only when every rule holds.
 
-Note that rule 3 catches `STORED_MATERIALS_DOUBLE_COUNT` from Task 8: when the generator folds `stored` into `work_completed`, `total_earned_less_retainage` no longer reconciles.
+**Which rule catches which injected class.** Reason strings are asserted in tests, so getting
+this wrong in prose is how a test ends up asserting the wrong cause (audit M2):
+
+| Injected class | Caught by |
+|---|---|
+| `RETAINAGE_MISMATCH` | rule 2, and rule 3 downstream of it |
+| `STORED_MATERIALS_DOUBLE_COUNT` | rules 1 and 2 — **not** rule 3. `total_earned_less_retainage` is computed *from* the mutated `work_completed`, so rule 3 reconciles. The line rows and the retainage still refer to the unmutated figure, so those two break. |
+| `TRANSPOSED_DIGITS` | rule 4 — `contract_sum` is printed transposed while `balance_to_finish` is computed from the true value |
+| `OFF_BY_ONE_CENT` | none, by design: it sits exactly on the 0.01 tolerance. It is the boundary probe for `grade_numeric_tolerance`, not an arithmetic failure. |
+| `MISSING_FIELD` | none — it drops `application_no`, which no rule reads. It probes hallucination, not arithmetic. |
+| `DATE_LOCALE_AMBIGUOUS` | none — no rule reads a date. |
 
 - [ ] **Step 4: Run the test to verify it passes**
 
@@ -2309,6 +2619,49 @@ git commit -m "feat: cross-field arithmetic grader catching every injected arith
 > spanning several nights, a 429 or a deleted model would have silently served slot-a's prompt from
 > slot-b's provider and recorded it as slot-a's result — invisibly, with no error, straight onto the
 > leaderboard. `failover=FailoverMode.DISABLED` is now as non-negotiable as the cache rule.
+>
+> **And it carried a worse one (amended 2026-08-29, audit B1 / H7).** Three defects, all silent:
+>
+> 1. **`build_prompt` interpolated `item.content_hash` where the document belongs.** Every one of
+>    the 9,000 calls asked a model to extract fifteen fields from a 64-character hex digest.
+>    `render_document(item)` existed since Task 8 and was never called. Nothing catches it: the
+>    tests below use `FakeGateway`, which returns a canned response regardless of the prompt, and
+>    Phase 2's integration gate checks row counts and replicate variance but never prompt content.
+>    `prompt_hash` stays stable, so the corruption is invisible until you read real results — at
+>    which point every accuracy is ~0, every interval overlaps, and Plan 2 Task 31 Step 5 tells you
+>    to report that as "a true result about your sample size, not a bug."
+> 2. **`runs.resolved_model_ref` and `runs.models_yaml_hash` were the literal placeholder strings**
+>    `"resolved-at-runtime"` and `"models-yaml-hash"`, for all 9,000 rows. The schema exists so
+>    `04` B6 fingerprint tracking and `00` R7 provenance are possible; the implementation filled it
+>    with prose. No test asserted on any `runs` column. The root cause was that `Handle` had no
+>    field to carry the resolved reference — now added, and **raise it with `backoffice-kit` as a
+>    contract gap**: Ground Truth is the repo whose reason to exist is knowing which model produced
+>    which output.
+> 3. **`_code_version()` swallowed both exceptions and returned `"unknown"`,** and never recorded
+>    whether the tree was dirty. It now raises on either, because a sweep with no provenance is not
+>    a measurement.
+>
+> Add these three tests alongside the ones below:
+>
+> ```python
+> def test_prompt_contains_the_document_not_its_hash():
+>     item = generate(count=1, seed=1, rubric_version="v1")[0]
+>     payload = build_prompt(item)
+>     assert item.content_hash not in payload.value, "the hash is not the document"
+>     assert "PROGRESS BILLING SUMMARY" in payload.value
+>     assert len(payload.value) > 200, "a prompt this short cannot contain a document"
+>
+> def test_run_records_the_resolved_model_ref_not_a_placeholder(con):
+>     ref = con.execute("SELECT resolved_model_ref FROM runs").fetchone()[0]
+>     assert ref and "runtime" not in ref and ref != "unknown"
+>
+> def test_run_records_the_models_yaml_hash(con):
+>     assert re.fullmatch(r"[0-9a-f]{64}",
+>                         con.execute("SELECT models_yaml_hash FROM runs").fetchone()[0])
+> ```
+>
+> `FakeGateway.resolve` must return `Handle(slot=lane, provider="fake", model_ref="fake-ref-1", …)`
+> for the second test to mean anything.
 
 **Files:**
 - Create: `ground_truth/_bok_shim.py`
@@ -2564,6 +2917,7 @@ class FailoverMode(StrEnum):
 class Handle:
     slot: str
     provider: str
+    model_ref: str = ""
     is_fallback: bool = False
 
 
@@ -2615,6 +2969,7 @@ from ground_truth._bok_shim import (
     Response,
     Sensitivity,
 )
+from ground_truth.golden.generate import render_document
 from ground_truth.golden.schema import Item
 
 ResolveFn = Callable[[str], Handle]
@@ -2625,13 +2980,29 @@ BENCHMARK_CACHE = CacheMode.DISABLED        # replicate variance IS the measurem
 BENCHMARK_FAILOVER = FailoverMode.DISABLED  # model identity IS the variable under study
 
 
-def _code_version() -> str:
+def _code_version(*, allow_dirty: bool) -> str:
+    """The provenance anchor for every row this sweep writes.
+
+    A recorded code_version of "unknown", or a sha with uncommitted changes behind it,
+    means the sweep cannot be reproduced -- so this raises rather than degrading. See
+    audit H7: the original swallowed both exceptions and returned "unknown", which would
+    have left 9,000 rows with no provenance and no error to notice.
+    """
     try:
-        return subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
-        ).stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return "unknown"
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
+                             capture_output=True, text=True, check=True).stdout.strip()
+        dirty = bool(subprocess.run(["git", "status", "--porcelain"], cwd=REPO,
+                                    capture_output=True, text=True, check=True).stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        raise RuntimeError(
+            "cannot record a code version: a sweep with no provenance is not a measurement"
+        ) from exc
+    if dirty and not allow_dirty:
+        raise RuntimeError(
+            f"working tree is dirty at {sha}. A sweep recorded against a dirty tree cannot be "
+            "reproduced. Commit, or pass allow_dirty=True for a throwaway local run."
+        )
+    return f"{sha}-dirty" if dirty else sha
 
 
 def build_prompt(item: Item) -> Labelled[str]:
@@ -2639,7 +3010,7 @@ def build_prompt(item: Item) -> Labelled[str]:
     text = (
         "Extract these fields from the document and return a single JSON object "
         f"whose keys are exactly: {names}. Every value must be a JSON string.\n\n"
-        f"---\n{item.content_hash}\n"
+        f"---\n{render_document(item)}\n"
     )
     # The golden set is generated by us and contains no real party's data.
     return Labelled(value=text, sensitivity=Sensitivity.SYNTHETIC)
@@ -2654,9 +3025,12 @@ def execute_sweep(
     context: CallContext,
     resolve_fn: ResolveFn,
     call_fn: CallFn,
+    models_yaml: Path = Path("models.yaml"),
+    allow_dirty: bool = False,
 ) -> str:
     sweep_id = uuid.uuid4().hex
-    code_version = _code_version()
+    code_version = _code_version(allow_dirty=allow_dirty)
+    models_yaml_hash = hashlib.sha256(models_yaml.read_bytes()).hexdigest()
     for slot in slots:
         handle = resolve_fn(slot)
         if handle.is_fallback:
@@ -2668,8 +3042,8 @@ def execute_sweep(
         run_id = uuid.uuid4().hex
         con.execute(
             "INSERT INTO runs VALUES (?,?,NULL,?,?,?,?,?,?,?)",
-            [run_id, datetime.now(UTC), slot, "resolved-at-runtime", handle.provider,
-             context.commercial, sweep_id, code_version, "models-yaml-hash"],
+            [run_id, datetime.now(UTC), slot, handle.model_ref, handle.provider,
+             context.commercial, sweep_id, code_version, models_yaml_hash],
         )
         for item in items:
             payload = build_prompt(item)
@@ -2771,9 +3145,18 @@ def test_empty_input_raises_rather_than_returning_a_number():
         cluster_bootstrap_ci([], seed=1)
 
 
-def test_all_correct_is_degenerate_not_a_crash():
-    ci = cluster_bootstrap_ci([(f"i{i}", True) for i in range(20)], seed=1, n_resamples=200)
-    assert ci.point == 1.0 and ci.method == "degenerate"
+def test_perfect_score_still_carries_uncertainty():
+    """audit H5: a zero-width interval at 180/180 is the loudest possible false claim."""
+    ci = cluster_bootstrap_ci([(f"i{i}", True) for i in range(180)], seed=1, n_resamples=200)
+    assert ci.point == 1.0
+    assert ci.method == "clopper-pearson-exact"
+    assert ci.low == pytest.approx(0.9835, abs=1e-3), "one-sided Clopper-Pearson at n=180"
+    assert ci.high == 1.0
+
+
+def test_zero_score_still_carries_uncertainty():
+    ci = cluster_bootstrap_ci([(f"i{i}", False) for i in range(180)], seed=1, n_resamples=200)
+    assert ci.point == 0.0 and ci.low == 0.0 and ci.high == pytest.approx(0.0165, abs=1e-3)
 
 
 @pytest.mark.slow
@@ -2829,7 +3212,15 @@ def _interval(values: np.ndarray, confidence: float, n_resamples: int, seed: int
               n: int, method: str) -> Interval:
     point = float(values.mean())
     if float(values.std()) == 0.0:
-        return Interval(point=point, low=point, high=point, n=n, method="degenerate")
+        # audit H5: a bootstrap cannot resample variance out of a constant, and the old
+        # branch returned low == high == point. A slot scoring 180/180 would have published
+        # "1.000 [1.000, 1.000] n=180" -- zero uncertainty at exactly the point a leaderboard
+        # makes its strongest claim, and Interval.overlaps would then call it distinguishable
+        # from everything. The correct one-sided Clopper-Pearson bound at 180/180 is 0.9835.
+        alpha = 1.0 - confidence
+        low = alpha ** (1 / n) if point == 1.0 else 0.0
+        high = 1.0 - alpha ** (1 / n) if point == 0.0 else 1.0
+        return Interval(point=point, low=low, high=high, n=n, method="clopper-pearson-exact")
     res = bootstrap(
         (values,), np.mean, confidence_level=confidence, n_resamples=n_resamples,
         method="BCa", random_state=np.random.default_rng(seed),
@@ -3424,9 +3815,38 @@ Expected: FAIL — module does not exist.
 
 - [ ] **Step 3: Write `ground_truth/triage/sensitivity.py`**
 
-`sweep` walks `cost_of_error` from `Decimal("0")` to `ceiling` in `steps` equal increments (each quantised to `Decimal("0.01")`), rebuilding the `Intent` with `model_copy(update={"cost_of_error": value})` and calling `evaluate` at each point. For an `unbounded_error` intent it returns a single row at the stated cost with `NEVER_AUTOMATE`.
+`sweep` walks `cost_of_error` from `Decimal("0")` to `ceiling` in `steps` equal increments (each quantised to `Decimal("0.01")`), rebuilding the `Intent` with `model_copy(update={"cost_of_error": value})` and calling `evaluate` at each point. For an `unbounded_error` intent it returns a single row at the stated cost with `NEVER_AUTOMATE`. **`sweep` is for the report's sensitivity chart only — it never locates the boundary.**
 
-`find_flip_point` takes the recommendation at cost zero as `from_rec` and returns the **first** cost whose recommendation differs, as `flips_at` and `to_rec`, composing:
+> **Amended 2026-08-29 (audit H6). `find_flip_point` bisects; it does not scan.** The original
+> returned the first grid point whose recommendation differed, and with the test's own fixture
+> (`ceiling=1000, steps=200`) the grid step is **5.00** while the true AUTOMATE/INSUFFICIENT
+> boundary is at **18.10**. It reports 20.00, and `test_flip_point_actually_flips_the_recommendation`
+> then probes 19.00 and 21.00 — **both INSUFFICIENT_EVIDENCE**, so `below != above` fails. The
+> reported flip point is also wrong by $1.90 in the client's own units, inside the one sentence
+> this plan calls the product. Bisection is correct to a stated precision and turns 200 `evaluate`
+> calls into about 17.
+
+```python
+def find_flip_point(intent, accuracy, automation_cost_per_item, *,
+                    ceiling: Decimal, precision: Decimal = Decimal("0.01")) -> FlipPoint:
+    def rec(cost: Decimal) -> Recommendation:
+        return evaluate(intent.model_copy(update={"cost_of_error": cost}),
+                        accuracy, automation_cost_per_item).recommendation
+
+    from_rec = Recommendation.NEVER_AUTOMATE if intent.unbounded_error else rec(Decimal(0))
+    if intent.unbounded_error or rec(ceiling) == from_rec:
+        return FlipPoint(intent=intent.intent, flips_at=None, from_rec=from_rec, to_rec=None,
+                         sentence=(f"This recommendation does not flip anywhere between $0 and "
+                                   f"${ceiling} of cost of error."))
+    lo, hi = Decimal(0), ceiling
+    while hi - lo > precision:                      # invariant: rec(lo) == from_rec != rec(hi)
+        mid = ((lo + hi) / 2).quantize(precision)
+        lo, hi = (mid, hi) if rec(mid) == from_rec else (lo, mid)
+    return FlipPoint(intent=intent.intent, flips_at=hi, from_rec=from_rec, to_rec=rec(hi),
+                     sentence=...)
+```
+
+The sentence composes as:
 
 ```
 f"This becomes {to_rec.value.replace('_', ' ')} if a wrong extraction costs more than "
