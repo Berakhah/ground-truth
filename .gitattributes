@@ -1,0 +1,8 @@
+# Every content_hash in this project (docs/rubric.md, docs/analysis-plan.md, golden manifests,
+# models.yaml) is a SHA-256 of raw file bytes, computed via Path.read_bytes(). Git's autocrlf
+# can silently rewrite those bytes on checkout (CRLF on Windows, LF in CI on Ubuntu), producing a
+# different hash for byte-identical content on different platforms -- which breaks freeze_rubric's
+# "already frozen with a different hash" check and any downstream contamination/manifest proof.
+# eol=lf pins line endings to LF everywhere, regardless of core.autocrlf, so the same commit
+# always hashes the same way on every platform.
+* text=auto eol=lf
