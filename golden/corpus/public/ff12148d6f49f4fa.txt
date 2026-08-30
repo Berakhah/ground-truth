@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8462-E
+  APPLICATION NO. APP-000514              PERIOD ENDING  01/09/2026
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       82,850.03
+     2  Structural Steel works, phase 2                              54,424.46
+     3  Sitework works, phase 3                                      33,902.21
+     4  Sitework works, phase 4                                      67,534.60
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              252,123.56
+  TOTAL COMPLETED & STORED TO DATE                                  238,711.30
+  MATERIALS PRESENTLY STORED                                          2,103.75
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    23,871.13
+  TOTAL EARNED LESS AMOUNT RETAINED                                 216,943.92
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             32,069.50
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            35,179.64
+==============================================================================
+  CERTIFIED BY: Masonry Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

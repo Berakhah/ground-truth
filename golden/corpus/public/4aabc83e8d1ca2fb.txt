@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 3819-A
+  APPLICATION NO. APP-000104              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      17,804.27
+     2  Concrete works, phase 2                                      69,789.69
+     3  Structural Steel works, phase 3                              49,649.61
+     4  Concrete works, phase 4                                       5,868.04
+     5  Masonry works, phase 5                                       29,041.79
+     6  Roofing works, phase 6                                       27,502.91
+     7  Roofing works, phase 7                                       11,562.04
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              246,398.46
+  TOTAL COMPLETED & STORED TO DATE                                  213,752.28
+  MATERIALS PRESENTLY STORED                                          2,533.93
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    21,121.84
+  TOTAL EARNED LESS AMOUNT RETAINED                                 195,164.37
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             26,215.31
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            51,234.09
+==============================================================================
+  CERTIFIED BY: Roofing Partners Pty Ltd
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.
