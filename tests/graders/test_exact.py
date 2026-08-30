@@ -44,8 +44,8 @@ def test_verdict_carries_grader_identity():
 
 
 def test_verdict_is_frozen():
-    import pytest
+    import pytest  # noqa: PLC0415
 
     v = grade_exact(field("approved"), "approved", RULE)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017
         v.correct = False
