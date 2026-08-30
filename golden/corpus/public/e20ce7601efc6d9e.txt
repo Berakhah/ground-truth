@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4075-E
+  APPLICATION NO. APP-000330              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       38,411.08
+     2  Masonry works, phase 2                                       44,706.73
+     3  Structural Steel works, phase 3                              41,422.69
+     4  Roofing works, phase 4                                       10,055.46
+     5  Structural Steel works, phase 5                               6,513.33
+     6  Structural Steel works, phase 6                              78,948.50
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              264,032.25
+  TOTAL COMPLETED & STORED TO DATE                                  220,057.79
+  MATERIALS PRESENTLY STORED                                          4,307.39
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    22,005.78
+  TOTAL EARNED LESS AMOUNT RETAINED                                 202,359.40
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             39,616.02
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            61,672.85
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Pty Ltd
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

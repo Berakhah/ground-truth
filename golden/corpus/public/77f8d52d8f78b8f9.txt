@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 3552-C
+  APPLICATION NO. APP-000583              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       30,530.50
+     2  Concrete works, phase 2                                      78,863.28
+     3  Structural Steel works, phase 3                              74,453.65
+     4  Glazing works, phase 4                                       46,567.62
+     5  Glazing works, phase 5                                       46,538.58
+     6  Masonry works, phase 6                                       40,719.23
+     7  Roofing works, phase 7                                        7,177.14
+     8  Concrete works, phase 8                                      26,567.92
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              405,316.85
+  TOTAL COMPLETED & STORED TO DATE                                  351,417.92
+  MATERIALS PRESENTLY STORED                                          4,014.58
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    35,141.79
+  TOTAL EARNED LESS AMOUNT RETAINED                                 320,290.71
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             12,031.51
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            85,026.14
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Pty Ltd
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

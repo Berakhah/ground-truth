@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5965-A
+  APPLICATION NO. APP-000968              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       27,377.66
+     2  Glazing works, phase 2                                       68,989.18
+     3  Masonry works, phase 3                                       77,807.17
+     4  Structural Steel works, phase 4                              17,665.19
+     5  Concrete works, phase 5                                      15,610.43
+     6  Concrete works, phase 6                                      51,279.05
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              297,689.01
+  TOTAL COMPLETED & STORED TO DATE                                  258,728.68
+  MATERIALS PRESENTLY STORED                                          1,387.42
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    25,872.87
+  TOTAL EARNED LESS AMOUNT RETAINED                                 234,243.23
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              8,172.08
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            63,445.78
+==============================================================================
+  CERTIFIED BY: Sitework Partners Inc.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

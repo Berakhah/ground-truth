@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1413-D
+  APPLICATION NO. APP-000525              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Structural Steel works, phase 1                              86,346.07
+     2  Sitework works, phase 2                                      40,262.57
+     3  Structural Steel works, phase 3                              15,998.24
+     4  Masonry works, phase 4                                       52,025.90
+     5  Roofing works, phase 5                                       88,236.00
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              320,589.33
+  TOTAL COMPLETED & STORED TO DATE                                  282,868.78
+  MATERIALS PRESENTLY STORED                                          3,603.00
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    28,286.88
+  TOTAL EARNED LESS AMOUNT RETAINED                                 258,184.90
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,071.13
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            62,404.43
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Inc.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

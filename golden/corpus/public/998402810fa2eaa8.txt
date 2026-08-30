@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 7040-A
+  APPLICATION NO. APP-000033              PERIOD ENDING  01/09/2026
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       16,086.36
+     2  Concrete works, phase 2                                      16,124.74
+     3  Masonry works, phase 3                                       77,796.45
+     4  Concrete works, phase 4                                      45,808.58
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              198,054.06
+  TOTAL COMPLETED & STORED TO DATE                                  155,816.13
+  MATERIALS PRESENTLY STORED                                          3,534.17
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    15,581.61
+  TOTAL EARNED LESS AMOUNT RETAINED                                 143,768.69
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              3,105.14
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            54,285.37
+==============================================================================
+  CERTIFIED BY: Masonry Partners Pty Ltd
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

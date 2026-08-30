@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2612-C
+  APPLICATION NO. APP-000072              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       72,342.58
+     2  Structural Steel works, phase 2                              75,413.41
+     3  Structural Steel works, phase 3                              74,314.11
+     4  Masonry works, phase 4                                       20,153.54
+     5  Glazing works, phase 5                                       77,165.45
+     6  Structural Steel works, phase 6                               8,320.84
+     7  Structural Steel works, phase 7                              87,972.35
+     8  Roofing works, phase 8                                       22,222.86
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              480,447.53
+  TOTAL COMPLETED & STORED TO DATE                                  437,905.14
+  MATERIALS PRESENTLY STORED                                            441.03
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    43,790.51
+  TOTAL EARNED LESS AMOUNT RETAINED                                 394,555.66
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             13,132.02
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            85,891.87
+==============================================================================
+  CERTIFIED BY: Roofing Partners Pty Ltd
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

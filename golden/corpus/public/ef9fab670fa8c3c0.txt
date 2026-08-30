@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8333-E
+  APPLICATION NO. APP-000449              PERIOD ENDING  01/09/2026
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      59,869.03
+     2  Sitework works, phase 2                                      26,500.43
+     3  Glazing works, phase 3                                       32,537.03
+     4  Sitework works, phase 4                                      31,840.07
+     5  Concrete works, phase 5                                      28,924.60
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              211,532.87
+  TOTAL COMPLETED & STORED TO DATE                                  179,671.16
+  MATERIALS PRESENTLY STORED                                          4,538.67
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    17,967.12
+  TOTAL EARNED LESS AMOUNT RETAINED                                 166,242.71
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             11,488.71
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            45,290.16
+==============================================================================
+  CERTIFIED BY: Masonry Partners Pty Ltd
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

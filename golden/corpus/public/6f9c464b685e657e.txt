@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 9949-C
+  APPLICATION NO. APP-000035              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       59,745.28
+     2  Sitework works, phase 2                                       8,197.21
+     3  Glazing works, phase 3                                       12,303.46
+     4  Sitework works, phase 4                                      72,187.44
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              198,620.42
+  TOTAL COMPLETED & STORED TO DATE                                  152,433.39
+  MATERIALS PRESENTLY STORED                                          2,229.07
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    15,743.34
+  TOTAL EARNED LESS AMOUNT RETAINED                                 138,919.12
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             17,922.69
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            59,701.30
+==============================================================================
+  CERTIFIED BY: Roofing Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.
