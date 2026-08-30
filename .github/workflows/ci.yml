@@ -13,7 +13,11 @@ jobs:
       - run: uv run mypy
       - name: no float in the money path
         run: |
-          if grep -rn "float(" ground_truth/graders/ ground_truth/triage/ 2>/dev/null; then
+          targets=()
+          for d in ground_truth/graders ground_truth/triage; do
+            [ -d "$d" ] && targets+=("$d")
+          done
+          if [ "${#targets[@]}" -gt 0 ] && grep -rn "float(" "${targets[@]}"; then
             echo "float() is forbidden in the money path"; exit 1
           fi
       - run: uv run pytest -v --cov=ground_truth --cov-report=term-missing --cov-fail-under=75
