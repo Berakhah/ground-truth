@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1978-B
+  APPLICATION NO. APP-000408              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Structural Steel works, phase 1                              28,070.15
+     2  Masonry works, phase 2                                       57,757.79
+     3  Sitework works, phase 3                                      38,162.53
+     4  Masonry works, phase 4                                       13,909.32
+     5  Sitework works, phase 5                                      53,386.94
+     6  Concrete works, phase 6                                      63,049.02
+     7  Roofing works, phase 7                                        8,903.20
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              279,997.01
+  TOTAL COMPLETED & STORED TO DATE                                  263,238.95
+  MATERIALS PRESENTLY STORED                                          3,243.50
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    26,323.90
+  TOTAL EARNED LESS AMOUNT RETAINED                                 240,158.55
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             13,567.27
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            39,838.46
+==============================================================================
+  CERTIFIED BY: Masonry Partners GmbH
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

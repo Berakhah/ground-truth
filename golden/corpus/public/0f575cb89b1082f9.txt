@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 3483-E
+  APPLICATION NO. APP-000555              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      40,937.39
+     2  Glazing works, phase 2                                       21,415.77
+     3  Roofing works, phase 3                                       10,772.78
+     4  Roofing works, phase 4                                       87,372.18
+     5  Structural Steel works, phase 5                              47,755.98
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              222,906.68
+  TOTAL COMPLETED & STORED TO DATE                                  208,254.10
+  MATERIALS PRESENTLY STORED                                          2,140.01
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    20,825.41
+  TOTAL EARNED LESS AMOUNT RETAINED                                 189,568.70
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              4,714.06
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            33,338.16
+==============================================================================
+  CERTIFIED BY: Sitework Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

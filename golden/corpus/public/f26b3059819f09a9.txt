@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8335-D
+  APPLICATION NO. APP-000159              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      48,366.56
+     2  Roofing works, phase 2                                       48,044.65
+     3  Glazing works, phase 3                                       76,622.53
+     4  Concrete works, phase 4                                      41,946.93
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              245,699.74
+  TOTAL COMPLETED & STORED TO DATE                                  214,980.67
+  MATERIALS PRESENTLY STORED                                            799.40
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    21,498.07
+  TOTAL EARNED LESS AMOUNT RETAINED                                 194,282.00
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             18,196.47
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            51,417.74
+==============================================================================
+  CERTIFIED BY: Masonry Partners Inc.
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

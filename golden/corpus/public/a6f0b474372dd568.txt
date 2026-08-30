@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2430-A
+  APPLICATION NO. APP-000624              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       40,506.63
+     2  Roofing works, phase 2                                       44,617.50
+     3  Masonry works, phase 3                                       21,140.30
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              156,351.15
+  TOTAL COMPLETED & STORED TO DATE                                  106,264.43
+  MATERIALS PRESENTLY STORED                                            942.62
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    10,626.44
+  TOTAL EARNED LESS AMOUNT RETAINED                                  96,580.61
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             15,028.96
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            59,770.54
+==============================================================================
+  CERTIFIED BY: Concrete Partners LLC
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

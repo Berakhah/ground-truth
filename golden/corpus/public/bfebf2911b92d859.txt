@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8697-A
+  APPLICATION NO. APP-000741              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      22,525.69
+     2  Roofing works, phase 2                                        7,014.79
+     3  Sitework works, phase 3                                      85,754.29
+     4  Roofing works, phase 4                                       57,974.86
+     5  Structural Steel works, phase 5                              30,101.50
+     6  Concrete works, phase 6                                      11,481.86
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              262,539.98
+  TOTAL COMPLETED & STORED TO DATE                                  214,852.99
+  MATERIALS PRESENTLY STORED                                          1,352.73
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    21,485.30
+  TOTAL EARNED LESS AMOUNT RETAINED                                 194,720.42
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             39,680.64
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            67,819.47
+==============================================================================
+  CERTIFIED BY: Concrete Partners Ltd.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

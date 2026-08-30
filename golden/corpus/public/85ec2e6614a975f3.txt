@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8770-B
+  APPLICATION NO. APP-000988              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       39,896.42
+     2  Roofing works, phase 2                                       45,363.73
+     3  Roofing works, phase 3                                       19,369.45
+     4  Sitework works, phase 4                                      81,576.94
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              217,699.43
+  TOTAL COMPLETED & STORED TO DATE                                  186,206.54
+  MATERIALS PRESENTLY STORED                                          3,062.85
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    19,120.65
+  TOTAL EARNED LESS AMOUNT RETAINED                                 170,148.74
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              1,871.22
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            47,550.69
+==============================================================================
+  CERTIFIED BY: Masonry Partners Inc.
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5173-B
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Structural Steel works, phase 1                              13,202.83
+     2  Masonry works, phase 2                                       70,183.11
+     3  Glazing works, phase 3                                       73,563.87
+     4  Masonry works, phase 4                                       71,785.03
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              271,892.13
+  TOTAL COMPLETED & STORED TO DATE                                  228,734.84
+  MATERIALS PRESENTLY STORED                                            874.10
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    22,873.48
+  TOTAL EARNED LESS AMOUNT RETAINED                                 206,735.46
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              2,620.46
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            65,156.67
+==============================================================================
+  CERTIFIED BY: Concrete Partners Ltd.
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

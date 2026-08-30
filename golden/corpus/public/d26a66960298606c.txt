@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5155-C
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       70,926.37
+     2  Roofing works, phase 2                                       68,996.52
+     3  Glazing works, phase 3                                       47,923.35
+     4  Structural Steel works, phase 4                              20,556.37
+     5  Roofing works, phase 5                                       74,524.15
+     6  Roofing works, phase 6                                       49,405.29
+     7  Masonry works, phase 7                                       53,440.95
+     8  Concrete works, phase 8                                      69,615.05
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              484,406.00
+  TOTAL COMPLETED & STORED TO DATE                                  455,388.05
+  MATERIALS PRESENTLY STORED                                          1,911.99
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    45,538.80
+  TOTAL EARNED LESS AMOUNT RETAINED                                 411,761.24
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             29,026.73
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            72,644.76
+==============================================================================
+  CERTIFIED BY: Glazing Partners LLC
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

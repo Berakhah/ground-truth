@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1553-B
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       63,578.20
+     2  Sitework works, phase 2                                      67,339.09
+     3  Sitework works, phase 3                                      42,994.05
+     4  Sitework works, phase 4                                      33,566.85
+     5  Concrete works, phase 5                                      81,230.88
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              305,536.49
+  TOTAL COMPLETED & STORED TO DATE                                  288,709.07
+  MATERIALS PRESENTLY STORED                                          3,756.78
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    28,870.91
+  TOTAL EARNED LESS AMOUNT RETAINED                                 263,594.94
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             36,248.33
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            41,941.55
+==============================================================================
+  CERTIFIED BY: Glazing Partners LLC
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.
