@@ -53,6 +53,11 @@ def _write_corpus(items: list[Item], split_dir: Path) -> None:
 
 
 def _insert_items(con: duckdb.DuckDBPyConnection, items: list[Item]) -> None:
+    # Full rebuild semantics: a second `python -m ground_truth.golden.build` against an
+    # existing data/results.duckdb replaces the prior build's rows rather than raising a
+    # PRIMARY KEY violation on `items`/`item_fields`.
+    con.execute("DELETE FROM item_fields")
+    con.execute("DELETE FROM items")
     created_at = datetime.now(UTC)
     for item in items:
         con.execute(
@@ -80,26 +85,34 @@ def _insert_items(con: duckdb.DuckDBPyConnection, items: list[Item]) -> None:
             )
 
 
-if __name__ == "__main__":
+def main(repo_root: Path = _REPO, public_count: int = 120, private_count: int = 180) -> None:
     public_seed = _require_env("GT_PUBLIC_SEED")
     private_seed = _require_env("GT_PRIVATE_SEED")
     hash_salt = _require_env("GT_HASH_SALT")
 
-    public_items = generate(count=120, seed=int(public_seed), rubric_version="v1", salt=hash_salt)
+    public_items = generate(
+        count=public_count, seed=int(public_seed), rubric_version="v1", salt=hash_salt
+    )
     private_items = [
         item.model_copy(update={"split": Split.PRIVATE})
-        for item in generate(count=180, seed=private_seed, rubric_version="v1", salt=hash_salt)
+        for item in generate(
+            count=private_count, seed=private_seed, rubric_version="v1", salt=hash_salt
+        )
     ]
 
-    golden_dir = _REPO / "golden"
+    golden_dir = repo_root / "golden"
     _write_corpus(public_items, golden_dir / "corpus" / Split.PUBLIC.value)
     _write_corpus(private_items, golden_dir / "corpus" / Split.PRIVATE.value)
     write_manifest(public_items, Split.PUBLIC, golden_dir / "manifest_public.json")
     write_manifest(private_items, Split.PRIVATE, golden_dir / "manifest_private.json")
 
-    db_con = connect(_REPO / "data" / "results.duckdb")
+    db_con = connect(repo_root / "data" / "results.duckdb")
     migrate(db_con)
     try:
         _insert_items(db_con, public_items + private_items)
     finally:
         db_con.close()
+
+
+if __name__ == "__main__":
+    main()
