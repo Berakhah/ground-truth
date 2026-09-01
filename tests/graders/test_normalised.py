@@ -1,8 +1,13 @@
+from pathlib import Path
+
 import pytest
 
-from ground_truth.golden.rubric import RubricRule
+from ground_truth.golden.rubric import RubricRule, loaded_rubric
 from ground_truth.golden.schema import FieldType, ItemField
 from ground_truth.graders.deterministic.normalised import AMBIGUOUS, grade_normalised, normalise
+
+REPO = Path(__file__).resolve().parents[2]
+RUBRIC = REPO / "docs" / "rubric.md"
 
 NAME_RULE = RubricRule(
     grader="normalised",
@@ -82,3 +87,60 @@ def test_slash_date_with_day_equal_to_month_is_not_ambiguous():
     # Both interpretations parse but agree on the same date, so it is not "distinct" per the
     # rubric's own wording -- the single agreed date is returned rather than AMBIGUOUS.
     assert normalise("05/05/2026", ["iso_date"]) == "2026-05-05"
+
+
+def test_parse_to_iso_8601_behaves_identically_to_iso_date():
+    """docs/rubric.md's DATE rule names this step parse_to_iso_8601, not iso_date."""
+    assert normalise("1 Sep 2026", ["parse_to_iso_8601"]) == normalise("1 Sep 2026", ["iso_date"])
+    assert normalise("1 Sep 2026", ["parse_to_iso_8601"]) == "2026-09-01"
+
+
+def test_strip_ordinal_suffix_works_even_declared_after_parse_to_iso_8601():
+    """The real docs/rubric.md DATE order is "parse_to_iso_8601; strip_ordinal_suffix; ...":
+    parsing is attempted BEFORE the ordinal-stripping step is reached. A pipeline that only
+    strips ordinals when its own step fires would raise on "5th Sep 2026" at the first step,
+    never reaching the second -- this proves parsing tolerates ordinals regardless of order."""
+    assert normalise("5th Sep 2026", ["parse_to_iso_8601", "strip_ordinal_suffix"]) == "2026-09-05"
+
+
+def test_strip_ordinal_suffix_is_a_noop_without_one():
+    assert normalise("2026-09-01", ["strip_ordinal_suffix"]) == "2026-09-01"
+
+
+def test_ampersand_to_and_normalises_party_name():
+    assert normalise("Smith & Sons", ["ampersand_to_and"]) == "Smith and Sons"
+
+
+def test_expand_two_digit_year_step_is_recognised_not_unknown():
+    """It's a declared, deferred step now -- not an unrecognised one."""
+    with pytest.raises(ValueError, match="document"):
+        normalise("01/02/03", ["expand_two_digit_year_using_document_context"])
+
+
+def test_expand_two_digit_year_step_is_a_noop_after_a_successful_parse():
+    """docs/rubric.md declares this step AFTER parse_to_iso_8601 for DATE. None of the
+    parser's accepted formats admit a two-digit year, so by the time this step is
+    reached in that order, the year is already unambiguously 4 digits -- nothing left to
+    expand. This is the case every current (4-digit-year) item actually exercises."""
+    steps = [
+        "parse_to_iso_8601",
+        "strip_ordinal_suffix",
+        "expand_two_digit_year_using_document_context",
+    ]
+    assert normalise("1 Sep 2026", steps) == "2026-09-01"
+
+
+def test_real_rubric_date_and_party_name_rules_grade_a_matching_pair_correct():
+    """The gap this file's other new tests were written to close: docs/rubric.md's DATE and
+    PARTY_NAME rules, loaded for real (not hand-typed in this file), must actually grade a
+    correct extraction as correct. Before the fix, both always failed with "unknown
+    normalisation step" regardless of what was extracted."""
+    rubric = loaded_rubric(RUBRIC)
+    date_rule = rubric[FieldType.DATE]
+    party_rule = rubric[FieldType.PARTY_NAME]
+
+    date_field = field(FieldType.DATE, "2026-09-01")
+    assert grade_normalised(date_field, "1 Sep 2026", date_rule).correct
+
+    party_field = field(FieldType.PARTY_NAME, "Smith & Sons Inc.")
+    assert grade_normalised(party_field, "smith and sons", party_rule).correct

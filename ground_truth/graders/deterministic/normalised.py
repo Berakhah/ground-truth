@@ -21,6 +21,10 @@ _PUNCT_TABLE = str.maketrans("", "", string.punctuation)
 _LEADING_ZEROS = re.compile(r"(?<=\D)0+(?=\d)|^0+(?=\d)")
 _SLASH_DATE = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
 _DATE_FORMATS = ("%Y-%m-%d", "%d %b %Y", "%d %B %Y", "%b %d, %Y", "%B %d, %Y")
+# docs/rubric.md's DATE and PARTY_NAME steps, not this module's own vocabulary.
+_ORDINAL_SUFFIX = re.compile(r"(?<=\d)(st|nd|rd|th)\b", re.IGNORECASE)
+_AMPERSAND = re.compile(r"\s*&\s*")
+_RESOLVED_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _strip_accents(value: str) -> str:
@@ -34,6 +38,18 @@ def _strip_legal_suffix(value: str) -> str:
         if stripped.casefold().endswith(suffix.casefold()):
             return stripped[: len(stripped) - len(suffix)].rstrip()
     return value
+
+
+def _strip_ordinal_suffix(value: str) -> str:
+    """Strips a trailing ordinal suffix after a digit (1st/2nd/3rd/4th -> 1/2/3/4).
+
+    A no-op on a string with none.
+    """
+    return _ORDINAL_SUFFIX.sub("", value)
+
+
+def _ampersand_to_and(value: str) -> str:
+    return _AMPERSAND.sub(" and ", value)
 
 
 def _resolve_slash_date(text: str) -> str:
@@ -51,7 +67,12 @@ def _resolve_slash_date(text: str) -> str:
 
 
 def _iso_date(value: str) -> str:
-    text = value.strip()
+    # Ordinal suffixes are stripped unconditionally here (not only via the standalone
+    # strip_ordinal_suffix step) because docs/rubric.md declares DATE's steps as
+    # "parse_to_iso_8601; strip_ordinal_suffix; ..." -- parse before strip. A pipeline
+    # that only stripped ordinals when the step is reached would fail to parse
+    # "5th Jan 2024" on the first (parsing) step, before ever reaching the second.
+    text = _strip_ordinal_suffix(value.strip())
     if _SLASH_DATE.match(text):
         return _resolve_slash_date(text)
     for fmt in _DATE_FORMATS:
@@ -62,7 +83,7 @@ def _iso_date(value: str) -> str:
     raise ValueError(f"unparseable date: {value!r}")
 
 
-def normalise(value: str, steps: list[str]) -> str:
+def normalise(value: str, steps: list[str]) -> str:  # noqa: PLR0912 -- explicit dispatch chain
     result = value
     for step in steps:
         if result == AMBIGUOUS:
@@ -77,8 +98,37 @@ def normalise(value: str, steps: list[str]) -> str:
             result = _strip_legal_suffix(result)
         elif step == "strip_leading_zeros":
             result = _LEADING_ZEROS.sub("", result)
-        elif step == "iso_date":
+        elif step in ("iso_date", "parse_to_iso_8601"):
             result = _iso_date(result)
+        elif step == "strip_ordinal_suffix":
+            # _iso_date already strips ordinals internally regardless of step order (see
+            # its docstring comment); applying it again here is an idempotent no-op on an
+            # already-ordinal-free string. Needed as its own step for a rubric that lists
+            # it before iso_date/parse_to_iso_8601 (as docs/rubric.md's DATE rule does),
+            # or that applies it to a non-date field.
+            result = _strip_ordinal_suffix(result)
+        elif step == "ampersand_to_and":
+            result = _ampersand_to_and(result)
+        elif step == "expand_two_digit_year_using_document_context":
+            # Genuinely resolving an ambiguous two-digit year needs the surrounding
+            # document text, which this function's signature (value, steps -> str) has
+            # no access to -- threading document context through the grading pipeline
+            # is a real architecture change, out of scope here. But docs/rubric.md
+            # declares this step AFTER parse_to_iso_8601 for DATE, and none of
+            # _DATE_FORMATS or _SLASH_DATE accept a two-digit year -- so by the time
+            # this step is reached, `result` is already a fully-resolved 4-digit-year
+            # ISO date (any genuinely ambiguous 2-digit-year value would already have
+            # raised "unparseable date" at the parse_to_iso_8601 step, never reaching
+            # here). This is therefore a no-op on an already-resolved date -- nothing
+            # left to expand -- and raises only if it is ever reached without one
+            # (a rubric that declared it first, or a non-ISO value), which no current
+            # data does: generate.py (Task 8) always emits 4-digit years.
+            if not _RESOLVED_ISO_DATE.match(result):
+                raise ValueError(
+                    "expand_two_digit_year_using_document_context: cannot resolve a "
+                    "two-digit year without the surrounding document, which this "
+                    "grader does not have access to"
+                )
         else:
             raise ValueError(f"unknown normalisation step: {step!r}")
     return result
