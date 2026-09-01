@@ -16,6 +16,12 @@ from ground_truth.triage.sensitivity import FlipPoint, find_flip_point
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 
+# The literal Interval.method string main() stamps on its placeholder accuracy data (see the
+# PLACEHOLDER comment in main() below). render_report() checks every row's accuracy.method
+# against this constant so it can render a visible "not measured" banner -- shared here so the
+# marker used to create the placeholder and the marker used to detect it can't drift apart.
+PLACEHOLDER_ACCURACY_METHOD = "placeholder-not-measured"
+
 # describe_mde's discordance_rate == 0.0 is rejected (mde_paired_binary requires it in (0, 1]).
 # A floor of 1% keeps the caveat renderable for a legitimately perfect-or-near-perfect
 # accuracy.point without ever reading as a claim about the true error rate -- see
@@ -95,11 +101,17 @@ def render_report(rows: list[ReportRow], *, generated_at: datetime, methodology_
     # Read at render time (not module import time) and inject as a <style> block -- never a
     # <link> -- so the returned HTML is fully self-contained for emailing and printing.
     css = (TEMPLATE_DIR / "report.css").read_text(encoding="utf-8")
+    # render_report() is general-purpose and may be called with real, measured ReportRows -- the
+    # banner must only appear when placeholder data is actually present, never unconditionally.
+    has_placeholder_accuracy = any(
+        row.accuracy.method == PLACEHOLDER_ACCURACY_METHOD for row in rows
+    )
     return template.render(
         generated_at=generated_at,
         methodology_url=methodology_url,
         rows=[_row_context(row) for row in rows],
         css=css,
+        has_placeholder_accuracy=has_placeholder_accuracy,
     )
 
 
@@ -121,7 +133,7 @@ def main() -> None:
     # once that pipeline exists. render_report() itself takes real ReportRows built from real
     # measurements -- this placeholder is only about where the CLI gets its accuracy input.
     placeholder_accuracy = Interval(
-        point=0.90, low=0.85, high=0.94, n=50, method="placeholder-not-measured"
+        point=0.90, low=0.85, high=0.94, n=50, method=PLACEHOLDER_ACCURACY_METHOD
     )
     placeholder_automation_cost_per_item = Decimal("0.10")
     placeholder_ceiling = Decimal("1000")

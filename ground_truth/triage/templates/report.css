@@ -50,6 +50,21 @@ h1 {
   font-size: 0.9rem;
 }
 
+.placeholder-banner {
+  background: #b00020;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1.5rem;
+  border: 2px solid #7a0016;
+  border-radius: 4px;
+  /* Without this, some browsers drop the background color when printing to PDF -- exactly the
+     path (docs/triage-intake-template.csv, printed to PDF) this warning most needs to survive. */
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
 table.summary {
   width: 100%;
   border-collapse: collapse;

@@ -4,7 +4,7 @@ from decimal import Decimal
 from ground_truth.stats.bootstrap import Interval
 from ground_truth.triage.expected_value import evaluate
 from ground_truth.triage.ingest import Intent
-from ground_truth.triage.report import ReportRow, render_report
+from ground_truth.triage.report import PLACEHOLDER_ACCURACY_METHOD, ReportRow, render_report
 from ground_truth.triage.sensitivity import find_flip_point
 
 ACC = Interval(point=0.92, low=0.905, high=0.935, n=40, method="cluster-BCa")
@@ -77,3 +77,34 @@ def test_empty_rows_render_an_empty_state_not_a_crash():
         methodology_url="https://example.invalid/methodology",
     )
     assert "no intents" in body.lower()
+
+
+def test_placeholder_accuracy_renders_a_visible_warning_banner():
+    intent = Intent(
+        intent="invoice_total",
+        volume_per_month=1000,
+        current_cost_per_item=Decimal("2.00"),
+        cost_of_error=Decimal("4.00"),
+        client_quote="about four dollars of rework each time",
+        unbounded_error=False,
+    )
+    placeholder = Interval(
+        point=0.90, low=0.85, high=0.94, n=50, method=PLACEHOLDER_ACCURACY_METHOD
+    )
+    placeholder_row = ReportRow(
+        intent=intent,
+        ev=evaluate(intent, placeholder, AUTO),
+        flip=find_flip_point(intent, placeholder, AUTO, ceiling=Decimal("1000")),
+        accuracy=placeholder,
+    )
+    body = render_report(
+        [placeholder_row],
+        generated_at=datetime(2026, 9, 15, tzinfo=UTC),
+        methodology_url="https://example.invalid/methodology",
+    )
+    assert "not a measurement" in body.lower()
+
+
+def test_real_accuracy_data_does_not_render_the_placeholder_banner():
+    body = html()
+    assert "not a measurement" not in body.lower()
