@@ -14,7 +14,7 @@ jobs:
       - name: no float in the money path
         run: |
           targets=()
-          for d in ground_truth/graders ground_truth/triage; do
+          for d in ground_truth/graders ground_truth/triage ground_truth/matrix; do
             [ -d "$d" ] && targets+=("$d")
           done
           if [ "${#targets[@]}" -gt 0 ] && grep -rn "float(" "${targets[@]}"; then
