@@ -35,3 +35,16 @@ judge_slots:
     list_price_out_per_1m: "2.00"
     pricing_url: "https://example.invalid/pricing"
     retrieved_at: "2026-08-31"
+  judge-same-family:
+    # Exists solely so test_same_family_judge_is_rejected has a real target -- family
+    # deliberately matches slots.slot-a's, so assert_judge_family_differs must refuse it.
+    family: "PLACEHOLDER-FAMILY-A"
+    provider: "placeholder-provider-a"
+    model_ref: "PLACEHOLDER-MODEL-REF-A-JUDGE"
+    trains_on_data: false
+    commercial_use: true
+    exposes_fingerprint: false
+    list_price_in_per_1m: "0.10"
+    list_price_out_per_1m: "0.40"
+    pricing_url: "https://example.invalid/pricing"
+    retrieved_at: "2026-08-31"
