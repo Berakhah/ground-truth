@@ -27,10 +27,7 @@ from itertools import combinations
 import duckdb
 
 from ground_truth.golden.schema import Split
-from ground_truth.matrix.cost import (  # noqa: F401 -- see module docstring
-    CostClaim,
-    cost_per_1k_items,
-)
+from ground_truth.matrix.cost import CostClaim
 from ground_truth.matrix.latency import LatencyDistribution, summarise_latency
 from ground_truth.providers import SlotSpec
 from ground_truth.stats.bootstrap import Interval, cluster_bootstrap_ci
@@ -51,7 +48,7 @@ class TokenCountsUnavailable(RuntimeError):
 
 
 _OBSERVATIONS_SQL = """
-    SELECT r.model_slot, o.item_id, ifld.field_type, v.correct, o.latency_ms
+    SELECT r.model_slot, o.output_id, o.item_id, ifld.field_type, v.correct, o.latency_ms
     FROM verdicts v
     JOIN outputs o ON o.output_id = v.output_id
     JOIN runs r ON r.run_id = o.run_id
@@ -75,28 +72,37 @@ def _slot_accuracy(
     """The exclusion-join, grouping, and bootstrap logic -- everything build_leaderboard
     needs except cost. Kept separate so it is directly testable without a real per-run
     token count (see TokenCountsUnavailable)."""
-    by_slot: dict[str, list[tuple[str, str, bool, int]]] = defaultdict(list)
-    for slot, item_id, field_type, correct, latency_ms in con.execute(
+    by_slot: dict[str, list[tuple[str, str, str, bool, int]]] = defaultdict(list)
+    for slot, output_id, item_id, field_type, correct, latency_ms in con.execute(
         _OBSERVATIONS_SQL, [split.value]
     ).fetchall():
-        by_slot[slot].append((item_id, field_type, bool(correct), int(latency_ms)))
+        by_slot[slot].append((output_id, item_id, field_type, bool(correct), int(latency_ms)))
 
     result: dict[str, _SlotAccuracy] = {}
     for slot in sorted(by_slot):
         records = by_slot[slot]
-        overall = [(item_id, correct) for item_id, _, correct, _ in records]
-        field_types = sorted({field_type for _, field_type, _, _ in records})
+        overall = [(item_id, correct) for _, item_id, _, correct, _ in records]
+        field_types = sorted({field_type for _, _, field_type, _, _ in records})
         per_field = {
             field_type: cluster_bootstrap_ci(
-                [(item_id, correct) for item_id, ft, correct, _ in records if ft == field_type],
+                [
+                    (item_id, correct)
+                    for _, item_id, ft, correct, _ in records
+                    if ft == field_type
+                ],
                 seed=seed,
             )
             for field_type in field_types
         }
+        # One latency observation per output, not per graded field: `records` has one row
+        # per verdict, so an output with k graded fields would otherwise be counted k times
+        # (review finding, task-31). All verdicts for the same output_id share one
+        # latency_ms, so keying a dict by output_id collapses the fan-out correctly.
+        latency_by_output = {output_id: latency_ms for output_id, _, _, _, latency_ms in records}
         result[slot] = _SlotAccuracy(
             accuracy=cluster_bootstrap_ci(overall, seed=seed),
             per_field=per_field,
-            latency=summarise_latency([latency_ms for _, _, _, latency_ms in records]),
+            latency=summarise_latency(list(latency_by_output.values())),
         )
     return result
 
@@ -105,8 +111,7 @@ def build_leaderboard(
     con: duckdb.DuckDBPyConnection, *, split: Split, seed: int, specs: dict[str, SlotSpec]
 ) -> list[LeaderboardRow]:
     rows: list[LeaderboardRow] = []
-    for slot, acc in _slot_accuracy(con, split=split, seed=seed).items():
-        del acc  # would feed LeaderboardRow(...) once cost is unblocked; see module docstring
+    for slot in _slot_accuracy(con, split=split, seed=seed):
         raise TokenCountsUnavailable(
             f"cannot compute a real cost for slot {slot!r}: no run in the store carries a "
             "token count. See TokenCountsUnavailable's docstring / this module's KNOWN GAP."

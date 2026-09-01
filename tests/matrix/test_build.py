@@ -148,6 +148,16 @@ def test_accepted_field_type_is_not_excluded(con):
     assert "money" in per_field and "date" in per_field
 
 
+def test_latency_counts_each_output_once_not_once_per_graded_field(con):
+    """Review finding (task-31): `records` has one row per verdict, so an output with two
+    graded fields (money, date) surviving exclusion must still contribute exactly one
+    latency observation, not two -- otherwise n and the percentiles are inflated for every
+    multi-field item, which is the normal case for this domain, not an edge case."""
+    _populate_two_field_types(con, rejected_status=None)
+    result = _slot_accuracy(con, split=Split.PUBLIC, seed=1)
+    assert result["slot-a"].latency.n == 1
+
+
 def test_build_leaderboard_refuses_to_fabricate_cost(con):
     _populate_two_field_types(con, rejected_status=None)
     with pytest.raises(TokenCountsUnavailable):
