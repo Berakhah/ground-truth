@@ -90,6 +90,19 @@ class Quota(BaseModel):
     tpm: int | None = None
     rpd: int | None = None
 
+    def __init__(
+        self,
+        rpm: int | None = None,
+        tpm: int | None = None,
+        rpd: int | None = None,
+        **data: object,
+    ) -> None:
+        # bok_core's real Quota is documented positionally -- `Quota(rpm, tpm, rpd)`, contract
+        # section 3.3 and INTERFACE-CONTRACT.md A5 -- but pydantic's BaseModel.__init__ is
+        # keyword-only by default. This override is the minimal bridge to that shape: same
+        # fields, same defaults, same validation, just constructible positionally too.
+        super().__init__(rpm=rpm, tpm=tpm, rpd=rpd, **data)
+
 
 def remaining(provider: str) -> Quota:  # pragma: no cover - shim stub
     """Public query, not only internal enforcement. Phase 2's scheduler asks before
