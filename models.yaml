@@ -1,0 +1,37 @@
+# PLACEHOLDER SCAFFOLD -- NOT A COMPLETED PROVIDER AUDIT.
+#
+# Every value below (family, provider, model_ref, prices, pricing_url,
+# retrieved_at) is a fake stand-in, not data from a real provider account.
+# The real field audit (Phase 1 Task 2, Step 1) has not been performed yet.
+# This file exists only to give ground_truth/providers.py's load_slots() a
+# schema-valid manifest so downstream code (Task 15's execute_sweep) can be
+# built and tested against it. See docs/providers.md for the full notice.
+#
+# DO NOT run a sweep against this file and DO NOT treat these figures as
+# real cost data. Replace every field here with real, dated, cited audit
+# results before this file is used for anything but scaffold tests.
+
+slots:
+  slot-a:
+    family: "PLACEHOLDER-FAMILY-A"
+    provider: "placeholder-provider-a"
+    model_ref: "PLACEHOLDER-MODEL-REF-A"   # read at runtime; never imported into Python source
+    trains_on_data: false
+    commercial_use: true
+    exposes_fingerprint: false
+    list_price_in_per_1m: "0.10"
+    list_price_out_per_1m: "0.40"
+    pricing_url: "https://example.invalid/pricing"
+    retrieved_at: "2026-08-31"
+judge_slots:
+  judge-a:
+    family: "PLACEHOLDER-FAMILY-B"
+    provider: "placeholder-provider-b"
+    model_ref: "PLACEHOLDER-MODEL-REF-B"
+    trains_on_data: false
+    commercial_use: true
+    exposes_fingerprint: false
+    list_price_in_per_1m: "1.00"
+    list_price_out_per_1m: "2.00"
+    pricing_url: "https://example.invalid/pricing"
+    retrieved_at: "2026-08-31"
