@@ -14,6 +14,7 @@ TABLES: tuple[str, ...] = (
     "judge_samples",
     "verdicts",
     "human_labels",
+    "judge_decisions",
 )
 
 _SCHEMA = """
@@ -62,6 +63,12 @@ CREATE TABLE IF NOT EXISTS human_labels (
     label_id TEXT PRIMARY KEY, item_id TEXT NOT NULL, field_name TEXT NOT NULL,
     output_id TEXT, labeller_id TEXT NOT NULL, round INTEGER NOT NULL CHECK (round IN (1,2)),
     value TEXT NOT NULL, labelled_at TIMESTAMP NOT NULL);
+
+CREATE TABLE IF NOT EXISTS judge_decisions (
+    field_type TEXT PRIMARY KEY, rubric_version TEXT NOT NULL, alpha DOUBLE NOT NULL,
+    alpha_low DOUBLE NOT NULL, alpha_high DOUBLE NOT NULL, n_units INTEGER NOT NULL,
+    threshold DOUBLE NOT NULL, status TEXT NOT NULL CHECK (status IN ('accepted','rejected')),
+    decided_at TIMESTAMPTZ NOT NULL);
 """
 
 
