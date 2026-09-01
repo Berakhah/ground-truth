@@ -94,8 +94,8 @@ def find_flip_point(
             from_rec=from_rec,
             to_rec=None,
             sentence=(
-                f"This recommendation does not flip anywhere between $0 and "
-                f"${ceiling} of cost of error."
+                f"This recommendation does not flip anywhere between {_money(Decimal(0))} and "
+                f"{_money(ceiling)} of cost of error."
             ),
         )
 
