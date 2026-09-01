@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Automation Triage Report</title>
+<style>
+{{ css | safe }}
+</style>
+</head>
+<body>
+<header class="report-header">
+  <div class="title-row">
+    <h1>Automation Triage Report</h1>
+    <a class="methodology-link" href="{{ methodology_url }}">Methodology &rarr;</a>
+  </div>
+  <p class="meta">Generated {{ generated_at.strftime("%Y-%m-%d") }}</p>
+</header>
+
+{% if rows %}
+<table class="summary">
+  <thead>
+    <tr>
+      <th>Intent</th>
+      <th>Volume/month</th>
+      <th>Accuracy [low, high] n</th>
+      <th>EV [low, high]</th>
+      <th>Recommendation</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td class="num">{{ row.volume_per_month }}</td>
+      <td class="num">{{ row.accuracy_point }} [{{ row.accuracy_low }}, {{ row.accuracy_high }}] n={{ row.accuracy_n }}</td>
+      <td class="num">{{ row.ev_point }} [{{ row.ev_low }}, {{ row.ev_high }}]</td>
+      <td>{{ row.recommendation }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% for row in rows %}
+<section class="intent-detail">
+  <h2>{{ row.name }}</h2>
+  <p class="formula">
+    EV/month = volume/month &times; [accuracy &times; (current cost/item &minus; automation cost/item)
+    &minus; (1 &minus; accuracy) &times; cost of error/item]<br>
+    This intent's measured numbers: volume/month = {{ row.volume_per_month }},
+    accuracy = {{ row.accuracy_point }} [{{ row.accuracy_low }}, {{ row.accuracy_high }}] n={{ row.accuracy_n }},
+    current cost/item = {{ row.current_cost_per_item }}, cost of error/item = {{ row.cost_of_error }}
+    &rarr; EV = {{ row.ev_point }}/month, ranging [{{ row.ev_low }}, {{ row.ev_high }}] across the
+    accuracy interval.
+  </p>
+  <blockquote class="client-quote">&ldquo;{{ row.client_quote }}&rdquo;</blockquote>
+  <p class="rationale">{{ row.rationale }}</p>
+  <p class="flip-point">{{ row.flip_sentence }}</p>
+  <p class="mde-caveat">{{ row.mde_caveat }}</p>
+</section>
+{% endfor %}
+
+{% else %}
+<p class="empty-state">No intents supplied &mdash; nothing has been measured yet.</p>
+{% endif %}
+
+</body>
+</html>

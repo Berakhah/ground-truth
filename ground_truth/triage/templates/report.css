@@ -1,0 +1,133 @@
+:root {
+  --accent: oklch(0.52 0.10 232);
+  --ink: #1a1a1a;
+  --muted: #5a5a5a;
+  --border: #d8d8d8;
+  --panel: #f7f7f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--ink);
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  line-height: 1.5;
+}
+
+.report-header .title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 0.5rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.methodology-link {
+  color: var(--accent);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.methodology-link:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  color: var(--muted);
+  margin: 0.25rem 0 1.5rem;
+  font-size: 0.9rem;
+}
+
+table.summary {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2.5rem;
+}
+
+table.summary th,
+table.summary td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+table.summary td.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.intent-detail {
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.intent-detail h2 {
+  margin-top: 0;
+}
+
+.formula {
+  font-variant-numeric: tabular-nums;
+  background: var(--panel);
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+}
+
+.client-quote {
+  font-style: italic;
+  border-left: 3px solid var(--border);
+  margin: 1rem 0;
+  padding: 0.25rem 1rem;
+  color: var(--muted);
+}
+
+.rationale {
+  color: var(--ink);
+}
+
+.mde-caveat {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.empty-state {
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media print {
+  body {
+    max-width: none;
+    padding: 0.5in;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+
+  /* Break before every intent section except the first, so each intent starts a
+     fresh page without leaving a blank leading page. */
+  .intent-detail + .intent-detail {
+    break-before: page;
+    page-break-before: always;
+  }
+}
