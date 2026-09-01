@@ -63,6 +63,41 @@ def test_zero_score_still_carries_uncertainty():
     assert ci.point == 0.0 and ci.low == 0.0 and ci.high == pytest.approx(0.0165, abs=1e-3)
 
 
+def constant_replicated_score(n_items: int, k: int, replicates: int = 5):
+    """Every item scores exactly k/replicates -- a real, non-random constant per-item mean,
+    matching the project's n>=5 replicate rule. Deterministic pattern: first k replicates
+    correct, rest wrong."""
+    return [(f"i{i}", r < k) for i in range(n_items) for r in range(replicates)]
+
+
+@pytest.mark.parametrize("k", [0, 1, 2, 3, 4, 5])
+def test_every_achievable_constant_score_under_five_replicates_has_a_nonzero_bracket(k):
+    """audit review: `float(values.std()) == 0.0` missed every constant except the two
+    extremes, because floating-point summation over many identical non-0/1 values doesn't
+    reliably reproduce an exact 0.0 std. A slot where every item scores exactly k/5 (k in
+    1..4) is a real, reachable shape -- `values.min() == values.max()` must catch it."""
+    ci = cluster_bootstrap_ci(constant_replicated_score(60, k), seed=1, n_resamples=200)
+    assert ci.point == pytest.approx(k / 5)
+    assert ci.low <= ci.point <= ci.high
+    if k in (0, 5):
+        assert ci.method == "clopper-pearson-exact"
+    else:
+        # not a 0/1 constant, so no binomial bound is computed -- the label must say so,
+        # not borrow "clopper-pearson-exact" for a bound that was never computed.
+        assert ci.method == "degenerate-zero-variance"
+        assert ci.low < ci.high, "the old std==0.0 bug reported this case as zero-width"
+
+
+@pytest.mark.parametrize("k", [0, 3, 5])
+def test_single_cluster_constant_score_still_carries_uncertainty(k):
+    """n=1 (a single item) is another highly reachable degenerate shape: the values array
+    always has min == max because there's only one value in it."""
+    ci = cluster_bootstrap_ci(constant_replicated_score(1, k), seed=1, n_resamples=200)
+    assert ci.n == 1
+    assert ci.low <= ci.point <= ci.high
+    assert ci.low < ci.high, "n=1 must not collapse to a zero-width interval either"
+
+
 @pytest.mark.slow
 def test_bootstrap_ci_covers_known_parameter():
     p, covered, trials = 0.9, 0, 1000
