@@ -21,3 +21,5 @@ jobs:
             echo "float() is forbidden in the money path"; exit 1
           fi
       - run: uv run pytest -v --cov=ground_truth --cov-report=term-missing --cov-fail-under=75
+      - name: slow tests (coverage and null simulations)
+        run: uv run pytest -m slow -v

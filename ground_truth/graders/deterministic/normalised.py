@@ -12,6 +12,21 @@ from ground_truth.graders.base import Verdict
 GRADER_ID = "normalised"
 GRADER_VERSION = "1"
 
+
+class UnknownNormalisationStep(ValueError):
+    """A rubric declares a normalisation step this module does not implement.
+
+    Deliberately a ValueError subclass, not a bare one: every existing `except ValueError`
+    in this module still catches it (no caller's exception-handling behaviour changes), but
+    it is now possible for a caller that cares to `except UnknownNormalisationStep`
+    specifically and distinguish "the rubric names a step nobody wrote code for" (a
+    vocabulary bug in this module) from "a declared, implemented step just didn't match this
+    value" (e.g. an unparseable date -- a normal grading outcome). Final review item 2: this
+    is exactly the ambiguity that let both this bug class and its exact.py sibling (item 1)
+    hide silently -- a caller had no way to tell them apart even if it had wanted to.
+    """
+
+
 # Sentinel returned by iso_date (and threaded through normalise/grade_normalised) when a
 # slash-formatted date genuinely cannot be resolved between day-first and month-first.
 AMBIGUOUS = "AMBIGUOUS_DATE"
@@ -90,6 +105,8 @@ def normalise(value: str, steps: list[str]) -> str:  # noqa: PLR0912 -- explicit
             return AMBIGUOUS
         if step == "casefold":
             result = result.casefold()
+        elif step == "strip_whitespace":
+            result = result.strip()
         elif step == "strip_accents":
             result = _strip_accents(result)
         elif step == "strip_punctuation":
@@ -130,7 +147,7 @@ def normalise(value: str, steps: list[str]) -> str:  # noqa: PLR0912 -- explicit
                     "grader does not have access to"
                 )
         else:
-            raise ValueError(f"unknown normalisation step: {step!r}")
+            raise UnknownNormalisationStep(f"unknown normalisation step: {step!r}")
     return result
 
 
