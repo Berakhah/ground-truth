@@ -1,9 +1,12 @@
 import re
+import subprocess
 from dataclasses import dataclass
 from dataclasses import field as dc_field
+from types import SimpleNamespace
 
 import pytest
 
+from ground_truth import runner
 from ground_truth._bok_shim import (
     CacheMode,
     CallContext,
@@ -199,3 +202,33 @@ def test_run_records_the_models_yaml_hash(con):
     assert re.fullmatch(
         r"[0-9a-f]{64}", con.execute("SELECT models_yaml_hash FROM runs").fetchone()[0]
     )
+
+
+def _dirty_git_run(cmd, **kwargs):
+    """Fakes `git rev-parse HEAD` succeeding at 'abc123' with a dirty porcelain status."""
+    stdout = "abc123\n" if cmd[1] == "rev-parse" else "M ground_truth/runner.py\n"
+    return SimpleNamespace(stdout=stdout)
+
+
+def test_code_version_raises_on_dirty_tree(monkeypatch):
+    """audit H7: a sweep recorded against a dirty tree cannot be reproduced."""
+    monkeypatch.setattr(runner.subprocess, "run", _dirty_git_run)
+    with pytest.raises(RuntimeError, match="dirty"):
+        runner._code_version(allow_dirty=False)
+
+
+def test_code_version_allow_dirty_returns_dirty_suffixed_version(monkeypatch):
+    monkeypatch.setattr(runner.subprocess, "run", _dirty_git_run)
+    assert runner._code_version(allow_dirty=True) == "abc123-dirty"
+
+
+def test_code_version_raises_when_git_command_fails(monkeypatch):
+    """audit H7: the original swallowed this and returned 'unknown'. A sweep with no
+    provenance is not a measurement, so this must raise instead."""
+
+    def _failing_git_run(cmd, **kwargs):
+        raise subprocess.CalledProcessError(128, cmd)
+
+    monkeypatch.setattr(runner.subprocess, "run", _failing_git_run)
+    with pytest.raises(RuntimeError):
+        runner._code_version(allow_dirty=False)
