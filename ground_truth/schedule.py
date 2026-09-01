@@ -72,7 +72,13 @@ def plan_batches(
 def _load_items(con: duckdb.DuckDBPyConnection) -> list[Item]:
     """The corpus `golden.build` already wrote to `items`. Scheduling plans against the
     persisted corpus, never regenerates it -- build.py's seeds are secret precisely so the
-    private split can't be recovered, and pending_work only ever reads `item.item_id`."""
+    private split can't be recovered, and pending_work/plan_batches only ever read
+    `item.item_id`.
+
+    ponytail: fields=[] below, not joined from `item_fields` -- planning and (Step 6, out of
+    scope here) live dispatch never inspect them; build_prompt does. Join item_fields into
+    real ItemField rows here before this main() is ever used for a live, non-dry-run sweep.
+    """
     return [
         Item(
             item_id=item_id,
