@@ -12,6 +12,9 @@ load-bearing part; see contract section 3.4.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Generic, TypeVar
@@ -92,3 +95,24 @@ def remaining(provider: str) -> Quota:  # pragma: no cover - shim stub
     """Public query, not only internal enforcement. Phase 2's scheduler asks before
     dispatching each sweep batch. The shim returns an unbounded quota."""
     return Quota()
+
+
+_BLACKOUT = ContextVar("bok_blackout", default=False)
+_BREACHES: list[str] = []
+
+
+@contextmanager
+def blackout() -> Iterator[None]:
+    """Every lane raises ProvidersUnavailable. Defeats the response cache, the probe
+    TTL cache, the fallback chain, and any local-fallback that is not deterministic."""
+    token = _BLACKOUT.set(True)
+    _BREACHES.clear()
+    try:
+        yield
+    finally:
+        _BLACKOUT.reset(token)
+
+
+def assert_blackout_complete() -> None:
+    """Asserts no code path reached a provider under blackout. THE shared test."""
+    assert _BREACHES == [], f"code reached a provider under blackout: {_BREACHES}"
