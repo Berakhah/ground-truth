@@ -35,7 +35,12 @@ def test_private_manifest_contains_hashes_only(tmp_path):
     body = json.loads(path.read_text(encoding="utf-8"))
     assert body["count"] == 180  # noqa: PLR2004
     assert set(body) == {"split", "count", "generated_at", "item_hashes"}
-    blob = path.read_text(encoding="utf-8")
+    # generated_at is a real wall-clock timestamp (manifest.py's write_manifest calls
+    # datetime.now(UTC)), never derived from any item field -- excluded from the leak scan
+    # below because it can coincidentally contain a fixture date's literal digits (observed:
+    # generate.py's hardcoded period_to fixture "2026-09-01" collided with the manifest's own
+    # unrelated generated_at timestamp on that calendar day, tripping a false "leak").
+    blob = path.read_text(encoding="utf-8").replace(body["generated_at"], "")
     for item in items:
         if item.split is Split.PRIVATE:
             for field in item.fields:
