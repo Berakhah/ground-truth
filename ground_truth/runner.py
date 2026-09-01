@@ -6,6 +6,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import duckdb
 
@@ -20,6 +21,12 @@ from ground_truth._bok_shim import (
 )
 from ground_truth.golden.generate import render_document
 from ground_truth.golden.schema import Item
+
+if TYPE_CHECKING:
+    # Type-only: schedule.py imports execute_sweep/pending_work from this module at its own
+    # top level, so a real top-level import here would be circular. TYPE_CHECKING is never
+    # True at runtime, so mypy sees WorkUnit while the two modules stay import-safe.
+    from ground_truth.schedule import WorkUnit
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -144,3 +151,32 @@ def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces
                 )
         con.execute("UPDATE runs SET finished_at = ? WHERE run_id = ?", [datetime.now(UTC), run_id])
     return sweep_id
+
+
+def pending_work(
+    con: duckdb.DuckDBPyConnection,
+    sweep_id: str,
+    items: list[Item],
+    slots: list[str],
+    replicates: int,
+) -> list[WorkUnit]:
+    """Everything a sweep still owes: every (slot, item, replicate) not already an `outputs`
+    row for this sweep_id. Re-running this against the identical arguments after a partial
+    sweep is what makes resuming free -- no already-served call is asked for twice."""
+    from ground_truth.schedule import WorkUnit  # noqa: PLC0415 -- see TYPE_CHECKING note above
+
+    done = {
+        (r[0], r[1], r[2])
+        for r in con.execute(
+            "SELECT r.model_slot, o.item_id, o.replicate_idx FROM outputs o "
+            "JOIN runs r ON r.run_id = o.run_id WHERE r.sweep_id = ?",
+            [sweep_id],
+        ).fetchall()
+    }
+    return [
+        WorkUnit(sweep_id, slot, item.item_id, replicate)
+        for slot in slots
+        for item in items
+        for replicate in range(1, replicates + 1)
+        if (slot, item.item_id, replicate) not in done
+    ]
