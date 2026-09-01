@@ -56,6 +56,33 @@ def test_sweep_is_monotone_towards_route_to_human():
     )
 
 
+def test_flip_point_from_rec_matches_the_rows_actual_recommendation():
+    """Final review item 6: from_rec must equal the real, current recommendation (evaluate()
+    at the client's own stated cost), never a fixed $0 baseline -- otherwise the flip-point
+    sentence and the summary table can name two different recommendations for the same row."""
+    for cost in ("0.01", "4.00", "18.10", "27.34", "100.00", "900.00"):
+        i = intent(cost)
+        fp = find_flip_point(i, ACC, AUTO_COST, ceiling=Decimal("1000"))
+        actual = evaluate(i, ACC, AUTO_COST).recommendation
+        assert fp.from_rec == actual, f"cost={cost}: sentence's from_rec must match the table"
+
+
+def test_flip_point_looks_backward_when_real_cost_is_already_past_every_boundary():
+    """Mirrors the final review's own repro on docs/triage-intake-template.csv: a real cost
+    already past every boundary ascending to `ceiling` would reveal (here $900, past this
+    fixture's INSUFFICIENT_EVIDENCE -> ROUTE_TO_HUMAN crossing at $27.34) must report a
+    past-tense flip ("already became"), never a forward "becomes X if cost exceeds $Y" for a
+    Y already crossed -- that phrasing is what the final review flagged as self-contradictory."""
+    fp = find_flip_point(intent("900.00"), ACC, AUTO_COST, ceiling=Decimal("1000"))
+    assert fp.from_rec is Recommendation.ROUTE_TO_HUMAN
+    assert fp.flips_at is not None
+    assert "already became" in fp.sentence
+    assert "becomes" not in fp.sentence, "never both a past and a forward tense in one sentence"
+    below = evaluate(intent(str(fp.flips_at - Decimal("1.00"))), ACC, AUTO_COST).recommendation
+    above = evaluate(intent(str(fp.flips_at + Decimal("1.00"))), ACC, AUTO_COST).recommendation
+    assert below == fp.to_rec and above == fp.from_rec, "the reported boundary must be real"
+
+
 def test_unbounded_intent_never_flips():
     unbounded = Intent(
         intent="bank",

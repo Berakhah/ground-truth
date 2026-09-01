@@ -1,0 +1,22 @@
+# Mirrors .gitignore: none of this belongs in the image build context.
+# data/*.duckdb and golden/corpus/private/ matter most here -- a locally
+# built private split must never end up baked into an image layer (see
+# CLAUDE.md Never #1, private-split-never-published).
+.git
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+data/*.duckdb
+golden/corpus/private/
+!golden/corpus/private/.gitkeep
+node_modules/
+web/.next/
+web/out/
+.DS_Store
