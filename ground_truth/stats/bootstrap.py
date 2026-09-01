@@ -30,16 +30,43 @@ def _interval(  # noqa: PLR0913, PLR0917 -- private helper, each param is a dist
     values: np.ndarray, confidence: float, n_resamples: int, seed: int, n: int, method: str
 ) -> Interval:
     point = float(values.mean())
-    if float(values.std()) == 0.0:
+    if values.min() == values.max():
         # audit H5: a bootstrap cannot resample variance out of a constant, and the old
         # branch returned low == high == point. A slot scoring 180/180 would have published
         # "1.000 [1.000, 1.000] n=180" -- zero uncertainty at exactly the point a leaderboard
         # makes its strongest claim, and Interval.overlaps would then call it distinguishable
-        # from everything. The correct one-sided Clopper-Pearson bound at 180/180 is 0.9835.
+        # from everything.
+        #
+        # This guard used to read `float(values.std()) == 0.0`, which is exact-equality on a
+        # *derived* float: summing 60 identical 0.8 values doesn't reliably reproduce a std of
+        # exactly 0.0, so a constant score like 4/5 defeated the check and let a live
+        # zero-width interval through -- the exact bug this branch exists to prevent, just
+        # missed for every constant except the two extremes. `values.min() == values.max()`
+        # reads the data directly (no floating-point accumulation) and is exact for every
+        # constant array.
         alpha = 1.0 - confidence
-        low = alpha ** (1 / n) if point == 1.0 else 0.0
-        high = 1.0 - alpha ** (1 / n) if point == 0.0 else 1.0
-        return Interval(point=point, low=low, high=high, n=n, method="clopper-pearson-exact")
+        if point == 1.0:
+            # x = n successes: P(X=n | p) = p**n, so the lower Clopper-Pearson bound solves
+            # p_low**n = alpha, giving p_low = alpha**(1/n). One-sided by design (see brief).
+            return Interval(
+                point=point, low=alpha ** (1 / n), high=1.0, n=n, method="clopper-pearson-exact"
+            )
+        if point == 0.0:
+            # mirror image of the point == 1.0 case.
+            return Interval(
+                point=point,
+                low=0.0,
+                high=1.0 - alpha ** (1 / n),
+                n=n,
+                method="clopper-pearson-exact",
+            )
+        # Constant but not 0 or 1 -- e.g. every one of 60 items independently scoring exactly
+        # 4/5. Clopper-Pearson is a binomial bound for x successes out of n trials; it isn't
+        # defined for a non-0/1 constant, so it is not computed here. [0, 1] is the honest,
+        # maximally-conservative bracket for "zero observed variance, unknown true variance" --
+        # labelled as what it actually is, not borrowed as "clopper-pearson-exact" for a bound
+        # that was never computed.
+        return Interval(point=point, low=0.0, high=1.0, n=n, method="degenerate-zero-variance")
     res = bootstrap(
         (values,),
         np.mean,
