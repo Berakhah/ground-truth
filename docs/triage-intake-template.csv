@@ -1,0 +1,3 @@
+intent,volume_per_month,current_cost_per_item,cost_of_error,client_quote
+invoice_total,4000,2.50,40.00,"About forty dollars of rework each time we get it wrong"
+bank_detail_change,20,1.00,unbounded,"If we pay the wrong account we may never recover it"
