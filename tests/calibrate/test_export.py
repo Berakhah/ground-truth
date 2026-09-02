@@ -24,8 +24,13 @@ def curve(field_type="money"):
 
 def written(tmp_path):
     path = tmp_path / "calibration.json"
-    export_curves([curve("money"), curve("percent")], path,
-                  rubric_version="v1", fitted_at=FITTED_AT, targets=TARGETS)
+    export_curves(
+        [curve("money"), curve("percent")],
+        path,
+        rubric_version="v1",
+        fitted_at=FITTED_AT,
+        targets=TARGETS,
+    )
     return path
 
 
@@ -36,13 +41,20 @@ def test_export_carries_the_schema_version(tmp_path):
 def test_every_required_key_is_present(tmp_path):
     entry = load_export(written(tmp_path))["curves"][0]
     assert set(entry) == {
-        "field_type", "method", "curve_points", "n", "fitted_at",
-        "rubric_version", "source_split", "threshold_recommendations",
+        "field_type",
+        "method",
+        "curve_points",
+        "n",
+        "fitted_at",
+        "rubric_version",
+        "source_split",
+        "threshold_recommendations",
     }
 
 
 def test_source_split_states_the_design(tmp_path):
-    assert load_export(written(tmp_path))["curves"][0]["source_split"] == "public-fit/private-validate"
+    source_split = load_export(written(tmp_path))["curves"][0]["source_split"]
+    assert source_split == "public-fit/private-validate"
 
 
 def test_exported_thresholds_match_the_curve(tmp_path):
@@ -60,13 +72,18 @@ def test_every_requested_target_appears(tmp_path):
 def test_export_is_byte_stable_for_a_fixed_input(tmp_path):
     path = written(tmp_path)
     first = path.read_text(encoding="utf-8")
-    export_curves([curve("money"), curve("percent")], path,
-                  rubric_version="v1", fitted_at=FITTED_AT, targets=TARGETS)
+    export_curves(
+        [curve("money"), curve("percent")],
+        path,
+        rubric_version="v1",
+        fitted_at=FITTED_AT,
+        targets=TARGETS,
+    )
     assert path.read_text(encoding="utf-8") == first
     json.loads(first)
 
 
 def test_n_is_the_validation_sample(tmp_path):
-    assert load_export(written(tmp_path))["curves"][0]["n"] == 200, (
+    assert load_export(written(tmp_path))["curves"][0]["n"] == 200, (  # noqa: PLR2004
         "the published n is the held-out sample the curve was validated on"
     )

@@ -9,8 +9,9 @@ PLAN = Path(__file__).resolve().parents[3] / "docs" / "analysis-plan.md"
 
 
 def samples(n: int = 20) -> list[Sample]:
-    return [Sample(presentation_order=i % 2, raw="EQUIVALENT", observed_length=10 + i)
-            for i in range(n)]
+    return [
+        Sample(presentation_order=i % 2, raw="EQUIVALENT", observed_length=10 + i) for i in range(n)
+    ]
 
 
 def agreeing(n: int):

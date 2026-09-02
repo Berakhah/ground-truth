@@ -31,9 +31,10 @@ def test_parse_judgement(raw, expected):
 
 
 def test_majority_of_three_wins():
-    assert majority_vote(
-        [s(0, "EQUIVALENT"), s(1, "EQUIVALENT"), s(0, "NOT_EQUIVALENT")]
-    ) is JudgeVerdict.EQUIVALENT
+    assert (
+        majority_vote([s(0, "EQUIVALENT"), s(1, "EQUIVALENT"), s(0, "NOT_EQUIVALENT")])
+        is JudgeVerdict.EQUIVALENT
+    )
 
 
 def test_tie_yields_inconclusive():

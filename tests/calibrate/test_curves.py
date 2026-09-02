@@ -48,18 +48,19 @@ def test_unknown_method_raises():
 
 def test_sample_sizes_are_recorded_separately():
     curve = fit_curve(points(120, 1), points(180, 2), "money", "isotonic")
-    assert curve.n_fit == 120 and curve.n_validate == 180
+    assert curve.n_fit == 120 and curve.n_validate == 180  # noqa: PLR2004
 
 
 def test_divergence_is_small_when_splits_agree():
-    assert fit_curve(points(300, 1), points(300, 2), "money", "isotonic").divergence < 0.1
+    divergence = fit_curve(points(300, 1), points(300, 2), "money", "isotonic").divergence
+    assert divergence < 0.1  # noqa: PLR2004
 
 
 def test_divergence_is_large_when_splits_disagree():
     fit = [ConfidencePoint(f"f{i}", 0.9, True) for i in range(200)]
     validate = [ConfidencePoint(f"v{i}", 0.9, i % 2 == 0) for i in range(200)]
     curve = fit_curve(fit, validate, "money", "isotonic")
-    assert curve.divergence > 0.1, (
+    assert curve.divergence > 0.1, (  # noqa: PLR2004
         "public-fit vs private-validate divergence is the contamination signal"
     )
 

@@ -31,6 +31,10 @@ def cost_per_1k_items(spec: SlotSpec, mean_tokens_in: int, mean_tokens_out: int)
         + Decimal(mean_tokens_out) * Decimal(1000) / _PER_MILLION * spec.list_price_out_per_1m
     ).quantize(Decimal("0.0001"))
     return CostClaim(
-        value=value, unit="USD per 1,000 items", method="DERIVED",
-        source_url=spec.pricing_url, retrieved_at=spec.retrieved_at, caveat=LIST_PRICE_CAVEAT,
+        value=value,
+        unit="USD per 1,000 items",
+        method="DERIVED",
+        source_url=spec.pricing_url,
+        retrieved_at=spec.retrieved_at,
+        caveat=LIST_PRICE_CAVEAT,
     )

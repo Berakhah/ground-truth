@@ -85,11 +85,7 @@ def _slot_accuracy(
         field_types = sorted({field_type for _, _, field_type, _, _ in records})
         per_field = {
             field_type: cluster_bootstrap_ci(
-                [
-                    (item_id, correct)
-                    for _, item_id, ft, correct, _ in records
-                    if ft == field_type
-                ],
+                [(item_id, correct) for _, item_id, ft, correct, _ in records if ft == field_type],
                 seed=seed,
             )
             for field_type in field_types
