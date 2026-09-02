@@ -34,11 +34,14 @@ def confusion_matrix(rater_a: list[str], rater_b: list[str]) -> dict[tuple[str, 
     return matrix
 
 
-def krippendorff_alpha(ratings: dict[str, dict[str, str]]) -> float:
-    """Nominal-data alpha per Krippendorff, "Computing Krippendorff's Alpha-Reliability"
-    (coincidence-matrix method, section C/E). `ratings` maps rater -> {unit_id: value};
-    a rater simply omits units it did not rate. A unit rated by fewer than two raters
-    contributes nothing -- this is what makes a partial second rater usable at all.
+def disagreement(ratings: dict[str, dict[str, str]]) -> tuple[float, float]:
+    """`(observed, expected)` disagreement -- alpha's two components, `Do` and `De`.
+
+    Split out of `krippendorff_alpha` so the two callers that need `De` on its own share one
+    implementation of the formula rather than each carrying a copy. (`graders.judge.agreement`
+    needs it for the zero-disagreement case, where a resampling bootstrap of alpha is
+    degenerate and an exact bound has to be computed instead.) Same inputs, same
+    `ValueError`s, and `krippendorff_alpha` is now literally `1 - Do/De`.
     """
     units: dict[str, list[str]] = {}
     for rater_ratings in ratings.values():
@@ -69,4 +72,14 @@ def krippendorff_alpha(ratings: dict[str, dict[str, str]]) -> float:
         raise ValueError(
             "expected disagreement is zero (only one value occurs); alpha is undefined"
         )
+    return do, de
+
+
+def krippendorff_alpha(ratings: dict[str, dict[str, str]]) -> float:
+    """Nominal-data alpha per Krippendorff, "Computing Krippendorff's Alpha-Reliability"
+    (coincidence-matrix method, section C/E). `ratings` maps rater -> {unit_id: value};
+    a rater simply omits units it did not rate. A unit rated by fewer than two raters
+    contributes nothing -- this is what makes a partial second rater usable at all.
+    """
+    do, de = disagreement(ratings)
     return 1.0 - do / de

@@ -56,6 +56,42 @@ def test_accepted_report_still_publishes_its_alpha_and_interval():
     assert report.alpha_ci.low <= report.alpha_ci.high
 
 
+def test_alpha_interval_is_alphas_own_interval_not_the_raw_agreement_rates():
+    """Regression: `alpha_ci` used to be `cluster_bootstrap_ci` over per-unit raw agreement.
+
+    Alpha is chance-corrected and raw agreement is not, so under class imbalance the two
+    diverge hard. On this fixture the judge says EQUIVALENT for all 60 units and the human
+    agrees on half, which puts alpha at -0.322 while the raw agreement rate sits at 0.500 --
+    the published "alpha = -0.322 [0.373, 0.627]" sentence carried an interval that did not
+    contain its own point estimate. CLAUDE.md rules 2 and 3 both require the interval to
+    describe the uncertainty of the number it is attached to.
+    """
+    j, h = disagreeing(60)
+    report = assess("line_item_description", j, h, samples(), seed=1, n_resamples=400)
+
+    raw_rate = sum(j[u] == h[u] for u in j) / len(j)
+    assert report.alpha < 0 < raw_rate, "fixture must be one where alpha and raw rate diverge"
+
+    assert report.alpha_ci.low <= report.alpha <= report.alpha_ci.high
+    assert report.alpha_ci.point == report.alpha
+    assert not (report.alpha_ci.low <= raw_rate <= report.alpha_ci.high), (
+        "the interval still brackets the raw agreement rate, so it is not alpha's interval"
+    )
+    assert f"{report.alpha_ci.low:.3f}" in report.statement
+
+
+def test_perfect_agreement_does_not_publish_a_zero_width_interval():
+    """audit H5, arriving in the judge statement: with zero disagreements every bootstrap
+    resample returns alpha = 1.0, so a bare percentile bootstrap would publish
+    "1.000 [1.000, 1.000], n=60" -- no uncertainty at all, at exactly the point the claim is
+    strongest. `stats.bootstrap` already refuses that for accuracy; so must this."""
+    j, h = agreeing(60)
+    report = assess("line_item_description", j, h, samples(), seed=1, n_resamples=400)
+    assert report.alpha == 1.0
+    assert report.alpha_ci.low < report.alpha_ci.high
+    assert report.alpha_ci.low > REJECTION_THRESHOLD, "the bound is exact, not merely wide"
+
+
 def test_confusion_matrix_is_included():
     j, h = agreeing(60)
     assert assess("line_item_description", j, h, samples(), seed=1).confusion

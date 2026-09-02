@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from ground_truth.golden.schema import Split
+from ground_truth.graders.judge.aggregate import Sample
+from ground_truth.graders.judge.agreement import JudgeStatus, assess, record_decision
 from ground_truth.matrix.build import (
     LeaderboardRow,
     TokenCountsUnavailable,
@@ -170,3 +172,71 @@ def test_build_leaderboard_refuses_to_fabricate_cost(con):
     _populate_two_field_types(con, rejected_status=None)
     with pytest.raises(TokenCountsUnavailable):
         build_leaderboard(con, split=Split.PUBLIC, seed=1, specs={"slot-a": spec("slot-a")})
+
+
+# -- Task 27's writer wired into Task 31's reader --------------------------------------
+#
+# Every judge_decisions row above is a hand-written fixture, which is exactly how the gap
+# survived review: `assess` computed a status and nothing ever persisted it, so against real
+# data the exclusion join could only take its `jd.status IS NULL` branch and no judge was ever
+# actually excluded. These two tests run the real `assess` -> `record_decision` ->
+# `_slot_accuracy` chain, in both directions, so the guarantee holds end to end.
+
+
+def _judge_samples(n: int = 20) -> list[Sample]:
+    return [
+        Sample(presentation_order=i % 2, raw="EQUIVALENT", observed_length=10 + i) for i in range(n)
+    ]
+
+
+def _decide(con, *, agree: bool):
+    """Assess a real judge-vs-human disagreement for field type `money`, and persist it."""
+    judge = {str(i): "EQUIVALENT" for i in range(60)}
+    if agree:
+        human = {str(i): "EQUIVALENT" if i % 3 else "NOT_EQUIVALENT" for i in range(60)}
+        judge = dict(human)
+    else:
+        human = {str(i): "EQUIVALENT" if i % 2 else "NOT_EQUIVALENT" for i in range(60)}
+    report = assess("money", judge, human, _judge_samples(), seed=1, n_resamples=200)
+    record_decision(con, report, rubric_version="v1")
+    return report
+
+
+def test_a_persisted_rejection_actually_excludes_that_field_type(con):
+    _populate_two_field_types(con, rejected_status=None)
+    report = _decide(con, agree=False)
+    assert report.status is JudgeStatus.REJECTED
+
+    per_field = _slot_accuracy(con, split=Split.PUBLIC, seed=1)["slot-a"].per_field
+    assert "money" not in per_field, (
+        "assess() rejected this judge and record_decision() stored it, yet its verdicts still "
+        "reached the headline number"
+    )
+    assert "date" in per_field
+
+
+def test_a_persisted_acceptance_leaves_its_field_type_in(con):
+    """The other direction, and the guard on the enum/CHECK case mismatch: `JudgeStatus`
+    renders "ACCEPTED"/"REJECTED" but the column's CHECK and build.py's `!= 'rejected'` are
+    both lowercase. Writing the enum verbatim raises on insert; writing the wrong case
+    silently never matches the exclusion, which looks identical to this passing test unless
+    the rejection case above is asserted too."""
+    _populate_two_field_types(con, rejected_status=None)
+    report = _decide(con, agree=True)
+    assert report.status is JudgeStatus.ACCEPTED
+
+    stored = con.execute("SELECT status FROM judge_decisions WHERE field_type = 'money'").fetchone()
+    assert stored == ("accepted",), "judge_decisions.status must be stored lowercase"
+
+    per_field = _slot_accuracy(con, split=Split.PUBLIC, seed=1)["slot-a"].per_field
+    assert "money" in per_field and "date" in per_field
+
+
+def test_re_deciding_a_field_type_replaces_rather_than_raising(con):
+    """`field_type` is the primary key: a second assessment (more labels, a re-run) must
+    update the standing decision, not fail on a duplicate key."""
+    _populate_two_field_types(con, rejected_status=None)
+    _decide(con, agree=True)
+    _decide(con, agree=False)
+    rows = con.execute("SELECT status FROM judge_decisions WHERE field_type = 'money'").fetchall()
+    assert rows == [("rejected",)]
