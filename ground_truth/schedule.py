@@ -139,6 +139,10 @@ def main() -> None:
 
         from ground_truth._bok_shim import CallContext  # noqa: PLC0415
 
+        # `sweep_id=args.sweep_id` is what makes --sweep-id mean anything past the plan
+        # printed above: without it execute_sweep minted its own id, so `pending_work` found
+        # nothing recorded under the id it was asked to resume and the whole sweep was
+        # re-spent on every restart (audit H9, the bug Task 23 exists to fix).
         execute_sweep(
             con,
             items,
@@ -147,6 +151,7 @@ def main() -> None:
             context=CallContext(),
             resolve_fn=resolve,
             call_fn=call,
+            sweep_id=args.sweep_id,
         )
     finally:
         con.close()

@@ -82,6 +82,77 @@ def build_prompt(item: Item) -> Labelled[str]:
     return Labelled(value=text, sensitivity=Sensitivity.SYNTHETIC)
 
 
+def _completed(con: duckdb.DuckDBPyConnection, sweep_id: str) -> set[tuple[str, str, int]]:
+    """Every `(slot, item_id, replicate_idx)` this sweep has already recorded an output for.
+
+    One query, two callers -- `pending_work` plans against it and `execute_sweep` skips
+    against it -- so a resumed run and the plan printed for it can never disagree about what
+    is still owed.
+    """
+    return {
+        (str(slot), str(item_id), int(replicate_idx))
+        for slot, item_id, replicate_idx in con.execute(
+            "SELECT r.model_slot, o.item_id, o.replicate_idx FROM outputs o "
+            "JOIN runs r ON r.run_id = o.run_id WHERE r.sweep_id = ?",
+            [sweep_id],
+        ).fetchall()
+    }
+
+
+def _run_id(  # noqa: PLR0913, PLR0917 -- one row's worth of provenance columns
+    con: duckdb.DuckDBPyConnection,
+    sweep_id: str,
+    slot: str,
+    handle: Handle,
+    context: CallContext,
+    code_version: str,
+    models_yaml_hash: str,
+) -> str:
+    """One `run_id` per `(sweep_id, slot)`, created on first sight and reused on resume.
+
+    Audit H9: a fresh `run_id` per call meant resuming forked a second run for the same slot,
+    so `pending_work`'s join saw the sweep's work spread across runs it had to re-derive, and
+    `outputs`' `UNIQUE (run_id, item_id, replicate_idx)` never fired to catch a duplicate.
+
+    Provenance is checked rather than overwritten: if the code or `models.yaml` moved under a
+    half-finished sweep, its rows are no longer one measurement, and silently filing the new
+    ones under the old run's `code_version` would make that unnoticeable. Start a new
+    `--sweep-id` instead.
+    """
+    row = con.execute(
+        "SELECT run_id, code_version, models_yaml_hash FROM runs "
+        "WHERE sweep_id = ? AND model_slot = ?",
+        [sweep_id, slot],
+    ).fetchone()
+    if row is not None:
+        existing_run_id, prior_code, prior_yaml_hash = row
+        if (prior_code, prior_yaml_hash) != (code_version, models_yaml_hash):
+            raise RuntimeError(
+                f"sweep {sweep_id!r} slot {slot!r} was started at code_version {prior_code!r} "
+                f"/ models.yaml {prior_yaml_hash[:12]!r} and is being resumed at "
+                f"{code_version!r} / {models_yaml_hash[:12]!r}. Rows from two code versions "
+                "under one run id are not one measurement -- use a new --sweep-id."
+            )
+        return str(existing_run_id)
+
+    new_run_id = uuid.uuid4().hex
+    con.execute(
+        "INSERT INTO runs VALUES (?,?,NULL,?,?,?,?,?,?,?)",
+        [
+            new_run_id,
+            datetime.now(UTC),
+            slot,
+            handle.model_ref,
+            handle.provider,
+            context.commercial,
+            sweep_id,
+            code_version,
+            models_yaml_hash,
+        ],
+    )
+    return new_run_id
+
+
 def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces above
     con: duckdb.DuckDBPyConnection,
     items: list[Item],
@@ -93,10 +164,21 @@ def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces
     call_fn: CallFn,
     models_yaml: Path = Path("models.yaml"),
     allow_dirty: bool = False,
+    sweep_id: str | None = None,
 ) -> str:
-    sweep_id = uuid.uuid4().hex
+    """Run every `(slot, item, replicate)` this sweep does not already have an output for.
+
+    `sweep_id` defaults to a fresh uuid, which is a brand new sweep. Passing one names the
+    sweep to start *or resume*: already-recorded units are skipped, so re-running the identical
+    command after an interruption costs no quota. Before that existed, `schedule.main()` could
+    pass `--sweep-id` to `pending_work` and still have `execute_sweep` mint its own id behind
+    it, so a resumed run recorded nothing under the id it was asked to resume and re-spent the
+    entire sweep (audit H9).
+    """
+    sweep_id = sweep_id if sweep_id is not None else uuid.uuid4().hex
     code_version = _code_version(allow_dirty=allow_dirty)
     models_yaml_hash = hashlib.sha256(models_yaml.read_bytes()).hexdigest()
+    done = _completed(con, sweep_id)
     for slot in slots:
         handle = resolve_fn(slot)
         if handle.is_fallback:
@@ -105,25 +187,13 @@ def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces
                 "provider. A fallback's output is not a measurement of the model and must "
                 "never be recorded as one. Fix models.yaml or drop the slot from the sweep."
             )
-        run_id = uuid.uuid4().hex
-        con.execute(
-            "INSERT INTO runs VALUES (?,?,NULL,?,?,?,?,?,?,?)",
-            [
-                run_id,
-                datetime.now(UTC),
-                slot,
-                handle.model_ref,
-                handle.provider,
-                context.commercial,
-                sweep_id,
-                code_version,
-                models_yaml_hash,
-            ],
-        )
+        run_id = _run_id(con, sweep_id, slot, handle, context, code_version, models_yaml_hash)
         for item in items:
             payload = build_prompt(item)
             prompt_hash = hashlib.sha256(payload.value.encode()).hexdigest()
             for replicate in range(1, replicates + 1):
+                if (slot, item.item_id, replicate) in done:
+                    continue  # already served under this sweep_id; never pay for it twice
                 # A raised SensitivityViolation or ProvidersUnavailable propagates:
                 # a failed slot must leave a gap, never a substituted row.
                 result = call_fn(
@@ -165,14 +235,7 @@ def pending_work(
     sweep is what makes resuming free -- no already-served call is asked for twice."""
     from ground_truth.schedule import WorkUnit  # noqa: PLC0415 -- see TYPE_CHECKING note above
 
-    done = {
-        (r[0], r[1], r[2])
-        for r in con.execute(
-            "SELECT r.model_slot, o.item_id, o.replicate_idx FROM outputs o "
-            "JOIN runs r ON r.run_id = o.run_id WHERE r.sweep_id = ?",
-            [sweep_id],
-        ).fetchall()
-    }
+    done = _completed(con, sweep_id)
     return [
         WorkUnit(sweep_id, slot, item.item_id, replicate)
         for slot in slots
