@@ -68,6 +68,11 @@ def _predictor(method: str, x: np.ndarray, y: np.ndarray) -> Callable[[np.ndarra
         isotonic.fit(x, y)
         return lambda values: np.asarray(isotonic.predict(values))
     # method == "platt" -- fit_curve has already rejected anything else.
+    if len(set(y.tolist())) < 2:  # noqa: PLR2004 -- "2" is "binary", not a tunable threshold
+        raise ValueError(
+            "platt calibration requires both correct and incorrect verdicts in fit_points; "
+            "got a single-class sample. Use method='isotonic', which handles this case."
+        )
     logistic = LogisticRegression()
     logistic.fit(x.reshape(-1, 1), y)
     return lambda values: np.asarray(logistic.predict_proba(values.reshape(-1, 1))[:, 1])
