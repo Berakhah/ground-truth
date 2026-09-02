@@ -17,14 +17,14 @@ def test_percentiles_are_computed():
 
 
 def test_n_is_reported():
-    assert summarise_latency([1, 2, 3]).n == 3
+    assert summarise_latency([1, 2, 3]).n == 3  # noqa: PLR2004
 
 
 def test_ecdf_is_monotone_and_complete():
     dist = summarise_latency([5, 1, 3, 2, 4])
     assert dist.ecdf_x == sorted(dist.ecdf_x)
     assert dist.ecdf_y[-1] == pytest.approx(1.0)
-    assert len(dist.ecdf_x) == len(dist.ecdf_y) == 5
+    assert len(dist.ecdf_x) == len(dist.ecdf_y) == 5  # noqa: PLR2004
 
 
 def test_caveat_is_attached():

@@ -21,10 +21,19 @@ from ground_truth.store.db import connect, migrate
 
 
 def spec(slot: str) -> SlotSpec:
-    return SlotSpec(slot=slot, family="fam", provider="prov", model_ref="ref",
-                    trains_on_data=False, commercial_use=True, exposes_fingerprint=False,
-                    list_price_in_per_1m=Decimal("0.10"), list_price_out_per_1m=Decimal("0.40"),
-                    pricing_url="https://example.invalid/p", retrieved_at=date(2026, 8, 31))
+    return SlotSpec(
+        slot=slot,
+        family="fam",
+        provider="prov",
+        model_ref="ref",
+        trains_on_data=False,
+        commercial_use=True,
+        exposes_fingerprint=False,
+        list_price_in_per_1m=Decimal("0.10"),
+        list_price_out_per_1m=Decimal("0.40"),
+        pricing_url="https://example.invalid/p",
+        retrieved_at=date(2026, 8, 31),
+    )
 
 
 def row(slot: str, low: float, point: float, high: float) -> LeaderboardRow:
@@ -46,9 +55,12 @@ def test_overlapping_rows_produce_a_plain_language_statement():
 
 
 def test_separated_rows_produce_no_statement():
-    assert distinguishability_statements(
-        [row("slot-a", 0.60, 0.62, 0.64), row("slot-b", 0.90, 0.93, 0.96)]
-    ) == []
+    assert (
+        distinguishability_statements(
+            [row("slot-a", 0.60, 0.62, 0.64), row("slot-b", 0.90, 0.93, 0.96)]
+        )
+        == []
+    )
 
 
 def test_statement_carries_the_sample_size():
@@ -93,12 +105,8 @@ def _populate_two_field_types(con, *, rejected_status: str | None) -> None:
     """One item, one slot, one run, two field types (`money`, `date`) each graded once.
     `rejected_status` controls whether `money` carries a judge_decisions row and what its
     status is; `date` never gets one, so it always survives the exclusion join."""
-    con.execute(
-        "INSERT INTO items VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
-    )
-    con.execute(
-        "INSERT INTO item_fields VALUES ('i1', 'total', 'money', '1.00', NULL, NULL)"
-    )
+    con.execute("INSERT INTO items VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())")
+    con.execute("INSERT INTO item_fields VALUES ('i1', 'total', 'money', '1.00', NULL, NULL)")
     con.execute(
         "INSERT INTO item_fields VALUES ('i1', 'invoice_date', 'date', '2026-01-01', NULL, NULL)"
     )
