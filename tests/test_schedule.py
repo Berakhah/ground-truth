@@ -1,6 +1,6 @@
 import pytest
 
-from ground_truth._bok_shim import CallContext, Quota
+from ground_truth._bok_shim import CallContext, ProvidersUnavailable, Quota
 from ground_truth.golden.generate import generate
 from ground_truth.runner import execute_sweep, pending_work
 from ground_truth.schedule import WorkUnit, plan_batches
@@ -41,6 +41,81 @@ def test_resuming_a_complete_sweep_is_empty(con):
     items = generate(count=2, seed=1, rubric_version="v1")
     sweep_id = _sweep(con, items, ["slot-a"], 3)
     assert pending_work(con, sweep_id, items, ["slot-a"], replicates=3) == []
+
+
+# -- audit H9: resuming a named sweep --------------------------------------------------
+#
+# `test_pending_work_excludes_what_already_landed` above feeds `execute_sweep`'s *returned*
+# uuid back into `pending_work`, so it passes whether or not `--sweep-id` reaches the writer.
+# It did not: `main()` planned against `args.sweep_id` and then dispatched a sweep that minted
+# its own id, so every restart wrote under a new id, found nothing recorded under the id it was
+# asked to resume, and re-spent the whole 9,000-call quota. These exercise that wiring.
+
+
+def _resume(con, items, gw, *, sweep_id, **overrides):
+    """One `main()`-equivalent dispatch: same items, same slots, same named sweep."""
+    kwargs = {
+        "context": CallContext(),
+        "resolve_fn": gw.resolve,
+        "call_fn": gw.call,
+        "sweep_id": sweep_id,
+        **overrides,
+    }
+    return execute_sweep(con, items, ["slot-a"], 5, **kwargs)
+
+
+def test_resuming_does_not_duplicate_rows(con):
+    items = generate(count=4, seed=1, rubric_version="v1")
+    gw = FakeGateway()
+
+    assert _resume(con, items, gw, sweep_id="sweep-v1") == "sweep-v1", (
+        "execute_sweep must record under the sweep id it was given, not one of its own"
+    )
+    first = len(gw.seen)
+    assert first == 4 * 5
+
+    _resume(con, items, gw, sweep_id="sweep-v1")
+    assert len(gw.seen) == first, "the second run re-spent quota on units already served"
+    assert con.execute("SELECT count(*) FROM outputs").fetchone()[0] == 4 * 5
+    assert con.execute("SELECT count(*) FROM runs").fetchone()[0] == 1, (
+        "one run_id per (sweep_id, slot); a second run row forks the sweep's provenance"
+    )
+    assert pending_work(con, "sweep-v1", items, ["slot-a"], replicates=5) == []
+
+
+def test_an_interrupted_sweep_resumes_only_the_units_that_did_not_land(con):
+    items = generate(count=4, seed=1, rubric_version="v1")
+    dying = FakeGateway()
+    served = dying.call
+
+    def dies_after_seven(*args, **kwargs):
+        if len(dying.seen) >= 7:  # noqa: PLR2004 -- an arbitrary mid-sweep interruption point
+            raise ProvidersUnavailable("slot-a")
+        return served(*args, **kwargs)
+
+    with pytest.raises(ProvidersUnavailable):
+        _resume(con, items, dying, sweep_id="sweep-v1", call_fn=dies_after_seven)
+    landed = con.execute("SELECT count(*) FROM outputs").fetchone()[0]
+    assert landed == 7  # noqa: PLR2004
+
+    resumed = FakeGateway()
+    _resume(con, items, resumed, sweep_id="sweep-v1")
+    assert len(resumed.seen) == 4 * 5 - landed, "the resume paid again for calls already served"
+    assert con.execute("SELECT count(*) FROM outputs").fetchone()[0] == 4 * 5
+    assert con.execute("SELECT count(*) FROM runs").fetchone()[0] == 1
+
+
+def test_resuming_under_a_changed_models_yaml_refuses_rather_than_mixing(con, tmp_path):
+    """A stable run_id is only honest while its provenance columns still describe the rows
+    filed under it. Rows from two `models.yaml` versions in one run are not one measurement."""
+    items = generate(count=1, seed=1, rubric_version="v1")
+    gw = FakeGateway()
+    _resume(con, items, gw, sweep_id="sweep-v1")
+
+    moved = tmp_path / "models.yaml"
+    moved.write_text("slots: []\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="new --sweep-id"):
+        _resume(con, items, gw, sweep_id="sweep-v1", models_yaml=moved)
 
 
 def test_batches_respect_the_daily_ceiling():
