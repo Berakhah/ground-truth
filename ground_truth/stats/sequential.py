@@ -8,8 +8,10 @@ equals alpha -- for this exact pre-registered calendar, C = 2.1023 (calibrated b
 correlated Brownian trajectories; see docs/superpowers/reviews/verify/verify_seq.py and
 docs/analysis-plan.md, "Sequential testing calendar"). The constant is valid only for this
 13-look, alpha=0.05 pair -- a different calendar requires recalibrating C by the same simulation
-and a new analysis-plan version, which is why both `obrien_fleming_boundary` and `spent_alpha`
-refuse any other (total_looks, alpha) pair.
+and a new analysis-plan version, which is why `obrien_fleming_boundary` refuses any other
+(total_looks, alpha) pair. `spent_alpha` does not need the same guard: it is the exact
+Lan-DeMets closed form, not a simulated constant, so it is valid for any (look, total_looks,
+alpha).
 """
 
 from __future__ import annotations
