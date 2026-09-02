@@ -15,7 +15,6 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 import duckdb
-import numpy as np
 
 from ground_truth.graders.judge.aggregate import (
     LengthEffect,
@@ -24,12 +23,15 @@ from ground_truth.graders.judge.aggregate import (
     length_effect,
     order_effect,
 )
-from ground_truth.stats.agreement import confusion_matrix, disagreement, krippendorff_alpha
+from ground_truth.stats.agreement import (
+    BOOTSTRAP_RESAMPLES,
+    alpha_bootstrap_ci,
+    confusion_matrix,
+    krippendorff_alpha,
+)
 from ground_truth.stats.bootstrap import Interval
 
 REJECTION_THRESHOLD: float = 0.667
-BOOTSTRAP_RESAMPLES: int = 10_000  # docs/analysis-plan.md, "Confidence intervals"
-CONFIDENCE: float = 0.95
 
 
 class JudgeStatus(StrEnum):
@@ -50,90 +52,6 @@ class AgreementReport:
     statement: str
 
 
-def _ratings(pairs: list[tuple[str, str]]) -> dict[str, dict[str, str]]:
-    """`krippendorff_alpha`'s rater -> {unit_id: value} shape, keyed by position.
-
-    Position, not the original unit id, because a bootstrap resample draws units *with
-    replacement*: a unit drawn three times must contribute three coincidences, and reusing
-    its own id would silently collapse those back into one.
-    """
-    return {
-        "judge": {str(i): judge for i, (judge, _) in enumerate(pairs)},
-        "human": {str(i): human for i, (_, human) in enumerate(pairs)},
-    }
-
-
-def _zero_disagreement_interval(pairs: list[tuple[str, str]]) -> Interval:
-    """Exact bound for the case a resampling bootstrap cannot speak to.
-
-    With zero observed disagreements every resample yields alpha = 1.0, so a percentile
-    bootstrap would publish "alpha = 1.000 [1.000, 1.000]" -- zero uncertainty at exactly the
-    point the claim is strongest. That is audit H5, the same failure `stats.bootstrap._interval`
-    already guards against for accuracy, and it must not reappear here.
-
-    For two raters who both rated every unit, `Do` is the per-unit disagreement proportion, so
-    0 disagreements out of n carries the exact one-sided Clopper-Pearson upper bound
-    `Do_high = 1 - (1-confidence)**(1/n)` (from P(X=0 | p) = (1-p)**n = 1-confidence -- the
-    identical formula `stats.bootstrap` uses for its own constant-data branch). `De` is a
-    function of the observed marginals and is held at its observed value, which is what makes
-    this a bound on alpha rather than a bootstrap; `alpha_low = 1 - Do_high/De`, floored at
-    -1.0, alpha's lower limit.
-    """
-    n = len(pairs)
-    _, de = disagreement(_ratings(pairs))
-    do_high = 1.0 - (1.0 - CONFIDENCE) ** (1.0 / n)
-    return Interval(
-        point=1.0,
-        low=max(-1.0, 1.0 - do_high / de),
-        high=1.0,
-        n=n,
-        method="clopper-pearson-exact-on-disagreement",
-    )
-
-
-def _alpha_interval(
-    pairs: list[tuple[str, str]], *, alpha: float, seed: int, n_resamples: int
-) -> Interval:
-    """Percentile bootstrap of *alpha itself*, resampling whole units with replacement.
-
-    The original implementation bootstrapped the raw agreement rate and published the result
-    as alpha's interval. Alpha is chance-corrected and the raw rate is not, so the two diverge
-    hard under class imbalance: on a 60-unit fixture where the judge says EQUIVALENT every
-    time and the human agrees half of it, alpha = -0.322 while the raw-rate interval is
-    [0.373, 0.627] -- a published "alpha [low, high]" sentence whose interval did not contain
-    its own point estimate. CLAUDE.md rules 2 and 3 both require the interval to describe the
-    uncertainty of the number it is attached to, and the number driving the accept/reject
-    decision is alpha.
-
-    Percentile rather than BCa: BCa needs a statistic scipy can jackknife across an axis, and
-    alpha is not that shape. The method string says which was used rather than borrowing the
-    BCa label the accuracy intervals carry.
-    """
-    n = len(pairs)
-    if all(judge == human for judge, human in pairs):
-        return _zero_disagreement_interval(pairs)
-
-    rng = np.random.default_rng(seed)
-    resampled = np.empty(n_resamples, dtype=float)
-    for i in range(n_resamples):
-        draw = [pairs[k] for k in rng.integers(0, n, size=n)]
-        try:
-            resampled[i] = krippendorff_alpha(_ratings(draw))
-        except ValueError:
-            # This resample happened to draw only agreeing units of a single category, so both
-            # observed and expected disagreement are zero and alpha is 0/0. `cohens_kappa`
-            # already publishes that degenerate case as perfect agreement (its `pe == 1.0`
-            # branch); matching it keeps the resample in the distribution, where dropping it
-            # would bias the interval upward by discarding only its extreme.
-            resampled[i] = 1.0
-
-    tail = (1.0 - CONFIDENCE) / 2.0 * 100.0
-    low, high = np.percentile(resampled, [tail, 100.0 - tail])
-    return Interval(
-        point=alpha, low=float(low), high=float(high), n=n, method="unit-bootstrap-percentile"
-    )
-
-
 def assess(  # noqa: PLR0913 -- one keyword added to a plan-frozen positional signature
     field_type: str,
     judge_verdicts: dict[str, str],
@@ -147,9 +65,20 @@ def assess(  # noqa: PLR0913 -- one keyword added to a plan-frozen positional si
     if not units:
         raise ValueError("no overlapping units")
 
-    pairs = [(judge_verdicts[u], human_verdicts[u]) for u in units]
-    alpha = krippendorff_alpha(_ratings(pairs))
-    alpha_ci = _alpha_interval(pairs, alpha=alpha, seed=seed, n_resamples=n_resamples)
+    alpha = krippendorff_alpha(
+        {
+            "judge": {u: judge_verdicts[u] for u in units},
+            "human": {u: human_verdicts[u] for u in units},
+        }
+    )
+    # The interval is alpha's own, bootstrapped over units -- NOT the raw agreement rate's,
+    # which is what this line used to compute and publish under alpha's name. See
+    # `alpha_bootstrap_ci`'s docstring for the divergence that made that a live misstatement.
+    alpha_ci = alpha_bootstrap_ci(
+        [(judge_verdicts[u], human_verdicts[u]) for u in units],
+        seed=seed,
+        n_resamples=n_resamples,
+    )
     confusion = confusion_matrix(
         [judge_verdicts[u] for u in units], [human_verdicts[u] for u in units]
     )
