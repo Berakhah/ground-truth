@@ -55,3 +55,69 @@ GT_PUBLIC_SEED=32611816645452341011091101610726
 
 `GT_PRIVATE_SEED` and `GT_HASH_SALT` are never published anywhere, by design -- see
 above.
+
+## Phase 2 — Measurement
+
+> **NOT A MEASUREMENT RUN.** This section documents Phase 2's *code and its own internal
+> validation* -- the judge, statistics, matrix, and calibration modules, and the null
+> simulations that check them against known distributions. **It is not a report of a
+> completed real-data sweep.** No sweep has been executed against live providers in this
+> session: `data/results.duckdb` does not exist, `tests/test_phase2_e2e.py`'s 8 tests all
+> `SKIP` with "run the sweep first: python -m ground_truth.schedule", and every number below
+> that is not explicitly labelled as simulation output is **pending**, not measured. Do not
+> quote anything in this section as a result of running the harness against real models.
+
+### What is real: the statistics, verified by simulation
+
+The two figures below come from pure Monte Carlo simulation of the sequential-testing code
+itself (`tests/stats/test_sequential.py`, seed fixed, 20,000-trial null). They do not depend
+on any provider call, sweep, or golden item -- they are a property of the math, verified
+against the code that implements it.
+
+- **Naive fixed-threshold type-I error: `0.2119`.** A regression watch that simply compares
+  `|z| > 1.96` at every one of 13 correlated weekly looks -- the naive approach this project
+  rejected -- falsely flags a null (no real regression) trajectory **21.19% of the time**
+  against a nominal 5%, measured over 20,000 simulated 13-look quarters
+  (`test_fixed_threshold_inflates_alpha`). This is the measured reason the regression watch
+  uses O'Brien-Fleming alpha spending instead of a fixed per-look threshold: naive repeated
+  significance testing at 13 looks a quarter would report a "regression" about 1 look in 5
+  purely from noise.
+- **Calibrated O'Brien-Fleming boundary constant: `C_OBF_13_LOOKS = 2.1023`.** For this
+  project's pre-registered 13-look-per-quarter calendar, `C = 2.1023` is the constant
+  (`ground_truth/stats/sequential.py`) that keeps the *cumulative* type-I error across all 13
+  correlated looks at the nominal 0.05 (`test_calibrated_constant_controls_alpha`, verified
+  over the same 20,000-trial null simulation, rate constrained to `[0.043, 0.057]`). It
+  replaces the naive `z_{alpha/2} = 1.96` boundary, whose own miscalibration is documented
+  separately in `docs/analysis-plan.md` (substituting 1.96 for `C` inflates the *O'Brien-Fleming
+  shaped* boundary's true error to 0.0721 -- a different, smaller failure mode than the fully
+  naive fixed-threshold test above, which has no spending function at all).
+
+### What is pending: requires the real sweep
+
+None of the following exist yet. Each requires `python -m ground_truth.schedule` to run
+against real providers and populate `data/results.duckdb`; no number is invented here in its
+place.
+
+- [ ] **Run schedule and observed wall-clock** -- when the sweep ran, how it was batched
+  across providers' free-tier rate limits, and how long it actually took.
+- [ ] **Slot survival** -- how many of the configured model slots completed the sweep, and
+  why any were dropped (rate limit exhaustion, provider error, deprecation).
+- [ ] **Judge configuration and family separation** -- which model slot(s) served as judge,
+  and the record showing the judge's family differs from every model slot it scored
+  (`test_same_family_judge_rejected` exercised against real `models.yaml` entries, not a
+  fixture).
+- [ ] **Judge-agreement table** -- Krippendorff's alpha per field type the judge touched, its
+  confidence interval, and accept/reject status against `REJECTION_THRESHOLD = 0.667`
+  (`docs/analysis-plan.md`, "Judge rejection threshold"). Every field type the judge scored
+  must appear, including rejected ones.
+- [ ] **Order-effect and length-effect figures** -- the measured test for a presentation-order
+  effect and for a length-cue effect in the judge's verdicts, run against real judge samples.
+- [ ] **Calibration public/private divergence** -- the observed gap between the reliability
+  curve fitted on the public split and its validation against the held-out private split.
+- [ ] **Human labels, round 1** -- collected, with the collection date recorded here. Phase
+  3's round-2 blind re-labelling needs a minimum two-week gap measured from this date, so the
+  date is load-bearing, not decorative.
+
+Until every item above is checked off with a real figure and a real date, the Phase 2 exit
+criteria (see the plan's task list) are not met, and no "Phase 2 complete" tag should exist
+on this branch.
