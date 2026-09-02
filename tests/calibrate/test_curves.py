@@ -64,6 +64,23 @@ def test_divergence_is_large_when_splits_disagree():
     )
 
 
+def test_platt_rejects_a_single_class_fit_split():
+    fit = [ConfidencePoint(f"f{i}", 0.9, True) for i in range(50)]
+    validate = points(50, 2)
+    with pytest.raises(ValueError, match="platt calibration requires"):
+        fit_curve(fit, validate, "money", "platt")
+
+
+def test_fit_curve_rejects_empty_fit_points():
+    with pytest.raises(ValueError):
+        fit_curve([], points(50, 2), "money", "isotonic")
+
+
+def test_fit_curve_rejects_empty_validate_points():
+    with pytest.raises(ValueError):
+        fit_curve(points(50, 1), [], "money", "isotonic")
+
+
 def test_threshold_for_precision_is_on_the_curve():
     curve = fit_curve(points(300, 1), points(300, 2), "money", "isotonic")
     threshold = threshold_for_precision(curve, 0.9)
