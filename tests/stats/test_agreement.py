@@ -1,6 +1,13 @@
 import pytest
 
-from ground_truth.stats.agreement import cohens_kappa, confusion_matrix, krippendorff_alpha
+from ground_truth.stats.agreement import (
+    _ratings,
+    alpha_bootstrap_ci,
+    cohens_kappa,
+    confusion_matrix,
+    krippendorff_alpha,
+)
+from ground_truth.stats.bootstrap import cluster_bootstrap_ci
 
 
 def test_perfect_agreement_is_one():
@@ -174,3 +181,65 @@ def test_alpha_with_no_overlapping_units_raises():
 def test_confusion_matrix_counts_every_pair():
     m = confusion_matrix(["a", "a", "b"], ["a", "b", "b"])
     assert m[("a", "a")] == 1 and m[("a", "b")] == 1 and m[("b", "b")] == 1
+
+
+# -- alpha_bootstrap_ci -----------------------------------------------------------------
+
+
+def _one_sided_pairs(n: int) -> list[tuple[str, str]]:
+    """Judge says EQUIVALENT every time; the human agrees on half. Raw agreement is 0.500 and
+    alpha is negative, which is the whole point: the two statistics disagree about the sign."""
+    return [("EQUIVALENT", "EQUIVALENT" if i % 2 else "NOT_EQUIVALENT") for i in range(n)]
+
+
+def test_interval_brackets_alpha_not_the_raw_agreement_rate():
+    """`graders.judge.agreement` used to build this interval with `cluster_bootstrap_ci` over
+    per-unit raw agreement and publish it as alpha's. Alpha is chance-corrected and the raw
+    rate is not, so the published sentence read "alpha = -0.322 [0.373, 0.627]" -- an interval
+    that did not contain its own point estimate."""
+    pairs = _one_sided_pairs(60)
+    ci = alpha_bootstrap_ci(pairs, seed=1, n_resamples=400)
+
+    assert ci.point == pytest.approx(krippendorff_alpha(_ratings(pairs)))
+    raw_agreement_rate = sum(j == h for j, h in pairs) / len(pairs)
+    assert ci.point < 0 < raw_agreement_rate, "fixture must be one where the two diverge"
+    assert ci.low <= ci.point <= ci.high
+    assert ci.high < raw_agreement_rate, "alpha's interval must not reach the raw rate"
+
+
+def test_a_resample_of_alpha_is_not_a_resample_of_agreement():
+    """The bug was invisible at the interface: both produce an `Interval` of the right shape.
+    The distinguishing fact is that this interval moves with alpha, so it must sit far from
+    the interval the old implementation produced for the identical data."""
+    pairs = _one_sided_pairs(60)
+    agreement_ci = cluster_bootstrap_ci(
+        [(str(i), j == h) for i, (j, h) in enumerate(pairs)], seed=1, n_resamples=400
+    )
+    alpha_ci = alpha_bootstrap_ci(pairs, seed=1, n_resamples=400)
+    assert not alpha_ci.overlaps(agreement_ci)
+
+
+def test_zero_disagreement_does_not_publish_a_zero_width_interval():
+    """audit H5 on alpha: every resample of a perfectly-agreeing sample returns 1.0, so a bare
+    percentile bootstrap publishes "1.000 [1.000, 1.000]" -- no uncertainty at all, at exactly
+    the point the claim is strongest. 40 EQUIVALENT + 20 NOT_EQUIVALENT units, both raters
+    agreeing throughout: De = 6400/(120*119), Do_high = 1 - 0.05**(1/60), so the exact bound is
+    1 - Do_high/De = 0.8913."""
+    pairs = [("EQUIVALENT", "EQUIVALENT")] * 40 + [("NOT_EQUIVALENT", "NOT_EQUIVALENT")] * 20
+    ci = alpha_bootstrap_ci(pairs, seed=1, n_resamples=400)
+    assert ci.point == 1.0
+    assert ci.high == 1.0
+    assert ci.low == pytest.approx(0.8913, abs=0.0005)
+    assert ci.method == "clopper-pearson-exact-on-disagreement"
+
+
+def test_the_exact_bound_tightens_as_the_sample_grows():
+    """A conservative bound that ignored n would be a constant, not a measurement."""
+    small = alpha_bootstrap_ci([("EQ", "EQ")] * 15 + [("NE", "NE")] * 15, seed=1)
+    large = alpha_bootstrap_ci([("EQ", "EQ")] * 150 + [("NE", "NE")] * 150, seed=1)
+    assert large.low > small.low
+
+
+def test_zero_units_raises_rather_than_returning_an_interval():
+    with pytest.raises(ValueError, match="zero units"):
+        alpha_bootstrap_ci([], seed=1)
