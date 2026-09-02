@@ -24,6 +24,14 @@ def s(order: int, raw: str, length: int = 20) -> Sample:
         ("The answer is EQUIVALENT.", JudgeVerdict.EQUIVALENT),
         ("maybe?", JudgeVerdict.INCONCLUSIVE),
         ("", JudgeVerdict.INCONCLUSIVE),
+        # audit H4 regression rows. The pre-fix substring implementation ("NOT_EQUIVALENT" in
+        # text, else "EQUIVALENT" in text) read every one of these four as EQUIVALENT --
+        # inverting the verdict on any prose negation. They are here so a revert to that
+        # implementation fails a test instead of silently flipping published verdicts.
+        ("not equivalent", JudgeVerdict.NOT_EQUIVALENT),
+        ("They are not equivalent.", JudgeVerdict.NOT_EQUIVALENT),
+        ("NOT EQUIVALENT", JudgeVerdict.NOT_EQUIVALENT),
+        ("Not-equivalent", JudgeVerdict.NOT_EQUIVALENT),
     ],
 )
 def test_parse_judgement(raw, expected):

@@ -13,9 +13,13 @@ jobs:
       - run: uv run mypy
       - name: no float in the money path
         run: |
+          # ground_truth/matrix is NOT listed whole: matrix/latency.py measures milliseconds,
+          # not money, and float(np.percentile(...)) is correct there. Only the two
+          # money-carrying files in that package are gated.
           targets=()
-          for d in ground_truth/graders ground_truth/triage ground_truth/matrix; do
-            [ -d "$d" ] && targets+=("$d")
+          for d in ground_truth/graders ground_truth/triage \
+                   ground_truth/matrix/cost.py ground_truth/matrix/build.py; do
+            [ -e "$d" ] && targets+=("$d")
           done
           if [ "${#targets[@]}" -gt 0 ] && grep -rn "float(" "${targets[@]}"; then
             echo "float() is forbidden in the money path"; exit 1
