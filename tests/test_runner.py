@@ -84,6 +84,9 @@ def sweep(con, gw, items, slots, replicates, *, commercial=False):  # noqa: PLR0
         context=CallContext(commercial=commercial),
         resolve_fn=gw.resolve,
         call_fn=gw.call,
+        # The suite has to run from a working tree with edits in it -- that is every moment of
+        # development. allow_dirty is the escape hatch _code_version documents for exactly this.
+        allow_dirty=True,
     )
 
 
