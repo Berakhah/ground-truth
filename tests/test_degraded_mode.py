@@ -87,6 +87,7 @@ def populated(tmp_path):
         context=CallContext(),
         resolve_fn=gw.resolve,
         call_fn=gw.call,
+        allow_dirty=True,
     )
     yield con, items
     con.close()
@@ -146,6 +147,7 @@ def populated_with_correct_outputs(tmp_path):
         context=CallContext(),
         resolve_fn=gw.resolve,
         call_fn=gw.call,
+        allow_dirty=True,
     )
     yield con, items
     con.close()
