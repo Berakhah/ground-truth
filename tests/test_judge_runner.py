@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from ground_truth._bok_shim import CacheMode, CallContext, FailoverMode
+from ground_truth._bok_shim import (
+    CacheMode,
+    CallContext,
+    FailoverMode,
+    Sensitivity,
+    SensitivityViolation,
+)
 from ground_truth.golden.schema import FieldType, ItemField
 from ground_truth.judge_runner import (
     SameFamilyJudge,
@@ -150,3 +156,52 @@ def test_sample_judgements_refuses_fallback_handle(con):
             context=CallContext(),
             models_yaml=MODELS_YAML,
         )
+
+
+def test_sample_judgements_refuses_confidential_material_to_a_training_judge(con, tmp_path):
+    """The judge sees the same client text the model under test saw. models.yaml's judge slots
+    get the same gate as its model slots, checked before the judge is even resolved."""
+    manifest = tmp_path / "models.yaml"
+    manifest.write_text(
+        MODELS_YAML.read_text(encoding="utf-8").replace(
+            "trains_on_data: false", "trains_on_data: true"
+        ),
+        encoding="utf-8",
+    )
+    gw = FakeGateway()
+    with pytest.raises(SensitivityViolation, match="trains_on_data=True"):
+        sample_judgements(
+            con,
+            "output-1",
+            field(),
+            "Concrete works, phase one",
+            "judge-a",
+            "slot-a",
+            n=3,
+            seed=0,
+            resolve_fn=gw.resolve,
+            call_fn=gw.call,
+            context=CallContext(),
+            models_yaml=manifest,
+            sensitivity=Sensitivity.CLIENT_CONFIDENTIAL,
+        )
+    assert gw.seen == [], "a refused judge must never reach the gateway"
+
+
+def test_sample_judgements_defaults_to_the_synthetic_corpus_label(con):
+    gw = FakeGateway()
+    sample_judgements(
+        con,
+        "output-1",
+        field(),
+        "Concrete works, phase one",
+        "judge-a",
+        "slot-a",
+        n=2,
+        seed=0,
+        resolve_fn=gw.resolve,
+        call_fn=gw.call,
+        context=CallContext(),
+        models_yaml=MODELS_YAML,
+    )
+    assert gw.seen and all(sens is Sensitivity.SYNTHETIC for _, _, _, sens, _ in gw.seen)
