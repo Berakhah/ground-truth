@@ -25,7 +25,14 @@ def test_pending_work_is_everything_before_any_run(con):
 def _sweep(con, items, slots, replicates):
     gw = FakeGateway()
     return execute_sweep(
-        con, items, slots, replicates, context=CallContext(), resolve_fn=gw.resolve, call_fn=gw.call
+        con,
+        items,
+        slots,
+        replicates,
+        context=CallContext(),
+        resolve_fn=gw.resolve,
+        call_fn=gw.call,
+        allow_dirty=True,
     )
 
 
@@ -59,6 +66,7 @@ def _resume(con, items, gw, *, sweep_id, **overrides):
         "resolve_fn": gw.resolve,
         "call_fn": gw.call,
         "sweep_id": sweep_id,
+        "allow_dirty": True,
         **overrides,
     }
     return execute_sweep(con, items, ["slot-a"], 5, **kwargs)
