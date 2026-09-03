@@ -12,7 +12,7 @@ from ground_truth._bok_shim import (
     CallContext,
     FailoverMode,
     Handle,
-    Labelled,  # noqa: F401 -- imported to prove the shim's public surface, not directly used
+    Labelled,
     ProvidersUnavailable,
     Response,
     Sensitivity,
@@ -235,3 +235,46 @@ def test_code_version_raises_when_git_command_fails(monkeypatch):
     monkeypatch.setattr(runner.subprocess, "run", _failing_git_run)
     with pytest.raises(RuntimeError):
         runner._code_version(allow_dirty=False)
+
+
+TRAINING_SLOT_YAML = """\
+slots:
+  slot-a:
+    family: "F"
+    provider: "trains-on-input"
+    model_ref: "M"
+    trains_on_data: true
+    commercial_use: true
+    exposes_fingerprint: false
+    list_price_in_per_1m: "0.10"
+    list_price_out_per_1m: "0.40"
+    pricing_url: "https://example.invalid/pricing"
+    retrieved_at: "2026-08-31"
+"""
+
+
+def test_sweep_refuses_a_confidential_payload_to_a_training_slot(con, tmp_path, monkeypatch):
+    """00's routing rule at the one point the sweep can enforce it. Without this, the decision
+    to keep training providers and feed them a redacted corpus is a note, not a control."""
+    manifest = tmp_path / "models.yaml"
+    manifest.write_text(TRAINING_SLOT_YAML, encoding="utf-8")
+    monkeypatch.setattr(
+        runner,
+        "build_prompt",
+        lambda item: Labelled(value="client text", sensitivity=Sensitivity.CLIENT_CONFIDENTIAL),
+    )
+    gw = FakeGateway()
+    with pytest.raises(SensitivityViolation, match="trains_on_data=True"):
+        execute_sweep(
+            con,
+            generate(count=1, seed=1, rubric_version="v1"),
+            ["slot-a"],
+            1,
+            context=CallContext(),
+            resolve_fn=gw.resolve,
+            call_fn=gw.call,
+            models_yaml=manifest,
+            allow_dirty=True,
+        )
+    assert gw.seen == [], "a refused payload must never reach the gateway"
+    assert con.execute("SELECT count(*) FROM outputs").fetchone()[0] == 0
