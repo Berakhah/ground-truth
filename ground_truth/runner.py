@@ -21,6 +21,8 @@ from ground_truth._bok_shim import (
 )
 from ground_truth.golden.generate import render_document
 from ground_truth.golden.schema import Item
+from ground_truth.policy import assert_slot_may_see
+from ground_truth.providers import load_slots
 
 if TYPE_CHECKING:
     # Type-only: schedule.py imports execute_sweep/pending_work from this module at its own
@@ -178,6 +180,7 @@ def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces
     sweep_id = sweep_id if sweep_id is not None else uuid.uuid4().hex
     code_version = _code_version(allow_dirty=allow_dirty)
     models_yaml_hash = hashlib.sha256(models_yaml.read_bytes()).hexdigest()
+    specs = load_slots(models_yaml)
     done = _completed(con, sweep_id)
     for slot in slots:
         handle = resolve_fn(slot)
@@ -190,6 +193,9 @@ def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces
         run_id = _run_id(con, sweep_id, slot, handle, context, code_version, models_yaml_hash)
         for item in items:
             payload = build_prompt(item)
+            # Before the prompt can reach a provider: 00's rule that CLIENT_CONFIDENTIAL
+            # never routes to a slot that trains on what it is sent.
+            assert_slot_may_see(slot, payload.sensitivity, specs, models_yaml)
             prompt_hash = hashlib.sha256(payload.value.encode()).hexdigest()
             for replicate in range(1, replicates + 1):
                 if (slot, item.item_id, replicate) in done:

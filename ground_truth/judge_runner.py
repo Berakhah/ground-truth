@@ -20,6 +20,7 @@ from ground_truth._bok_shim import (
     Sensitivity,
 )
 from ground_truth.golden.schema import ItemField
+from ground_truth.policy import assert_slot_may_see
 from ground_truth.providers import load_slots
 
 
@@ -76,8 +77,14 @@ def sample_judgements(  # noqa: PLR0913, PLR0917 -- contract-shaped signature, s
     call_fn: Callable[..., Response],
     context: CallContext,
     models_yaml: Path = Path("models.yaml"),
+    sensitivity: Sensitivity = Sensitivity.SYNTHETIC,
 ) -> int:
     assert_judge_family_differs(judge_slot, model_slot, models_yaml)
+    # The judge reads the same material the model under test read, so it needs the same
+    # data-policy clearance -- checked before the judge is resolved, let alone called.
+    assert_slot_may_see(
+        judge_slot, sensitivity, load_slots(models_yaml, key="judge_slots"), models_yaml
+    )
     handle = resolve_fn(judge_slot)
     if handle.is_fallback:
         raise ValueError(
@@ -95,7 +102,7 @@ def sample_judgements(  # noqa: PLR0913, PLR0917 -- contract-shaped signature, s
         presentation = randomise_presentation(field.expected_value, observed, seed=order_seed)
         payload = Labelled(
             value=build_judgement_prompt(field, presentation),
-            sensitivity=Sensitivity.SYNTHETIC,
+            sensitivity=sensitivity,
         )
         # Same two flags as the sweep: the judge's n>=3 samples are replicates, and a
         # failover would attribute one judge family's verdict to another -- which is
