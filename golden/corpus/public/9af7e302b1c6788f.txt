@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1123-C
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       16,366.84
+     2  Concrete works, phase 2                                      74,148.21
+     3  Glazing works, phase 3                                       69,445.73
+     4  Structural Steel works, phase 4                               9,776.54
+     5  Glazing works, phase 5                                       48,149.34
+     6  Roofing works, phase 6                                       86,641.01
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              353,318.78
+  TOTAL COMPLETED & STORED TO DATE                                  304,527.67
+  MATERIALS PRESENTLY STORED                                          3,264.20
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    30,452.77
+  TOTAL EARNED LESS AMOUNT RETAINED                                 277,339.10
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             19,989.74
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            75,979.68
+==============================================================================
+  CERTIFIED BY: Sitework Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

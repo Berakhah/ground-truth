@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 7587-D
+  APPLICATION NO. APP-000853              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      65,113.86
+     2  Masonry works, phase 2                                       77,444.41
+     3  Structural Steel works, phase 3                              41,732.15
+     4  Sitework works, phase 4                                      89,589.48
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              327,098.76
+  TOTAL COMPLETED & STORED TO DATE                                  278,084.06
+  MATERIALS PRESENTLY STORED                                          4,204.16
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    27,387.99
+  TOTAL EARNED LESS AMOUNT RETAINED                                 254,900.23
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             30,241.44
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            72,198.53
+==============================================================================
+  CERTIFIED BY: Concrete Partners Pty Ltd
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

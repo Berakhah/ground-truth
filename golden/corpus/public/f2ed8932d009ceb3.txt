@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1027-E
+  APPLICATION NO. APP-000339              PERIOD ENDING  01/09/2026
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       28,270.31
+     2  Concrete works, phase 2                                      17,708.71
+     3  Sitework works, phase 3                                      50,199.32
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              143,614.28
+  TOTAL COMPLETED & STORED TO DATE                                   96,178.34
+  MATERIALS PRESENTLY STORED                                          4,269.18
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                     9,617.83
+  TOTAL EARNED LESS AMOUNT RETAINED                                  90,829.69
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              6,450.04
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            52,784.59
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Inc.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

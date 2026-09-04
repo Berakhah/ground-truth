@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4782-E
+  APPLICATION NO. APP-000367              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       32,600.42
+     2  Roofing works, phase 2                                       89,749.25
+     3  Structural Steel works, phase 3                              87,329.31
+     4  Concrete works, phase 4                                      16,472.26
+     5  Concrete works, phase 5                                      27,905.34
+     6  Masonry works, phase 6                                       39,793.35
+     7  Structural Steel works, phase 7                              57,057.69
+     8  Roofing works, phase 8                                       47,250.55
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              443,759.65
+  TOTAL COMPLETED & STORED TO DATE                                  398,158.17
+  MATERIALS PRESENTLY STORED                                          1,032.33
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    39,815.82
+  TOTAL EARNED LESS AMOUNT RETAINED                                 359,374.68
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             20,517.42
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            84,384.97
+==============================================================================
+  CERTIFIED BY: Sitework Partners Pty Ltd
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

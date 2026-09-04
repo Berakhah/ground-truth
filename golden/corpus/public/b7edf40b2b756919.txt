@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1002-D
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      12,339.77
+     2  Glazing works, phase 2                                       57,316.20
+     3  Structural Steel works, phase 3                              43,981.23
+     4  Concrete works, phase 4                                      73,071.93
+     5  Structural Steel works, phase 5                              69,756.35
+     6  Roofing works, phase 6                                       12,628.59
+     7  Glazing works, phase 7                                       83,891.93
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              388,482.01
+  TOTAL COMPLETED & STORED TO DATE                                  352,986.00
+  MATERIALS PRESENTLY STORED                                          3,068.14
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    35,298.60
+  TOTAL EARNED LESS AMOUNT RETAINED                                 320,755.54
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             18,326.76
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            67,726.47
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners GmbH
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

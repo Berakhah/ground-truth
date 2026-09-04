@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8797-C
+  APPLICATION NO. APP-000751              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       40,689.58
+     2  Concrete works, phase 2                                      14,012.82
+     3  Roofing works, phase 3                                       89,612.71
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              178,790.77
+  TOTAL COMPLETED & STORED TO DATE                                  144,315.11
+  MATERIALS PRESENTLY STORED                                          2,532.10
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    14,431.51
+  TOTAL EARNED LESS AMOUNT RETAINED                                 132,415.70
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,459.66
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            46,375.07
+==============================================================================
+  CERTIFIED BY: Roofing Partners Inc.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

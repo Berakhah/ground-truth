@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 6554-A
+  APPLICATION NO. APP-000792              PERIOD ENDING  01/09/2026
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       71,914.65
+     2  Roofing works, phase 2                                       77,074.24
+     3  Glazing works, phase 3                                       87,089.99
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              255,005.64
+  TOTAL COMPLETED & STORED TO DATE                                  236,078.88
+  MATERIALS PRESENTLY STORED                                          4,515.65
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    23,607.89
+  TOTAL EARNED LESS AMOUNT RETAINED                                 216,986.64
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,082.26
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            38,019.00
+==============================================================================
+  CERTIFIED BY: Masonry Partners Ltd.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

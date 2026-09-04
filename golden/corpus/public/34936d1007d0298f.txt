@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5430-D
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       75,823.01
+     2  Glazing works, phase 2                                       44,712.83
+     3  Roofing works, phase 3                                       23,045.13
+     4  Sitework works, phase 4                                      48,615.70
+     5  Roofing works, phase 5                                       42,537.68
+     6  Glazing works, phase 6                                       44,272.61
+     7  Glazing works, phase 7                                       79,611.83
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              374,769.47
+  TOTAL COMPLETED & STORED TO DATE                                  358,618.79
+  MATERIALS PRESENTLY STORED                                          2,886.88
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    35,861.88
+  TOTAL EARNED LESS AMOUNT RETAINED                                 325,643.79
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             39,385.69
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            49,125.68
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Pty Ltd
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

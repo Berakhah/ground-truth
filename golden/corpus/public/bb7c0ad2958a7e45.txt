@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 9098-B
+  APPLICATION NO. APP-000854              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Structural Steel works, phase 1                              44,892.58
+     2  Roofing works, phase 2                                       50,875.44
+     3  Roofing works, phase 3                                       75,994.70
+     4  Glazing works, phase 4                                       22,881.01
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              240,296.83
+  TOTAL COMPLETED & STORED TO DATE                                  194,643.73
+  MATERIALS PRESENTLY STORED                                          4,798.15
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    19,464.37
+  TOTAL EARNED LESS AMOUNT RETAINED                                 179,977.51
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             17,698.63
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            60,318.87
+==============================================================================
+  CERTIFIED BY: Sitework Partners LLC
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

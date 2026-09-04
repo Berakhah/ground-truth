@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5451-A
+  APPLICATION NO. APP-000910              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Structural Steel works, phase 1                              52,981.37
+     2  Roofing works, phase 2                                       19,814.60
+     3  Sitework works, phase 3                                      44,521.62
+     4  Concrete works, phase 4                                      67,178.45
+     5  Concrete works, phase 5                                      48,055.16
+     6  Structural Steel works, phase 6                              66,946.68
+     7  Masonry works, phase 7                                       61,694.03
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              389,453.11
+  TOTAL COMPLETED & STORED TO DATE                                  361,191.91
+  MATERIALS PRESENTLY STORED                                          1,944.80
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    36,119.19
+  TOTAL EARNED LESS AMOUNT RETAINED                                 327,017.52
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             37,906.62
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            62,435.59
+==============================================================================
+  CERTIFIED BY: Masonry Partners Pty Ltd
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4501-A
+  APPLICATION NO. APP-000491              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       40,004.97
+     2  Sitework works, phase 2                                      31,522.19
+     3  Concrete works, phase 3                                      69,484.90
+     4  Structural Steel works, phase 4                              29,717.38
+     5  Sitework works, phase 5                                      64,219.16
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              253,907.53
+  TOTAL COMPLETED & STORED TO DATE                                  234,948.60
+  MATERIALS PRESENTLY STORED                                          3,812.26
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    23,494.86
+  TOTAL EARNED LESS AMOUNT RETAINED                                 215,266.00
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              4,461.64
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            38,641.53
+==============================================================================
+  CERTIFIED BY: Roofing Partners LLC
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

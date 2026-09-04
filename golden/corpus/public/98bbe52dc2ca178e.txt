@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4967-E
+  APPLICATION NO. APP-000916              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       79,995.84
+     2  Glazing works, phase 2                                       56,705.89
+     3  Concrete works, phase 3                                      31,495.73
+     4  Sitework works, phase 4                                      27,059.93
+     5  Structural Steel works, phase 5                              47,109.79
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              267,152.71
+  TOTAL COMPLETED & STORED TO DATE                                  242,367.18
+  MATERIALS PRESENTLY STORED                                          3,551.54
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    24,236.72
+  TOTAL EARNED LESS AMOUNT RETAINED                                 221,682.00
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             26,741.50
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            45,470.71
+==============================================================================
+  CERTIFIED BY: Glazing Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

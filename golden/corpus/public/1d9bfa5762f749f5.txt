@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1564-E
+  APPLICATION NO. APP-000816              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       68,386.66
+     2  Glazing works, phase 2                                        9,712.83
+     3  Concrete works, phase 3                                      53,922.57
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              147,655.23
+  TOTAL COMPLETED & STORED TO DATE                                  132,022.06
+  MATERIALS PRESENTLY STORED                                          3,130.94
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    13,202.21
+  TOTAL EARNED LESS AMOUNT RETAINED                                 121,950.79
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             35,887.62
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            25,704.44
+==============================================================================
+  CERTIFIED BY: Masonry Partners LLC
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 6517-E
+  APPLICATION NO. APP-000388              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      56,083.91
+     2  Concrete works, phase 2                                      46,383.56
+     3  Roofing works, phase 3                                       76,345.57
+     4  Glazing works, phase 4                                       26,221.27
+     5  Masonry works, phase 5                                        5,692.54
+     6  Structural Steel works, phase 6                              31,304.42
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              281,036.90
+  TOTAL COMPLETED & STORED TO DATE                                  242,031.27
+  MATERIALS PRESENTLY STORED                                          4,548.95
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    24,703.13
+  TOTAL EARNED LESS AMOUNT RETAINED                                 221,877.09
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              5,527.70
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            59,159.81
+==============================================================================
+  CERTIFIED BY: Concrete Partners Pty Ltd
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.
