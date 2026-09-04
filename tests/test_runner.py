@@ -19,6 +19,7 @@ from ground_truth._bok_shim import (
     SensitivityViolation,
 )
 from ground_truth.golden.generate import generate
+from ground_truth.golden.schema import Source
 from ground_truth.runner import build_prompt, execute_sweep
 from ground_truth.store.db import connect, migrate
 
@@ -143,6 +144,16 @@ def test_payload_is_labelled_synthetic(con):
     gw = FakeGateway()
     sweep(con, gw, generate(count=1, seed=1, rubric_version="v1"), ["slot-a"], 1)
     assert all(sens is Sensitivity.SYNTHETIC for _, _, _, sens, _ in gw.seen)
+
+
+def test_partner_sourced_item_is_labelled_confidential():
+    """Nothing produces a Source.PARTNER item yet, but the day one exists it must be tagged
+    CLIENT_CONFIDENTIAL -- otherwise assert_slot_may_see's gate has nothing to enforce."""
+    item = generate(count=1, seed=1, rubric_version="v1")[0].model_copy(
+        update={"source": Source.PARTNER}
+    )
+    payload = build_prompt(item)
+    assert payload.sensitivity is Sensitivity.CLIENT_CONFIDENTIAL
 
 
 def test_ledger_call_id_recorded_for_every_output(con):
