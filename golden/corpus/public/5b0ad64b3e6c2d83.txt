@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1712-D
+  APPLICATION NO. APP-000389              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Structural Steel works, phase 1                              21,085.65
+     2  Sitework works, phase 2                                      87,348.59
+     3  Sitework works, phase 3                                      74,488.27
+     4  Masonry works, phase 4                                       44,591.17
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              251,665.08
+  TOTAL COMPLETED & STORED TO DATE                                  227,513.68
+  MATERIALS PRESENTLY STORED                                          1,584.00
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    22,751.37
+  TOTAL EARNED LESS AMOUNT RETAINED                                 206,346.31
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,397.63
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            45,318.77
+==============================================================================
+  CERTIFIED BY: Sitework Partners LLC
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

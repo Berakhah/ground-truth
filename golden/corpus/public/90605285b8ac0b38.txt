@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 6894-C
+  APPLICATION NO. APP-000092              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                       7,304.02
+     2  Concrete works, phase 2                                      24,383.80
+     3  Concrete works, phase 3                                      32,794.08
+     4  Structural Steel works, phase 4                              45,879.29
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              134,252.52
+  TOTAL COMPLETED & STORED TO DATE                                  110,361.19
+  MATERIALS PRESENTLY STORED                                          3,704.21
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    11,036.12
+  TOTAL EARNED LESS AMOUNT RETAINED                                 103,029.28
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,577.35
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            31,222.97
+==============================================================================
+  CERTIFIED BY: Sitework Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

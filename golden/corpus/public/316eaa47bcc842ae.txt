@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2049-E
+  APPLICATION NO. APP-000408              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      39,127.65
+     2  Structural Steel works, phase 2                              86,152.32
+     3  Masonry works, phase 3                                       77,982.00
+     4  Concrete works, phase 4                                      43,884.02
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              264,639.04
+  TOTAL COMPLETED & STORED TO DATE                                  247,145.99
+  MATERIALS PRESENTLY STORED                                          4,409.48
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    24,714.60
+  TOTAL EARNED LESS AMOUNT RETAINED                                 226,840.87
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             31,292.91
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            37,798.17
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Pty Ltd
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

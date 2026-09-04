@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5356-A
+  APPLICATION NO. APP-000040              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       76,060.64
+     2  Structural Steel works, phase 2                              81,422.68
+     3  Concrete works, phase 3                                      30,940.30
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              234,961.73
+  TOTAL COMPLETED & STORED TO DATE                                  188,423.62
+  MATERIALS PRESENTLY STORED                                          2,659.33
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    18,842.36
+  TOTAL EARNED LESS AMOUNT RETAINED                                 172,240.59
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              8,129.36
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            62,721.14
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Pty Ltd
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

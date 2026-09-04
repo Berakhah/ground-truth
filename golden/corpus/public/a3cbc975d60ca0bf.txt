@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8639-D
+  APPLICATION NO. APP-000338              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      65,683.15
+     2  Roofing works, phase 2                                       79,025.68
+     3  Structural Steel works, phase 3                              76,785.09
+     4  Roofing works, phase 4                                       59,894.30
+     5  Structural Steel works, phase 5                              27,596.05
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              348,065.63
+  TOTAL COMPLETED & STORED TO DATE                                  308,984.27
+  MATERIALS PRESENTLY STORED                                          4,833.05
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    30,898.43
+  TOTAL EARNED LESS AMOUNT RETAINED                                 282,918.89
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              3,625.39
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            65,146.74
+==============================================================================
+  CERTIFIED BY: Glazing Partners Pty Ltd
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

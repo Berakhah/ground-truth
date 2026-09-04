@@ -47,7 +47,11 @@ def _require_env(name: str) -> str:
 
 
 def _write_corpus(items: list[Item], split_dir: Path) -> None:
+    # Full rebuild semantics, matching _insert_items: a reseed must replace the prior
+    # build's files, not pile the old seed's items up alongside the new ones.
     split_dir.mkdir(parents=True, exist_ok=True)
+    for stale in split_dir.glob("*.txt"):
+        stale.unlink()
     for item in items:
         (split_dir / f"{item.item_id}.txt").write_text(render_document(item), encoding="utf-8")
 

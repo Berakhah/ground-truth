@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 3334-A
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       81,798.16
+     2  Glazing works, phase 2                                       48,929.11
+     3  Masonry works, phase 3                                       33,262.61
+     4  Masonry works, phase 4                                       86,086.77
+     5  Structural Steel works, phase 5                              31,540.36
+     6  Masonry works, phase 6                                       82,122.61
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              382,355.51
+  TOTAL COMPLETED & STORED TO DATE                                  363,739.62
+  MATERIALS PRESENTLY STORED                                          1,354.64
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    36,373.96
+  TOTAL EARNED LESS AMOUNT RETAINED                                 328,720.30
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             38,016.42
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            53,635.21
+==============================================================================
+  CERTIFIED BY: Masonry Partners LLC
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

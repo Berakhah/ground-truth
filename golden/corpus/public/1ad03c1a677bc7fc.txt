@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 6376-D
+  APPLICATION NO. APP-000200              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      73,990.34
+     2  Roofing works, phase 2                                       31,935.19
+     3  Sitework works, phase 3                                      85,177.41
+     4  Masonry works, phase 4                                       64,159.64
+     5  Masonry works, phase 5                                       64,799.61
+     6  Glazing works, phase 6                                       83,247.92
+     7  Structural Steel works, phase 7                              56,268.29
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              486,762.43
+  TOTAL COMPLETED & STORED TO DATE                                  459,578.40
+  MATERIALS PRESENTLY STORED                                            294.88
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    45,957.84
+  TOTAL EARNED LESS AMOUNT RETAINED                                 413,915.44
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             15,809.29
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            72,846.99
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Pty Ltd
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

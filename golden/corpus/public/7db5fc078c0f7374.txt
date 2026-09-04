@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 9159-B
+  APPLICATION NO. APP-000687              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      40,070.71
+     2  Sitework works, phase 2                                      66,048.74
+     3  Roofing works, phase 3                                       53,453.54
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              201,005.54
+  TOTAL COMPLETED & STORED TO DATE                                  159,572.99
+  MATERIALS PRESENTLY STORED                                          4,764.63
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    15,957.30
+  TOTAL EARNED LESS AMOUNT RETAINED                                 148,380.33
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              9,724.75
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            52,625.21
+==============================================================================
+  CERTIFIED BY: Masonry Partners LLC
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

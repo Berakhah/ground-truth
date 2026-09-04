@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5426-C
+  APPLICATION NO. APP-000393              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      21,920.19
+     2  Masonry works, phase 2                                       68,909.56
+     3  Roofing works, phase 3                                       18,776.93
+     4  Masonry works, phase 4                                        9,018.21
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              143,619.52
+  TOTAL COMPLETED & STORED TO DATE                                  118,624.89
+  MATERIALS PRESENTLY STORED                                          4,137.29
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    11,862.49
+  TOTAL EARNED LESS AMOUNT RETAINED                                 110,899.69
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              1,326.19
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            32,719.83
+==============================================================================
+  CERTIFIED BY: Sitework Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 3434-D
+  APPLICATION NO. APP-000352              PERIOD ENDING  01/09/2026
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       57,266.93
+     2  Roofing works, phase 2                                       69,159.00
+     3  Structural Steel works, phase 3                              63,727.65
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              203,842.68
+  TOTAL COMPLETED & STORED TO DATE                                  190,153.58
+  MATERIALS PRESENTLY STORED                                          2,972.03
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    19,015.36
+  TOTAL EARNED LESS AMOUNT RETAINED                                 174,110.25
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              1,280.99
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            29,732.43
+==============================================================================
+  CERTIFIED BY: Roofing Partners LLC
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.
