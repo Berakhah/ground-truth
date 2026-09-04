@@ -338,3 +338,222 @@ a public page above, still needs your confirmation and a fresh date.
 - [Cerebras pricing](https://www.cerebras.ai/pricing)
 - [GitHub Models (retirement notice)](https://docs.github.com/en/github-models)
 - [Mistral rate limits and usage tiers (admin console)](https://admin.mistral.ai/plateforme/limits)
+
+### Addendum sources (2026-09-04)
+
+- [Mistral Privacy Policy](https://legal.mistral.ai/terms/privacy-policy)
+- [Mistral Data Processing Addendum](https://legal.mistral.ai/terms/data-processing-addendum)
+- [NVIDIA Technology Access Terms of Use (API-catalog / build.nvidia.com)](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA_Technology_Access_TOU.pdf)
+- [build.nvidia.com](https://build.nvidia.com)
+- [SambaNova Cloud pricing](https://cloud.sambanova.ai/plans/pricing)
+- [SambaNova Cloud Developer Tier announcement](https://sambanova.ai/blog/sambanova-cloud-developer-tier-is-live)
+- [Cerebras pricing](https://www.cerebras.ai/pricing)
+- [Groq — Llama 3 launch blog post (2024-04-20, dated pricing)](https://groq.com/blog/12-hours-later-groq-is-running-llama-3-instruct-8-70b-by-meta-ai-on-its-lpu-inference-enginge)
+
+## Addendum — 2026-09-04
+
+Second desk-research pass, chasing the four open threads only. Everything below is
+new — nothing here restates a finding already in the sections above. Same standing
+as everything else in this file: public, dated, cited, **not yet re-read on an
+account**, so every `[draft]` here still needs your confirmation before it can move
+into `models.yaml`.
+
+**Retrieval-method caveat that applies to most of this addendum.** `legal.mistral.ai`,
+`docs.mistral.ai`, `build.nvidia.com` and `cerebras.ai/pricing` are JS-rendered
+single-page apps. A plain HTTP fetch of these URLs frequently returns only the
+navigation shell, a 404, or a truncated document — which is very likely *why* the
+first pass came up empty on several of these (its own log shows the same 404s and
+empty pricing tables I got on a first attempt). Where a full page only rendered
+through a JS-executing text-reader proxy (`r.jina.ai`), that is noted explicitly.
+Treat those specific findings as needing a real-browser re-check on your account
+before they're trusted, on top of the account-confirmation every `[draft]` already
+needs — a headless proxy render is not a guaranteed-faithful mirror of the live page.
+
+### 1. Mistral training policy — primary legal text located, tier-specific claim still open
+
+The first pass could only find the training-on-free-tier claim on secondary
+(aggregator) sites, because the canonical page it tried 404s. Mistral's actual
+Privacy Policy and DPA are reachable — at different URLs, both under `legal.mistral.ai`,
+both JS-rendered (see caveat above) — and do state a general (not tier-scoped)
+training default with an opt-out right. Retrieved 2026-09-04 via `r.jina.ai` text-render
+of the live pages:
+
+**Privacy Policy**, https://legal.mistral.ai/terms/privacy-policy:
+> To train our artificial intelligence models (large language models) to answer
+> questions, generate text, translate, summarize and correct text, classify text,
+> analyze feelings, etc.
+
+Legal basis given for that processing: "Our legitimate interest in developing and
+providing state-of-the-art large language models as part of the Mistral AI Products."
+Retention for the stateless APIs: "we keep your Input and Output for the period
+necessary to generate the Output and then for thirty (30) rolling days to monitor
+abuse" (matches the 30-day figure the first pass already had from a different source —
+now confirmed against the Privacy Policy itself, not just a secondary summary).
+Opt-out mechanism, verbatim: "We've introduced a user control which allows you to
+object to the use of your input and output data for model training directly from
+your account."
+
+**Data Processing Addendum**, https://legal.mistral.ai/terms/data-processing-addendum
+(Section 2.3, Mistral acting as Controller):
+> [Processing for] training its artificial intelligence models in accordance with
+> its Privacy Policy, unless Customer is or has opted-out of training.
+
+and, on in-app feedback specifically:
+> if Customer provides feedback to Mistral AI by using the in-app "thumbs up" or
+> "thumbs down" features (the "Feedback"), Mistral will use such Feedback as well
+> as the associated Input and Output, as Controller, to train its artificial
+> intelligence models, conduct research or improve the Mistral AI Products.
+
+**What this does and doesn't resolve.** `[draft]`. Neither document names the
+"Experiment" tier, "La Plateforme," or any other plan — the training-by-default-with-
+opt-out language in both is written at the product level, not the tier level. The
+tier-specific claim the first pass flagged ("free Experiment tier trains by default,
+paid API/Enterprise doesn't, toggle lives in Admin Console → Privacy") still traces
+only to Mistral's own support/docs content (`docs.mistral.ai/admin/security-access/privacy`,
+`help.mistral.ai/en/articles/156194-...` and `.../455207-...`) — all four of those
+URLs 404'd on direct fetch this pass, and per this task's own instructions a
+support/docs page isn't the target document anyway. So: promoted from "reported on
+aggregators, unverified" to "the general training-with-opt-out policy is confirmed
+against Mistral's own Privacy Policy and DPA text" — but the specific free-vs-paid
+mechanism is still `[YOU]`, unchanged. Note also a direct discrepancy worth flagging:
+one fetch of the DPA reported an effective date of "July 27, 2026" and a second,
+independent fetch of the same URL found no effective date anywhere in the document —
+don't trust either date without eyes-on confirmation.
+
+### 2. NVIDIA NIM (build.nvidia.com) — first genuinely new material for this row
+
+**NVIDIA's own API-catalog Terms of Use, found and read in full.** Linked directly
+from build.nvidia.com's footer: https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA_Technology_Access_TOU.pdf
+("NVIDIA Technology Access Terms of Use," retrieved and read as a PDF 2026-09-04,
+copyright line at the foot reads "© 2024 NVIDIA Corporation" — no separate
+"last updated" banner was present in the document itself, so treat 2024 as a lower
+bound on currency, not a confirmed effective date). This is the terms document that
+actually governs build.nvidia.com API access, distinct from the general
+`nvidia.com/en-us/about-nvidia/terms-of-service/` the first pass found (which governs
+NVIDIA's corporate site generally, not this API surface specifically).
+
+Section 6 ("User Content"), the training-adjacent grant, verbatim:
+> When you provide, make available or create User Content, other than Feedback, to
+> or through your use of Technology, you grant NVIDIA, its affiliates and their
+> service providers a worldwide license to User Content to use, host, store,
+> reproduce, modify, create derivative works [...] solely to (a) provide you with
+> the Technology, including NVIDIA Services, (b) provide you support, or for
+> security reasons, and (c) modify and improve NVIDIA products or services or the
+> technology underlying the Technology.
+
+That (c) clause is a broad "improve the technology" grant over submitted content —
+not an explicit "train AI models on your prompts" statement, but close enough that
+it should be read as functionally equivalent for the audit's purposes pending your
+own reading.
+
+**More load-bearing for this repo's Never-rule 1**, same section, "Limitations on
+User Content" — the ToU affirmatively prohibits submitting confidential or sensitive
+data as User Content in the first place:
+> Unless expressly permitted via a Product Agreement, you agree that your actions
+> and transmission of User Content: (a) does not include any confidential
+> information; (b) does not include any controlled or sensitive data, including
+> (but not limited to) protected health information, personal data, payment card
+> industry information or sensitive human subject research[.]
+
+That's a contractual prohibition on sending confidential material at all, not just a
+training-opt-out question — pay-application / invoice text is exactly the kind of
+material this clause is written to exclude. Worth a note next to the
+`policy.py` fail-closed behavior described earlier in this file: even before
+`trains_on_data` is known, NVIDIA's own ToU already says don't send it confidential
+content, full stop.
+
+Also in the ToU, Section 7 ("Trial and Other Promotional Offerings"), confirming the
+free tier's legal framing: "NVIDIA may offer free or discounted pricing programs for
+the Technology for trial, evaluation or academic use [...] Standard charges will
+apply after a promotional offering ends or if you exceed the promotional offering
+use terms."
+
+**Rate limit.** `[draft]`, not `[YOU]`-closing. Both `https://build.nvidia.com` and
+`https://build.nvidia.com/settings/api-keys` rendered (via the JS-proxy caveat above)
+the same FAQ text: "All models on build.nvidia.com are free to prototype with [...]
+The free tier runs on rate limits - up to 40 requests per minute (RPM) for most
+models, with no per-token billing." This matches the number the first pass already
+had from developer-forum posts, but this is the first time it's been traced to
+NVIDIA's own site rather than a forum thread — still needs a real-browser check
+because of the proxy-rendering caveat, and it's an FAQ answer ("most models"), not a
+per-model published limit.
+
+**Pricing — still nothing.** No per-token price list exists on build.nvidia.com for
+the hosted endpoints; confirmed again this pass. The free tier is rate-limited
+access with no billing, and production use requires a separate NVIDIA AI Enterprise
+license whose price is not published on a page we could cite (every figure found for
+it this pass was aggregator-sourced, so per rule 5 it is omitted here, not guessed).
+
+### 3. Groq / SambaNova / Cerebras — one real find, one partial, one still closed
+
+**SambaNova — new, and this one clears the "no vendor citation" gap.**
+https://cloud.sambanova.ai/plans/pricing is public and required no login — confirmed
+by fetching it directly with a plain HTTP request, not just the JS-proxy (unlike
+every other finding in this addendum, this one does not carry the proxy-reliability
+caveat). Retrieved 2026-09-04, full table:
+
+| model | cached input /1M | input /1M | output /1M |
+|---|---|---|---|
+| MiniMax-M2.7 | $0.06 | $0.60 | $2.40 |
+| DeepSeek-V3.1 | N/A | $3.00 | $4.50 |
+| DeepSeek-V3.2 | N/A | $3.00 | $4.50 |
+| gemma-4-31B-it | N/A | $0.38 | $1.15 |
+| gpt-oss-120b | N/A | $0.22 | $0.59 |
+| Meta-Llama-3.3-70B-Instruct | N/A | $0.60 | $1.20 |
+| MiniMax-M3 | N/A | $0.60 | $2.40 |
+
+`[draft]` — headers said "Input (per 1M tokens)" / "Output (per 1M tokens)," page
+titled "Pricing." This directly answers the first pass's "Rule 5 says cite the
+vendor or don't cite... read them from your console" note for SambaNova: here is the
+vendor citation.
+
+One dating wrinkle worth flagging, not resolving: a SambaNova blog post,
+https://sambanova.ai/blog/sambanova-cloud-developer-tier-is-live (published
+2025-02-08 per its own byline), describes a different free-tier shape — "$5 of free
+credit... expires in 3 months," "over 30 million free tokens on Llama 8B" — that
+doesn't obviously reconcile with the first pass's 20 RPM/20 RPD/200K TPD figure from
+`docs.sambanova.ai/docs/en/models/rate-limits` (dated 2026-09-03). Both are
+first-party SambaNova pages; they may describe two different programs (a legacy
+credit grant vs. the current rate-limited free tier), or the blog post may simply be
+stale. Not resolved here — flag it for the account check.
+
+**Cerebras — partial: the pricing table exists on the vendor page, but only behind
+JS rendering.** `https://www.cerebras.ai/pricing` fetched with a plain HTTP GET shows
+only the three-tier selector shell (Free Trial / Developer / Enterprise) and the
+"Preview models are intended for evaluation purposes only" disclaimer — matching what
+the first pass reported. The same URL through the JS-proxy renders an actual
+"Developer Tier Pricing" table underneath that shell:
+
+| model | speed | input /1M | output /1M | status |
+|---|---|---|---|---|
+| GPT OSS 120B | ~3000 tok/s | $0.35 | $0.75 | production |
+| Qwen 3.8 27B | ~1,500 tok/s | $0.99 | $1.49 | preview |
+
+Retrieved 2026-09-04. This explains *why* the first pass's direct fetch came up
+empty — it's not that the vendor doesn't publish the numbers, it's that they only
+render client-side. Still `[draft]`, and this one specifically needs a real-browser
+re-check (open the page, confirm the table renders, screenshot or copy it) before
+it's trustworthy — a proxy render inventing a plausible-looking table is exactly the
+failure mode this file's provenance rule exists to catch, and this table cannot be
+cross-checked against a second independent source the way the SambaNova one can.
+
+**Groq — still closed, confirmed rather than opened.** `console.groq.com/docs/pricing`
+404s (same as the first pass found) and `groq.com/pricing` carries no pricing content
+at all, marketing copy only (same, both checked again this pass, including through
+the JS-proxy — no hidden table here the way Cerebras had one). One first-party
+artifact did turn up: a dated Groq blog post,
+https://groq.com/blog/12-hours-later-groq-is-running-llama-3-instruct-8-70b-by-meta-ai-on-its-lpu-inference-enginge
+(published 2024-04-20), states "Llama 3 70B at a price of $0.59 (input) and $0.79
+(output) per 1M tokens." That is a genuine vendor citation with a date — but it is
+17 months stale, names a model ("Llama 3 70B") that isn't the current
+"Llama 3.3 70B" / `openai/gpt-oss-120b` lineup the rest of this file uses, and
+pricing this old should not be trusted as current. Recorded here as evidence a
+historical vendor price point exists, not as a usable list-price figure. Groq's
+current per-token pricing remains `[YOU]` — unchanged from the first pass.
+
+### 4. Nothing else new
+
+No other public-source material turned up this pass that bears on the 16-column
+worksheet beyond the three threads above. In particular: no new OpenRouter,
+Cloudflare, Google, or GitHub Models findings — the first pass's coverage of those
+stands as-is.
