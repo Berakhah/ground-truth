@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5855-B
+  APPLICATION NO. APP-000528              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Structural Steel works, phase 1                              64,870.03
+     2  Roofing works, phase 2                                       59,136.38
+     3  Structural Steel works, phase 3                              50,485.45
+     4  Glazing works, phase 4                                       42,517.80
+     5  Concrete works, phase 5                                      24,788.75
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              258,556.28
+  TOTAL COMPLETED & STORED TO DATE                                  241,798.41
+  MATERIALS PRESENTLY STORED                                            815.42
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    24,179.84
+  TOTAL EARNED LESS AMOUNT RETAINED                                 218,433.99
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,517.68
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            40,122.29
+==============================================================================
+  CERTIFIED BY: Sitework Partners Pty Ltd
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

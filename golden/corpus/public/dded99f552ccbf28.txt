@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 3914-D
+  APPLICATION NO. APP-000277              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       78,989.36
+     2  Masonry works, phase 2                                       63,771.32
+     3  Masonry works, phase 3                                       86,127.53
+     4  Masonry works, phase 4                                        8,258.99
+     5  Structural Steel works, phase 5                              74,202.22
+     6  Masonry works, phase 6                                       20,573.98
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              360,556.15
+  TOTAL COMPLETED & STORED TO DATE                                  331,923.40
+  MATERIALS PRESENTLY STORED                                          1,957.79
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    33,192.34
+  TOTAL EARNED LESS AMOUNT RETAINED                                 300,688.85
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,253.12
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            59,867.30
+==============================================================================
+  CERTIFIED BY: Sitework Partners Pty Ltd
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

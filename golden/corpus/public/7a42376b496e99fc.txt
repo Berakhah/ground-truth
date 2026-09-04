@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2269-B
+  APPLICATION NO. APP-000298              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      19,904.75
+     2  Sitework works, phase 2                                      68,837.91
+     3  Masonry works, phase 3                                       66,183.54
+     4  Masonry works, phase 4                                       75,790.67
+     5  Concrete works, phase 5                                      82,175.94
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              357,684.61
+  TOTAL COMPLETED & STORED TO DATE                                  312,892.81
+  MATERIALS PRESENTLY STORED                                            775.33
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    31,289.28
+  TOTAL EARNED LESS AMOUNT RETAINED                                 282,378.86
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             27,306.82
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            75,305.75
+==============================================================================
+  CERTIFIED BY: Sitework Partners Ltd.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

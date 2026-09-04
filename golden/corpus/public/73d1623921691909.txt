@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 7303-C
+  APPLICATION NO. APP-000458              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       71,313.18
+     2  Sitework works, phase 2                                       6,789.09
+     3  Concrete works, phase 3                                      74,305.44
+     4  Concrete works, phase 4                                      83,003.48
+     5  Structural Steel works, phase 5                              77,389.34
+     6  Glazing works, phase 6                                       16,823.81
+     7  Sitework works, phase 7                                      19,690.06
+     8  Structural Steel works, phase 8                              68,651.73
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              435,974.64
+  TOTAL COMPLETED & STORED TO DATE                                  417,966.13
+  MATERIALS PRESENTLY STORED                                          3,849.24
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    41,796.61
+  TOTAL EARNED LESS AMOUNT RETAINED                                 380,018.76
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             22,895.96
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            55,955.88
+==============================================================================
+  CERTIFIED BY: Concrete Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

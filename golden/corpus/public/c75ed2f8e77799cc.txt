@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4288-D
+  APPLICATION NO. APP-000740              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       33,964.90
+     2  Sitework works, phase 2                                      89,485.01
+     3  Masonry works, phase 3                                       57,998.75
+     4  Sitework works, phase 4                                      58,308.15
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              253,456.55
+  TOTAL COMPLETED & STORED TO DATE                                  239,756.81
+  MATERIALS PRESENTLY STORED                                          2,421.83
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    23,975.68
+  TOTAL EARNED LESS AMOUNT RETAINED                                 218,202.97
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             36,036.37
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            35,253.58
+==============================================================================
+  CERTIFIED BY: Masonry Partners GmbH
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

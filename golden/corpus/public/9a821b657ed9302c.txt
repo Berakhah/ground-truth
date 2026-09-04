@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4922-A
+  APPLICATION NO. APP-000886              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                        7,090.98
+     2  Glazing works, phase 2                                       28,687.62
+     3  Structural Steel works, phase 3                              11,716.96
+     4  Concrete works, phase 4                                      24,905.06
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              115,005.97
+  TOTAL COMPLETED & STORED TO DATE                                   72,400.62
+  MATERIALS PRESENTLY STORED                                          4,732.46
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                     7,240.06
+  TOTAL EARNED LESS AMOUNT RETAINED                                  69,893.02
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             12,118.45
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            45,112.95
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners Inc.
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

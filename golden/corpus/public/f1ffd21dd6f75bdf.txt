@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2618-B
+  APPLICATION NO. APP-000050              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       24,251.36
+     2  Structural Steel works, phase 2                              27,512.09
+     3  Masonry works, phase 3                                       63,217.76
+     4  Roofing works, phase 4                                       74,747.34
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              237,166.06
+  TOTAL COMPLETED & STORED TO DATE                                  189,728.55
+  MATERIALS PRESENTLY STORED                                          4,209.81
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    18,972.86
+  TOTAL EARNED LESS AMOUNT RETAINED                                 174,965.51
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             23,923.60
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            62,200.55
+==============================================================================
+  CERTIFIED BY: Masonry Partners Pty Ltd
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2035-E
+  APPLICATION NO. APP-000072              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       62,983.08
+     2  Roofing works, phase 2                                       13,780.17
+     3  Concrete works, phase 3                                      47,466.18
+     4  Structural Steel works, phase 4                              85,913.77
+     5  Glazing works, phase 5                                       36,509.46
+     6  Glazing works, phase 6                                       22,259.12
+     7  Sitework works, phase 7                                      83,459.23
+     8  Masonry works, phase 8                                       79,971.31
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              483,532.50
+  TOTAL COMPLETED & STORED TO DATE                                  432,342.32
+  MATERIALS PRESENTLY STORED                                          4,691.39
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    43,734.23
+  TOTAL EARNED LESS AMOUNT RETAINED                                 393,299.48
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             14,497.76
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            90,233.02
+==============================================================================
+  CERTIFIED BY: Glazing Partners Inc.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

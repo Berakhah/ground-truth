@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 7731-D
+  APPLICATION NO. APP-000996              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      80,747.48
+     2  Sitework works, phase 2                                      84,199.59
+     3  Structural Steel works, phase 3                              84,766.13
+     4  Sitework works, phase 4                                      18,358.06
+     5  Structural Steel works, phase 5                              32,095.45
+     6  Glazing works, phase 6                                       88,117.91
+     7  Glazing works, phase 7                                       11,119.44
+     8  Structural Steel works, phase 8                              17,807.05
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              452,096.63
+  TOTAL COMPLETED & STORED TO DATE                                  417,211.11
+  MATERIALS PRESENTLY STORED                                          1,150.99
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    42,221.11
+  TOTAL EARNED LESS AMOUNT RETAINED                                 376,140.99
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             16,912.03
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            75,955.64
+==============================================================================
+  CERTIFIED BY: Roofing Partners GmbH
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

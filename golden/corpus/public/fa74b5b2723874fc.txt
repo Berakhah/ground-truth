@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 1525-B
+  APPLICATION NO. APP-000144              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       76,942.14
+     2  Glazing works, phase 2                                        7,856.33
+     3  Concrete works, phase 3                                      75,488.71
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              180,506.99
+  TOTAL COMPLETED & STORED TO DATE                                  160,287.18
+  MATERIALS PRESENTLY STORED                                          2,710.21
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    16,028.72
+  TOTAL EARNED LESS AMOUNT RETAINED                                 146,968.67
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             15,940.23
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            33,538.32
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

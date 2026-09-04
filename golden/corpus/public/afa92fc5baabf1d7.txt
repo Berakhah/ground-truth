@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4121-E
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      73,948.79
+     2  Roofing works, phase 2                                       30,765.98
+     3  Concrete works, phase 3                                      22,111.82
+     4  Glazing works, phase 4                                       69,729.85
+     5  Sitework works, phase 5                                      15,584.53
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              236,390.79
+  TOTAL COMPLETED & STORED TO DATE                                  212,140.97
+  MATERIALS PRESENTLY STORED                                            770.84
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    21,214.10
+  TOTAL EARNED LESS AMOUNT RETAINED                                 191,697.71
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             12,573.57
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            44,693.08
+==============================================================================
+  CERTIFIED BY: Glazing Partners Inc.
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

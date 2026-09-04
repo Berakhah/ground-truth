@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 9628-A
+  APPLICATION NO. APP-000890              PERIOD ENDING  01/09/2026
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       30,867.83
+     2  Structural Steel works, phase 2                              73,195.25
+     3  Sitework works, phase 3                                      55,725.30
+     4  Roofing works, phase 4                                       18,612.24
+     5  Glazing works, phase 5                                       19,065.32
+     6  Concrete works, phase 6                                      44,856.37
+     7  Concrete works, phase 7                                      65,978.90
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              358,848.84
+  TOTAL COMPLETED & STORED TO DATE                                  308,301.21
+  MATERIALS PRESENTLY STORED                                          3,258.30
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    30,830.12
+  TOTAL EARNED LESS AMOUNT RETAINED                                 280,729.39
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             17,495.24
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            78,119.45
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

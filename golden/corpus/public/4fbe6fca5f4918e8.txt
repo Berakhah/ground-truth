@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5819-B
+  APPLICATION NO. APP-000302              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Glazing works, phase 1                                       29,623.56
+     2  Sitework works, phase 2                                      47,167.35
+     3  Masonry works, phase 3                                       49,804.01
+     4  Masonry works, phase 4                                       63,342.12
+     5  Concrete works, phase 5                                      48,920.15
+     6  Glazing works, phase 6                                       76,942.67
+     7  Concrete works, phase 7                                      30,434.96
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              361,812.84
+  TOTAL COMPLETED & STORED TO DATE                                  346,234.82
+  MATERIALS PRESENTLY STORED                                          4,293.72
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    34,623.48
+  TOTAL EARNED LESS AMOUNT RETAINED                                 315,905.06
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              8,056.97
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            45,907.42
+==============================================================================
+  CERTIFIED BY: Masonry Partners LLC
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

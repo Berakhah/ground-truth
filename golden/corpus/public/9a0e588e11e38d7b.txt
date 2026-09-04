@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 7837-B
+  APPLICATION NO. APP-000588              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      36,485.27
+     2  Roofing works, phase 2                                       15,663.52
+     3  Masonry works, phase 3                                       34,256.78
+     4  Concrete works, phase 4                                      87,226.16
+     5  Masonry works, phase 5                                       30,722.13
+     6  Glazing works, phase 6                                       56,320.05
+     7  Masonry works, phase 7                                        8,594.01
+     8  Sitework works, phase 8                                      12,847.62
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              323,680.29
+  TOTAL COMPLETED & STORED TO DATE                                  282,115.54
+  MATERIALS PRESENTLY STORED                                          2,668.74
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    28,211.55
+  TOTAL EARNED LESS AMOUNT RETAINED                                 256,572.73
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             16,557.43
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            67,107.56
+==============================================================================
+  CERTIFIED BY: Masonry Partners Pty Ltd
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2542-B
+  APPLICATION NO. APP-000049              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      73,307.85
+     2  Roofing works, phase 2                                       79,393.04
+     3  Glazing works, phase 3                                        9,950.12
+     4  Sitework works, phase 4                                      38,140.96
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              245,901.17
+  TOTAL COMPLETED & STORED TO DATE                                  200,791.97
+  MATERIALS PRESENTLY STORED                                          1,216.69
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    20,079.20
+  TOTAL EARNED LESS AMOUNT RETAINED                                 181,929.46
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             24,199.90
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            63,971.71
+==============================================================================
+  CERTIFIED BY: Concrete Partners GmbH
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

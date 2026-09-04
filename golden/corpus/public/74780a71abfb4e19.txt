@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 9651-D
+  APPLICATION NO. APP-000227              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                       34,250.18
+     2  Roofing works, phase 2                                       10,748.29
+     3  Sitework works, phase 3                                      72,847.78
+     4  Roofing works, phase 4                                       54,843.37
+     5  Concrete works, phase 5                                      40,528.31
+     6  Sitework works, phase 6                                      53,157.73
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              299,573.57
+  TOTAL COMPLETED & STORED TO DATE                                  266,375.66
+  MATERIALS PRESENTLY STORED                                          1,567.42
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    26,637.57
+  TOTAL EARNED LESS AMOUNT RETAINED                                 241,305.51
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             37,690.21
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            58,268.24
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners LLC
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

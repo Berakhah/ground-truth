@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 7804-C
+  APPLICATION NO. APP-000765              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      38,214.70
+     2  Concrete works, phase 2                                      39,709.67
+     3  Roofing works, phase 3                                       53,784.73
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              155,070.61
+  TOTAL COMPLETED & STORED TO DATE                                  131,709.10
+  MATERIALS PRESENTLY STORED                                          3,874.42
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    13,170.91
+  TOTAL EARNED LESS AMOUNT RETAINED                                 122,412.62
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              5,537.57
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            32,657.99
+==============================================================================
+  CERTIFIED BY: Sitework Partners LLC
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

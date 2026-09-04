@@ -1,0 +1,26 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2041-E
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       49,795.91
+     2  Sitework works, phase 2                                      85,734.09
+     3  Roofing works, phase 3                                       83,656.04
+     4  Roofing works, phase 4                                       60,268.20
+     5  Glazing works, phase 5                                       73,448.41
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        5
+==============================================================================
+  CONTRACT SUM TO DATE                                              382,742.16
+  TOTAL COMPLETED & STORED TO DATE                                  352,902.65
+  MATERIALS PRESENTLY STORED                                          4,501.11
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    35,290.26
+  TOTAL EARNED LESS AMOUNT RETAINED                                 322,113.50
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              8,603.55
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            60,628.66
+==============================================================================
+  CERTIFIED BY: Roofing Partners Ltd.
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

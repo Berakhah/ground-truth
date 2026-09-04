@@ -1,0 +1,29 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 9876-B
+  APPLICATION NO. APP-000254              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Roofing works, phase 1                                        8,674.55
+     2  Concrete works, phase 2                                      53,086.88
+     3  Structural Steel works, phase 3                              37,235.20
+     4  Sitework works, phase 4                                      60,292.39
+     5  Concrete works, phase 5                                      29,671.84
+     6  Structural Steel works, phase 6                              57,198.46
+     7  Structural Steel works, phase 7                              75,217.21
+     8  Sitework works, phase 8                                      82,815.28
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        8
+==============================================================================
+  CONTRACT SUM TO DATE                                              443,811.79
+  TOTAL COMPLETED & STORED TO DATE                                  404,191.81
+  MATERIALS PRESENTLY STORED                                          1,450.61
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    40,419.18
+  TOTAL EARNED LESS AMOUNT RETAINED                                 365,223.24
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             29,861.75
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            78,588.55
+==============================================================================
+  CERTIFIED BY: Sitework Partners Pty Ltd
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

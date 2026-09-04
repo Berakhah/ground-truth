@@ -65,3 +65,23 @@ def test_main_builds_two_disjoint_corpora_and_is_idempotent(tmp_path, monkeypatc
     con.close()
     assert counts_after == {"public": 6, "private": 9}
     assert field_count is not None and field_count[0] > 0
+
+
+def test_rerun_with_a_different_seed_replaces_the_corpus_files_not_appends(tmp_path, monkeypatch):
+    """Seed rotation (CLAUDE.md Never-rule 1) means a real rebuild changes the seeds. If
+    _write_corpus doesn't clear stale files first, the old seed's items pile up alongside
+    the new ones -- exactly the drift a full rebuild is supposed to prevent."""
+    monkeypatch.setenv("GT_PUBLIC_SEED", "1" * 32)
+    monkeypatch.setenv("GT_PRIVATE_SEED", "a" * 32)
+    monkeypatch.setenv("GT_HASH_SALT", "b" * 32)
+    build.main(repo_root=tmp_path, public_count=6, private_count=9)
+
+    monkeypatch.setenv("GT_PUBLIC_SEED", "2" * 32)
+    monkeypatch.setenv("GT_PRIVATE_SEED", "c" * 32)
+    monkeypatch.setenv("GT_HASH_SALT", "d" * 32)
+    build.main(repo_root=tmp_path, public_count=6, private_count=9)
+
+    public_dir = tmp_path / "golden" / "corpus" / Split.PUBLIC.value
+    private_dir = tmp_path / "golden" / "corpus" / Split.PRIVATE.value
+    assert len(list(public_dir.glob("*.txt"))) == 6  # noqa: PLR2004
+    assert len(list(private_dir.glob("*.txt"))) == 9  # noqa: PLR2004

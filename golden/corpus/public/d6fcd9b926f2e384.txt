@@ -1,0 +1,25 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 8834-A
+  APPLICATION NO. APP-000369              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      53,439.99
+     2  Glazing works, phase 2                                       47,783.66
+     3  Sitework works, phase 3                                      12,360.37
+     4  Roofing works, phase 4                                       70,172.09
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        4
+==============================================================================
+  CONTRACT SUM TO DATE                                              227,894.49
+  TOTAL COMPLETED & STORED TO DATE                                  188,289.85
+  MATERIALS PRESENTLY STORED                                          4,533.74
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    18,375.61
+  TOTAL EARNED LESS AMOUNT RETAINED                                 174,447.98
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             39,384.16
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            53,446.51
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners GmbH
+  CERTIFICATION: pending
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

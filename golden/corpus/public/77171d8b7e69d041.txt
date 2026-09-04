@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 5435-C
+  APPLICATION NO. APP-000405              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Masonry works, phase 1                                       59,428.67
+     2  Structural Steel works, phase 2                              10,044.32
+     3  Structural Steel works, phase 3                              64,830.02
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              181,358.04
+  TOTAL COMPLETED & STORED TO DATE                                  134,303.01
+  MATERIALS PRESENTLY STORED                                            698.14
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    13,430.30
+  TOTAL EARNED LESS AMOUNT RETAINED                                 121,570.85
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             19,902.54
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            59,787.19
+==============================================================================
+  CERTIFIED BY: Sitework Partners LLC
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

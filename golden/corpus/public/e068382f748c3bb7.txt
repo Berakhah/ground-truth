@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4954-A
+  APPLICATION NO. (not issued)            PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      11,744.52
+     2  Masonry works, phase 2                                       19,395.11
+     3  Masonry works, phase 3                                       82,193.27
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              131,021.23
+  TOTAL COMPLETED & STORED TO DATE                                  113,332.90
+  MATERIALS PRESENTLY STORED                                          3,425.68
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    11,333.29
+  TOTAL EARNED LESS AMOUNT RETAINED                                 105,425.29
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             31,124.49
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            25,595.94
+==============================================================================
+  CERTIFIED BY: Concrete Partners LLC
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

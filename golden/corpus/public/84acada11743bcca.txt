@@ -1,0 +1,27 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 4213-E
+  APPLICATION NO. APP-000533              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Sitework works, phase 1                                      59,366.55
+     2  Masonry works, phase 2                                       33,564.57
+     3  Sitework works, phase 3                                      55,356.40
+     4  Structural Steel works, phase 4                              13,699.55
+     5  Glazing works, phase 5                                       37,277.84
+     6  Structural Steel works, phase 6                              11,389.30
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        6
+==============================================================================
+  CONTRACT SUM TO DATE                                              249,399.72
+  TOTAL COMPLETED & STORED TO DATE                                  210,654.21
+  MATERIALS PRESENTLY STORED                                          3,086.09
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    21,065.42
+  TOTAL EARNED LESS AMOUNT RETAINED                                 192,674.88
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                              1,540.51
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            56,724.84
+==============================================================================
+  CERTIFIED BY: Structural Steel Partners GmbH
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

@@ -1,0 +1,28 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 9251-E
+  APPLICATION NO. APP-000076              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      38,794.51
+     2  Concrete works, phase 2                                      40,114.46
+     3  Concrete works, phase 3                                      41,364.54
+     4  Masonry works, phase 4                                       29,544.71
+     5  Glazing works, phase 5                                       49,420.82
+     6  Concrete works, phase 6                                      82,909.95
+     7  Masonry works, phase 7                                       83,435.04
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        7
+==============================================================================
+  CONTRACT SUM TO DATE                                              415,339.74
+  TOTAL COMPLETED & STORED TO DATE                                  365,584.03
+  MATERIALS PRESENTLY STORED                                          1,580.07
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    36,558.40
+  TOTAL EARNED LESS AMOUNT RETAINED                                 330,605.71
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             18,927.81
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            84,734.03
+==============================================================================
+  CERTIFIED BY: Concrete Partners Pty Ltd
+  CERTIFICATION: rejected
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.

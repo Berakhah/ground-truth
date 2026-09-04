@@ -1,0 +1,24 @@
+==============================================================================
+  PROGRESS BILLING SUMMARY                            Project No. 2816-D
+  APPLICATION NO. APP-000308              PERIOD ENDING  2026-09-01
+------------------------------------------------------------------------------
+  ITEM  DESCRIPTION OF WORK                                    AMOUNT THIS PERIOD
+------------------------------------------------------------------------------
+     1  Concrete works, phase 1                                      82,394.18
+     2  Masonry works, phase 2                                       46,250.40
+     3  Sitework works, phase 3                                      77,771.36
+------------------------------------------------------------------------------
+  ITEMS ON THIS SHEET                                                        3
+==============================================================================
+  CONTRACT SUM TO DATE                                              225,991.86
+  TOTAL COMPLETED & STORED TO DATE                                  206,415.94
+  MATERIALS PRESENTLY STORED                                          2,788.11
+  LESS AMOUNT RETAINED  10.00 % OF COMPLETED WORK                    20,641.59
+  TOTAL EARNED LESS AMOUNT RETAINED                                 188,562.46
+  LESS PREVIOUS CERTIFICATES FOR PAYMENT                             22,722.02
+  BALANCE TO FINISH, PLUS AMOUNT RETAINED                            37,429.40
+==============================================================================
+  CERTIFIED BY: Glazing Partners GmbH
+  CERTIFICATION: approved
+
+This document is not affiliated with, endorsed by, approved by or sponsored by the AIA. References describe column semantics only.
