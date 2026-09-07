@@ -16,6 +16,7 @@ EXPECTED = (
     "verdicts",
     "human_labels",
     "judge_decisions",
+    "looks",
 )
 
 
