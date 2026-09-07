@@ -12,12 +12,12 @@ defining any of it.
 
 from __future__ import annotations
 
-import json
 import re
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from ground_truth.publish.artifacts import leaderboard_row_to_dict, write_json
 
 if TYPE_CHECKING:
     from ground_truth.graders.judge.agreement import AgreementReport
@@ -57,23 +57,6 @@ def required_terms() -> set[str]:
     return set(_REQUIRED_TERMS)
 
 
-def _row_to_dict(row: LeaderboardRow) -> dict[str, object]:
-    return {
-        "slot": row.slot,
-        "accuracy": row.accuracy.model_dump(),
-        "cost": {
-            "value": str(row.cost.value),
-            "unit": row.cost.unit,
-            "method": row.cost.method,
-            "source_url": row.cost.source_url,
-            "retrieved_at": row.cost.retrieved_at.isoformat(),
-            "caveat": row.cost.caveat,
-        },
-        "latency": asdict(row.latency),
-        "per_field": {name: interval.model_dump() for name, interval in row.per_field.items()},
-    }
-
-
 def _agreement_to_dict(report: AgreementReport) -> dict[str, object]:
     return {
         "field_type": report.field_type,
@@ -109,7 +92,7 @@ def leaderboard_payload(  # noqa: PLR0913 -- fixed public interface, brief's exa
         "version": version,
         "as_of": as_of.isoformat(),
         "methodology_url": METHODOLOGY_URL,
-        "rows": [_row_to_dict(row) for row in rows],
+        "rows": [leaderboard_row_to_dict(row) for row in rows],
         "distinguishability": list(statements),
         "judge_agreement": [_agreement_to_dict(report) for report in agreements],
         "fingerprints": [_fingerprint_to_dict(fp) for fp in fingerprints],
@@ -128,7 +111,7 @@ def leaderboard_payload(  # noqa: PLR0913 -- fixed public interface, brief's exa
 
 
 def write_leaderboard(payload: dict[str, object], path: Path) -> None:
-    path.write_text(json.dumps(payload, sort_keys=True, indent=2), encoding="utf-8")
+    write_json(path, payload)
 
 
 def assert_methodology_defines_every_term(path: Path) -> None:
