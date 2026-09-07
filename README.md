@@ -6,6 +6,18 @@ An eval and regression harness for one regulated task: pay-application and invoi
 
 Phase 1 has no external services: DuckDB is an embedded local `.duckdb` file (no server), and the provider gateway is shimmed — no real network calls yet.
 
+## Reproduce these numbers
+
+Download the published `artifacts/` directory (see [Published artifacts](#published-artifacts) below), then run:
+
+```
+python scripts/reproduce.py artifacts/
+```
+
+`reproduce.py` is a standalone, stdlib-only script — it does not import `ground_truth` and needs no repository checkout. It recomputes each leaderboard row's headline accuracy directly from `verdicts_private_by_hash.jsonl` and prints published vs. recomputed side by side. Expect zero differences and exit code 0.
+
+The private split's actual items are never published — only their content hashes (`manifest_private.json`), which prove the items existed at a given date without revealing them, and per-item verdicts keyed by that hash (`verdicts_private_by_hash.jsonl`), which are enough for anyone to independently recompute the headline numbers without ever seeing a private item.
+
 ## Quickstart
 
 ```
