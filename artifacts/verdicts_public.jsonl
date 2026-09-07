@@ -1,0 +1,11 @@
+{"item_id": "demo-item-001", "slot": "demo-slot-a", "field_name": "contract_sum", "correct": true, "grader_id": "exact", "grader_version": "1", "rubric_version": "v1", "reason": "exact match"}
+{"item_id": "demo-item-001", "slot": "demo-slot-a", "field_name": "invoice_date", "correct": false, "grader_id": "normalised", "grader_version": "1", "rubric_version": "v1", "reason": "expected 2026-01-15, got 2026-01-05"}
+{"item_id": "demo-item-001", "slot": "demo-slot-b", "field_name": "contract_sum", "correct": false, "grader_id": "numeric_tolerance", "grader_version": "1", "rubric_version": "v1", "reason": "expected 1200.00, got 1250.00"}
+{"item_id": "demo-item-002", "slot": "demo-slot-a", "field_name": "line_item_total", "correct": true, "grader_id": "arithmetic", "grader_version": "1", "rubric_version": "v1", "reason": "all rules hold"}
+{"item_id": "demo-item-002", "slot": "demo-slot-b", "field_name": "line_item_total", "correct": false, "grader_id": "arithmetic", "grader_version": "1", "rubric_version": "v1", "reason": "line items do not sum to stated total"}
+{"item_id": "demo-item-002", "slot": "demo-slot-a", "field_name": "vendor_name", "correct": true, "grader_id": "normalised", "grader_version": "1", "rubric_version": "v1", "reason": "normalised match"}
+{"item_id": "demo-item-003", "slot": "demo-slot-a", "field_name": "contract_sum", "correct": false, "grader_id": "schema", "grader_version": "1", "rubric_version": "v1", "reason": "field missing from output"}
+{"item_id": "demo-item-003", "slot": "demo-slot-b", "field_name": "contract_sum", "correct": true, "grader_id": "exact", "grader_version": "1", "rubric_version": "v1", "reason": "exact match"}
+{"item_id": "demo-item-003", "slot": "demo-slot-a", "field_name": "retainage_percent", "correct": false, "grader_id": "numeric_tolerance", "grader_version": "1", "rubric_version": "v1", "reason": "expected 5.00, got 5.50"}
+{"item_id": "demo-item-004", "slot": "demo-slot-b", "field_name": "invoice_date", "correct": true, "grader_id": "normalised", "grader_version": "1", "rubric_version": "v1", "reason": "normalised match"}
+{"item_id": "demo-item-004", "slot": "demo-slot-a", "field_name": "vendor_name", "correct": false, "grader_id": "schema", "grader_version": "1", "rubric_version": "v1", "reason": "output is not valid JSON"}
