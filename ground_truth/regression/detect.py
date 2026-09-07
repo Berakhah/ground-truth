@@ -1,0 +1,143 @@
+"""Drift detection for the scheduled regression watch.
+
+Detection is a statistics problem, not a threshold problem (`04`, "Watch for"). A single look
+at one comparison is exactly the setup that produces alert spam, then muted alerts, then a
+missed real regression -- so `detected` requires BOTH the pre-registered O'Brien-Fleming
+sequential boundary to be crossed at this look AND the Benjamini-Hochberg-adjusted p-value
+(corrected across every comparison made in this call) to be significant. The alert **is** the
+sentence: a null result states the minimum detectable effect rather than implying absence of
+drift, per `describe_mde`'s own closing line.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass
+
+from scipy.stats import norm
+
+from ground_truth.stats.bootstrap import Interval, cluster_bootstrap_ci
+from ground_truth.stats.correction import Comparison, benjamini_hochberg
+from ground_truth.stats.mde import describe_mde
+from ground_truth.stats.sequential import evaluate_look
+
+# describe_mde's discordance_rate must be in (0, 1] -- see the identical floor and reasoning in
+# ground_truth/triage/report.py's _mde_caveat for the "no true discordance rate available" case.
+_MIN_DISCORDANCE_RATE = 0.01
+
+Z_95 = norm.ppf(0.975)  # ~1.959964, matching cluster_bootstrap_ci's fixed 95% confidence level
+
+
+@dataclass(frozen=True)
+class Alert:
+    slot: str
+    field_type: str
+    baseline: Interval
+    current: Interval
+    z: float
+    adjusted_p: float
+    look: int
+    total_looks: int
+    detected: bool
+    statement: str
+
+
+def _se(interval: Interval) -> float:
+    # Each side's standard error, backed out of its own bootstrap interval width rather than a
+    # pooled-binomial estimate -- a pooled proportion test ignores clustering and would
+    # understate variance, exactly what cluster_bootstrap_ci exists to correct for.
+    return float((interval.high - interval.low) / (2 * Z_95))
+
+
+def _discordance_rate(
+    baseline: dict[tuple[str, str], list[tuple[str, bool]]],
+    current: dict[tuple[str, str], list[tuple[str, bool]]],
+    key: tuple[str, str],
+    current_interval: Interval,
+) -> tuple[int, float]:
+    baseline_by_id = dict(baseline[key])
+    current_by_id = dict(current[key])
+    paired_ids = baseline_by_id.keys() & current_by_id.keys()
+    if paired_ids:
+        n_items = len(paired_ids)
+        disagreements = sum(1 for i in paired_ids if baseline_by_id[i] != current_by_id[i])
+        return n_items, max(disagreements / n_items, _MIN_DISCORDANCE_RATE)
+    # No id overlap -- shouldn't occur given the regression watch's anchor-subset design
+    # (Task 51), but must not crash. Same proxy as report.py's _mde_caveat.
+    return current_interval.n, max(1 - current_interval.point, _MIN_DISCORDANCE_RATE)
+
+
+def detect_drift(
+    baseline: dict[tuple[str, str], list[tuple[str, bool]]],
+    current: dict[tuple[str, str], list[tuple[str, bool]]],
+    *,
+    look: int,
+    total_looks: int,
+    seed: int,
+) -> list[Alert]:
+    keys = sorted(current)
+    n_comparisons = len(keys)
+
+    intervals: dict[tuple[str, str], tuple[Interval, Interval]] = {}
+    zs: dict[tuple[str, str], float] = {}
+    comparisons: list[Comparison] = []
+    for key in keys:
+        baseline_obs = baseline[key]  # raise KeyError on a miss -- never skip a comparison
+        current_obs = current[key]
+        baseline_interval = cluster_bootstrap_ci(baseline_obs, seed=seed)
+        current_interval = cluster_bootstrap_ci(current_obs, seed=seed)
+        intervals[key] = (baseline_interval, current_interval)
+        z = (current_interval.point - baseline_interval.point) / math.sqrt(
+            _se(current_interval) ** 2 + _se(baseline_interval) ** 2
+        )
+        zs[key] = z
+        p_value = 2 * (1 - norm.cdf(abs(z)))
+        slot, field_type = key
+        comparisons.append(Comparison(label=f"{slot}/{field_type}", p_value=p_value))
+
+    corrected = {c.label: c for c in benjamini_hochberg(comparisons)}
+
+    alerts: list[Alert] = []
+    for key in keys:
+        slot, field_type = key
+        baseline_interval, current_interval = intervals[key]
+        z = zs[key]
+        seq_result = evaluate_look(z, look, total_looks)
+        cc = corrected[f"{slot}/{field_type}"]
+        detected = seq_result.reject and cc.significant
+
+        prefix = (
+            f"{slot}/{field_type}: {baseline_interval.point:.3f} "
+            f"[{baseline_interval.low:.3f}, {baseline_interval.high:.3f}] -> "
+            f"{current_interval.point:.3f} "
+            f"[{current_interval.low:.3f}, {current_interval.high:.3f}]. "
+        )
+        if detected:
+            statement = prefix + (
+                f"Change detected at look {look} of {total_looks} (O'Brien-Fleming alpha "
+                f"spending, |z| = {abs(z):.3f}; Benjamini-Hochberg adjusted p = "
+                f"{cc.adjusted_p:.4f} across {n_comparisons} comparisons)."
+            )
+        else:
+            n_items, discordance_rate = _discordance_rate(baseline, current, key, current_interval)
+            statement = prefix + (
+                f"No change detected at look {look} of {total_looks} (O'Brien-Fleming alpha "
+                f"spending; Benjamini-Hochberg adjusted p = {cc.adjusted_p:.4f}). "
+            ) + describe_mde(n_items, discordance_rate)
+
+        alerts.append(
+            Alert(
+                slot=slot,
+                field_type=field_type,
+                baseline=baseline_interval,
+                current=current_interval,
+                z=z,
+                adjusted_p=cc.adjusted_p,
+                look=look,
+                total_looks=total_looks,
+                detected=detected,
+                statement=statement,
+            )
+        )
+
+    return alerts
