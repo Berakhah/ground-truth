@@ -67,7 +67,7 @@ def _write_jsonl(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
-def _write_json(path: Path, body: dict[str, object]) -> None:
+def write_json(path: Path, body: dict[str, object]) -> None:
     path.write_text(json.dumps(body, sort_keys=True, indent=2), encoding="utf-8")
 
 
@@ -123,7 +123,7 @@ def emit_private_verdicts_by_hash(con: duckdb.DuckDBPyConnection, path: Path) ->
     return len(verdicts)
 
 
-def _leaderboard_row_to_dict(row: LeaderboardRow) -> dict[str, object]:
+def leaderboard_row_to_dict(row: LeaderboardRow) -> dict[str, object]:
     return {
         "slot": row.slot,
         "accuracy": row.accuracy.model_dump(),
@@ -154,10 +154,10 @@ def emit_all(
     # cost is exactly what CLAUDE.md rule 5 forbids.
     rows = build_leaderboard(con, split=Split.PRIVATE, seed=analysis_seed, specs={})
     leaderboard_path = out_dir / "leaderboard.json"
-    _write_json(
+    write_json(
         leaderboard_path,
         {
-            "rows": [_leaderboard_row_to_dict(row) for row in rows],
+            "rows": [leaderboard_row_to_dict(row) for row in rows],
             "as_of": as_of.isoformat(),
             "analysis_seed": analysis_seed,
         },
@@ -177,11 +177,11 @@ def emit_all(
         row[0]
         for row in con.execute("SELECT content_hash FROM items WHERE split = 'private'").fetchall()
     ]
-    _write_json(manifest_path, {"item_hashes": sorted(hashes)})
+    write_json(manifest_path, {"item_hashes": sorted(hashes)})
     paths.append(manifest_path)
 
     calibration_path = out_dir / "calibration.json"
-    _write_json(
+    write_json(
         calibration_path,
         {
             "curves": [],
@@ -221,11 +221,11 @@ def emit_all(
             "FROM judge_decisions ORDER BY field_type"
         ).fetchall()
     ]
-    _write_json(judge_path, {"decisions": decisions})
+    write_json(judge_path, {"decisions": decisions})
     paths.append(judge_path)
 
     regression_path = out_dir / "regression.json"
-    _write_json(
+    write_json(
         regression_path,
         {
             "alerts": [],
