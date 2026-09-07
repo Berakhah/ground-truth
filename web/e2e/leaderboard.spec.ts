@@ -48,3 +48,11 @@ test('a visible banner flags placeholder data as not a real measurement', async 
     /placeholder|no live measurement|demo/i,
   );
 });
+
+test('the latency free-tier caveat reaches assistive tech, not just hover/print', async ({ page }) => {
+  await page.goto('/');
+  // Reads textContent directly rather than asserting visibility: this element is
+  // intentionally visually-hidden (same technique as the table's own caption) --
+  // the point is that it's in the accessibility tree without requiring a hover.
+  await expect(page.getByTestId('latency-caveat')).toHaveText(/free tier/i);
+});
