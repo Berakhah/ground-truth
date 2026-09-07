@@ -24,3 +24,8 @@ overwritten in place.
 - `docs/methodology.md`: added a `## Scope` section stating the corpus population (synthetic,
   not real pay applications, external validity unmeasured -- audit M1) and a `## Definitions`
   section defining all 17 terms the published leaderboard relies on.
+- `docs/corrections.md`, `.github/ISSUE_TEMPLATE/right-of-reply.yml`, `SECURITY.md`: the
+  right-of-reply process -- two dispute channels, 5/15-business-day response windows, a
+  10-business-day advance-notice rule for any regression or drift finding naming a provider,
+  the three possible outcomes (correction, clarification, no change), and the standing offer
+  to re-run under a provider-stated configuration and publish both results side by side.
