@@ -15,10 +15,19 @@ PUBLISHED = REPO / "artifacts"
 AS_OF = datetime(2026, 10, 15, tzinfo=UTC)
 
 
+def _only_placeholder_published() -> bool:
+    leaderboard_path = PUBLISHED / "leaderboard.json"
+    if not leaderboard_path.exists():
+        return False
+    return json.loads(leaderboard_path.read_text(encoding="utf-8")).get("placeholder") is True
+
+
 @pytest.fixture()
 def con():
     if not DB.exists() or not PUBLISHED.exists():
         pytest.skip("run the sweep and publish first")
+    if _only_placeholder_published():
+        pytest.skip("only placeholder/demo data is published; run the sweep and publish for real")
     c = connect(DB)
     yield c
     c.close()
@@ -45,6 +54,8 @@ def test_headline_accuracy_recomputes_from_published_verdicts_alone():
     """A stranger holding only the published verdict files must reach the published number."""
     if not PUBLISHED.exists():
         pytest.skip("run the sweep and publish first")
+    if _only_placeholder_published():
+        pytest.skip("only placeholder/demo data is published; run the sweep and publish for real")
     leaderboard = json.loads((PUBLISHED / "leaderboard.json").read_text(encoding="utf-8"))
     verdicts = [
         json.loads(line)
