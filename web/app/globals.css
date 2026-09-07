@@ -131,25 +131,30 @@ a {
   max-width: 42rem;
 }
 
-table.leaderboard {
+table.leaderboard,
+table.report-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.95rem;
 }
 
-table.leaderboard caption {
+table.leaderboard caption,
+table.report-table caption {
   text-align: left;
 }
 
 table.leaderboard th,
-table.leaderboard td {
+table.leaderboard td,
+table.report-table th,
+table.report-table td {
   text-align: left;
   padding: 0.75rem 1rem 0.75rem 0;
   border-bottom: 1px solid var(--hairline);
   vertical-align: top;
 }
 
-table.leaderboard thead th {
+table.leaderboard thead th,
+table.report-table thead th {
   font-family: var(--font-sans-stack);
   font-weight: 600;
   color: var(--ink-muted);
@@ -244,4 +249,117 @@ table.leaderboard thead th {
 .interval-bar__n {
   color: var(--ink-muted);
   font-size: 0.85rem;
+}
+
+/* --- Item explorer --- */
+
+.split-notice {
+  margin: 2rem 0 1.5rem;
+  font-size: 1rem;
+  max-width: 42rem;
+}
+
+.items-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.items-controls__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.items-controls__field label {
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.items-controls__field select,
+.items-controls__field input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  min-width: 16rem;
+}
+
+.items-table__fields {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.empty-state {
+  margin-top: 1.5rem;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
+/* --- Judge agreement --- */
+
+.threshold-notice {
+  margin: 2rem 0 1.5rem;
+  font-size: 1rem;
+  max-width: 42rem;
+}
+
+.agreement-status--rejected {
+  color: var(--warning-ink);
+  font-weight: 600;
+}
+
+.effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin: 2rem 0;
+}
+
+.effects__item {
+  flex: 1 1 16rem;
+  min-width: 16rem;
+}
+
+.effects__item h2 {
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.effects__figure {
+  color: var(--ink-muted);
+  margin-top: 0.4rem;
+}
+
+.confusion-matrix {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin: 1rem 0 2rem;
+}
+
+.confusion-matrix caption {
+  text-align: left;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.confusion-matrix th,
+.confusion-matrix td {
+  border: 1px solid var(--hairline);
+  padding: 0.5rem 0.9rem;
+  text-align: center;
+}
+
+.confusion-matrix thead th {
+  color: var(--ink-muted);
+  font-weight: 600;
 }
