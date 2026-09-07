@@ -11,6 +11,7 @@ dependencies = [
     "pyyaml>=6.0",
     "jinja2>=3.1",
     "scikit-learn>=1.5",
+    "markdown>=3.10.3",
 ]
 
 [dependency-groups]
@@ -30,11 +31,11 @@ python_version = "3.12"
 strict = true
 files = ["ground_truth"]
 
-# Bounded, documented exceptions: these ship no stubs (sklearn) or partial ones
+# Bounded, documented exceptions: these ship no stubs (sklearn, markdown) or partial ones
 # (scipy, duckdb). Without them `mypy --strict` fails on the first import, at Step 7.
 # This is ignore_missing_imports, never ignore_errors -- our own code stays strict.
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "scipy.*", "duckdb.*"]
+module = ["sklearn.*", "scipy.*", "duckdb.*", "markdown.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
