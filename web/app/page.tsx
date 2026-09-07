@@ -51,6 +51,14 @@ export default function Page() {
               </th>
               <th scope="col" title={data.rows[0]?.latency.caveat ?? "Latency"}>
                 Latency
+                {data.rows[0] ? (
+                  // Same caveat as the title tooltip and the print footnote below,
+                  // but always in the accessibility tree -- title-only tooltips are
+                  // unreachable by keyboard, screen reader, and touch.
+                  <span className="visually-hidden" data-testid="latency-caveat">
+                    {data.rows[0].latency.caveat}
+                  </span>
+                ) : null}
               </th>
             </tr>
           </thead>
