@@ -70,10 +70,10 @@ against `required_terms()` and fails the build if a term is used without a defin
 - **list price** -- the provider's published list price for the paid tier, retrieved from a
   dated, cited source URL (`SlotSpec.pricing_url`, `SlotSpec.retrieved_at`). It is never
   measured spend: this benchmark runs on free tiers, where measured cost is zero and would be
-  a meaningless -- or fabricated-looking -- number to publish as a cost figure.
+  a meaningless -- or invented-looking -- number to publish as a cost figure.
 - **not distinguishable** -- the stated conclusion when two slots' accuracy `Interval`s
   overlap (`Interval.overlaps`). The sample cannot tell the two models apart at this size, and
-  the leaderboard says so in words rather than implying a ranking the data cannot support.
+  the leaderboard says so in words rather than suggesting a ranking the data cannot support.
 - **minimum detectable effect** -- the smallest true difference a given sample size and
   discordance rate could reliably detect (`ground_truth.stats.mde.describe_mde`). Published
   alongside results so a reader knows what the sample can and cannot see, not only what it did

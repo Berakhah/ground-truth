@@ -1,0 +1,50 @@
+name: Right of reply — dispute a published result
+description: >-
+  Dispute a specific published leaderboard, regression, or methodology result.
+  See docs/corrections.md for the response windows, advance-notice rule, and
+  possible outcomes.
+title: "[Right of reply]: "
+labels:
+  - right-of-reply
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for raising this. Every dispute is published with its resolution —
+        see `docs/corrections.md` for the process, response windows, and outcomes.
+  - type: input
+    id: result-version
+    attributes:
+      label: Disputed result — version and date
+      description: >-
+        Which published result is this about? Give the leaderboard/methodology
+        version and the publish date, or a link to the specific entry.
+      placeholder: e.g. leaderboard v0.4.0, published 2026-08-15
+    validations:
+      required: true
+  - type: textarea
+    id: specific-claim
+    attributes:
+      label: The specific claim
+      description: Quote or point to the exact published number or statement being disputed.
+    validations:
+      required: true
+  - type: textarea
+    id: believed-wrong
+    attributes:
+      label: What you believe is wrong
+      description: >-
+        Explain what you think is incorrect and why — a measurement error, a
+        configuration problem, a stale model reference, unclear methodology, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: rerun-configuration
+    attributes:
+      label: Configuration to re-run under (optional)
+      description: >-
+        If you believe a configuration error caused the result, describe the
+        configuration you'd like us to re-run under. Per the standing offer in
+        docs/corrections.md, we'll publish both results side by side.
+    validations:
+      required: false
