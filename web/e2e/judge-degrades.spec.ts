@@ -21,6 +21,11 @@ test('a real, narrower emit_all-shaped payload degrades instead of crashing', as
   const response = await page.goto('/judge/degraded-example');
   expect(response?.ok()).toBe(true);
 
+  // Ships in the static export like any other route, so it needs the same synthetic-data
+  // disclosure every other page gives (review finding, post task-46) -- not just being
+  // unlinked from the real nav.
+  await expect(page.getByTestId('placeholder-banner')).toBeVisible();
+
   // Still renders every element the plan requires, just with an honest not-measured state.
   await expect(page.getByTestId('order-effect')).toContainText(/not yet measured/i);
   await expect(page.getByTestId('length-effect')).toContainText(/not yet measured/i);

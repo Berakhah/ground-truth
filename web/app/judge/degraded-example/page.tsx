@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { JudgeAgreementView } from "@/app/judge/page";
 import type { JudgeAgreementPayload } from "@/lib/artifacts";
 
@@ -9,7 +10,20 @@ import type { JudgeAgreementPayload } from "@/lib/artifacts";
 // /judge itself reads and that other E2E tests run concurrently against. A fully static route
 // (output: 'export' compatible; no per-request branching, no shared mutable state) rather than
 // a file swap, so it carries zero race risk under Playwright's parallel workers.
+//
+// It still ships in the static export (Next has no "test-only, exclude from output: export"
+// primitive), so it needs the same disclosure every other page gives its synthetic data --
+// otherwise a stray visitor or crawler sees plausible alpha/accepted/rejected numbers with no
+// indication they're a fixture. noindex here, and JudgeAgreementView's own `placeholder`
+// banner below, cover that (review finding, post task-46).
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 const REAL_SHAPE_TODAY: JudgeAgreementPayload = {
+  // Reuses JudgeAgreementView's existing placeholder-banner branch (the same one /, /items,
+  // and /judge all use) rather than inventing separate fixture-only chrome.
+  placeholder: true,
   decisions: [
     {
       field_type: "money",
