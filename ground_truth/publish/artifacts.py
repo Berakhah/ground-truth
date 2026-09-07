@@ -62,6 +62,7 @@ _PUBLIC_SQL = """
     ORDER BY i.item_id, r.model_slot, v.field_name, v.grader_id
 """
 
+
 def _write_jsonl(path: Path, lines: list[str]) -> None:
     path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
