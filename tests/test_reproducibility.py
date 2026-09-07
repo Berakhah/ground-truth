@@ -26,7 +26,7 @@ def con():
 
 def test_published_numbers_regenerate(con, tmp_path):
     mismatched = []
-    for path in emit_all(con, tmp_path, as_of=AS_OF):
+    for path in emit_all(con, tmp_path, as_of=AS_OF, analysis_seed=1):
         published = PUBLISHED / path.name
         assert published.exists(), f"{path.name} was regenerated but is not published"
         if not filecmp.cmp(path, published, shallow=False):
@@ -35,8 +35,8 @@ def test_published_numbers_regenerate(con, tmp_path):
 
 
 def test_regeneration_is_stable_across_two_runs(con, tmp_path):
-    first = sorted(emit_all(con, tmp_path / "a", as_of=AS_OF))
-    second = sorted(emit_all(con, tmp_path / "b", as_of=AS_OF))
+    first = sorted(emit_all(con, tmp_path / "a", as_of=AS_OF, analysis_seed=1))
+    second = sorted(emit_all(con, tmp_path / "b", as_of=AS_OF, analysis_seed=1))
     for a, b in zip(first, second, strict=True):
         assert filecmp.cmp(a, b, shallow=False), f"{a.name} is not deterministic"
 
