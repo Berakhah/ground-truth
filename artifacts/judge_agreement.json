@@ -1,0 +1,47 @@
+{
+  "placeholder": true,
+  "threshold": 0.667,
+  "decisions": [
+    {
+      "field_type": "money",
+      "alpha": 0.821,
+      "alpha_ci": {"point": 0.821, "low": 0.712, "high": 0.901, "n": 64, "method": "bootstrap"},
+      "status": "ACCEPTED",
+      "n_units": 64,
+      "statement": "Judge-human agreement on money: Krippendorff's alpha = 0.821 [0.712, 0.901], n=64. Above the pre-registered threshold of 0.667; used for headline scoring."
+    },
+    {
+      "field_type": "invoice_date",
+      "alpha": 0.744,
+      "alpha_ci": {"point": 0.744, "low": 0.653, "high": 0.826, "n": 58, "method": "bootstrap"},
+      "status": "ACCEPTED",
+      "n_units": 58,
+      "statement": "Judge-human agreement on invoice_date: Krippendorff's alpha = 0.744 [0.653, 0.826], n=58. Above the pre-registered threshold of 0.667; used for headline scoring."
+    },
+    {
+      "field_type": "free_text_notes",
+      "alpha": 0.512,
+      "alpha_ci": {"point": 0.512, "low": 0.331, "high": 0.634, "n": 31, "method": "bootstrap"},
+      "status": "REJECTED",
+      "n_units": 31,
+      "statement": "Judge-human agreement on free_text_notes: Krippendorff's alpha = 0.512 [0.331, 0.634], n=31. Below the pre-registered threshold of 0.667; this field type is not used for headline scoring and is reported as not measured."
+    }
+  ],
+  "order_effect": {
+    "statement": "Order effect on money: first-shown rate 0.86 vs second-shown rate 0.83, difference 0.03, n=64. No corrective action taken at this sample size.",
+    "order_0_rate": 0.86,
+    "order_1_rate": 0.83,
+    "difference": 0.03,
+    "n": 64
+  },
+  "length_effect": {
+    "statement": "Length effect on money, by response-length quintile (shortest to longest): 0.80, 0.83, 0.86, 0.88, 0.85. No monotonic length bias detected.",
+    "quintile_rates": [0.80, 0.83, 0.86, 0.88, 0.85],
+    "n": 64
+  },
+  "confusion_matrix": {
+    "labels": ["EQUIVALENT", "NOT_EQUIVALENT"],
+    "counts": [[41, 5], [4, 45]]
+  },
+  "note": "order_effect/length_effect are not yet emitted by ground_truth.publish.leaderboard._agreement_to_dict (it serializes only field_type, alpha, alpha_ci, status, n_units, statement) -- these two fields are placeholder-only pending that wiring."
+}

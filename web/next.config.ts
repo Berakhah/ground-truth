@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname, ".."),
   },
+  // Task 46: Playwright's baseURL (playwright.config.ts) is http://127.0.0.1:3000, which
+  // Next's dev-origin check (introduced ahead of `allowedDevOrigins` going stable) treats as
+  // cross-origin from "localhost" and silently drops dev-asset requests for -- Task 45's
+  // leaderboard page never exercised this because it has no client interactivity to break,
+  // but Task 46's filter/search controls are client components, and a dropped hydration
+  // bundle means onChange never fires even though the raw DOM element still visibly updates
+  // (Playwright's driver sets it directly). Without this, every interactive E2E test here
+  // fails while looking, on the surface, like a React state bug.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
 };
 
 export default nextConfig;

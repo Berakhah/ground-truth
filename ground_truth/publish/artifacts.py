@@ -38,6 +38,7 @@ class PublicVerdict:
     grader_id: str
     grader_version: str
     rubric_version: str
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ class PrivateVerdict:
 
 _PUBLIC_SQL = """
     SELECT i.item_id, r.model_slot, v.field_name, v.correct, v.grader_id, v.grader_version,
-           v.rubric_version
+           v.rubric_version, v.reason
     FROM verdicts v
     JOIN outputs o ON o.output_id = v.output_id
     JOIN runs r ON r.run_id = o.run_id
@@ -81,6 +82,7 @@ def emit_public_verdicts(con: duckdb.DuckDBPyConnection, path: Path) -> int:
             grader_id=row[4],
             grader_version=row[5],
             rubric_version=row[6],
+            reason=row[7],
         )
         for row in con.execute(_PUBLIC_SQL).fetchall()
     ]
