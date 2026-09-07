@@ -1,29 +1,40 @@
 {
   "placeholder": true,
-  "threshold": 0.667,
   "decisions": [
     {
       "field_type": "money",
+      "rubric_version": "v1",
       "alpha": 0.821,
-      "alpha_ci": {"point": 0.821, "low": 0.712, "high": 0.901, "n": 64, "method": "bootstrap"},
-      "status": "ACCEPTED",
+      "alpha_low": 0.712,
+      "alpha_high": 0.901,
       "n_units": 64,
+      "threshold": 0.667,
+      "status": "accepted",
+      "decided_at": "2026-09-04 12:34:56.789",
       "statement": "Judge-human agreement on money: Krippendorff's alpha = 0.821 [0.712, 0.901], n=64. Above the pre-registered threshold of 0.667; used for headline scoring."
     },
     {
       "field_type": "invoice_date",
+      "rubric_version": "v1",
       "alpha": 0.744,
-      "alpha_ci": {"point": 0.744, "low": 0.653, "high": 0.826, "n": 58, "method": "bootstrap"},
-      "status": "ACCEPTED",
+      "alpha_low": 0.653,
+      "alpha_high": 0.826,
       "n_units": 58,
+      "threshold": 0.667,
+      "status": "accepted",
+      "decided_at": "2026-09-04 12:34:56.789",
       "statement": "Judge-human agreement on invoice_date: Krippendorff's alpha = 0.744 [0.653, 0.826], n=58. Above the pre-registered threshold of 0.667; used for headline scoring."
     },
     {
       "field_type": "free_text_notes",
+      "rubric_version": "v1",
       "alpha": 0.512,
-      "alpha_ci": {"point": 0.512, "low": 0.331, "high": 0.634, "n": 31, "method": "bootstrap"},
-      "status": "REJECTED",
+      "alpha_low": 0.331,
+      "alpha_high": 0.634,
       "n_units": 31,
+      "threshold": 0.667,
+      "status": "rejected",
+      "decided_at": "2026-09-04 12:34:56.789",
       "statement": "Judge-human agreement on free_text_notes: Krippendorff's alpha = 0.512 [0.331, 0.634], n=31. Below the pre-registered threshold of 0.667; this field type is not used for headline scoring and is reported as not measured."
     }
   ],
@@ -43,5 +54,5 @@
     "labels": ["EQUIVALENT", "NOT_EQUIVALENT"],
     "counts": [[41, 5], [4, 45]]
   },
-  "note": "order_effect/length_effect are not yet emitted by ground_truth.publish.leaderboard._agreement_to_dict (it serializes only field_type, alpha, alpha_ci, status, n_units, statement) -- these two fields are placeholder-only pending that wiring."
+  "note": "Shape corrected post-review to match the REAL writer of this file, ground_truth.publish.artifacts.emit_all (a verbatim dump of the judge_decisions table: flat decisions[], alpha_low/alpha_high, lowercase status, no per-decision statement) -- not ground_truth.publish.leaderboard._agreement_to_dict, which this placeholder was originally (incorrectly) modeled on. order_effect, length_effect, confusion_matrix, and each decision's `statement` are still placeholder-only: emit_all scopes judge_agreement.json to what judge_decisions stores today, and none of those are stored anywhere queryable yet. web/app/judge/page.tsx treats all of them as optional and degrades gracefully when a real, narrower publish omits them."
 }
