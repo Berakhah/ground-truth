@@ -43,6 +43,8 @@ def test_regeneration_is_stable_across_two_runs(con, tmp_path):
 
 def test_headline_accuracy_recomputes_from_published_verdicts_alone():
     """A stranger holding only the published verdict files must reach the published number."""
+    if not PUBLISHED.exists():
+        pytest.skip("run the sweep and publish first")
     leaderboard = json.loads((PUBLISHED / "leaderboard.json").read_text(encoding="utf-8"))
     verdicts = [
         json.loads(line)
