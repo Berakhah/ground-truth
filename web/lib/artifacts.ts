@@ -84,21 +84,25 @@ export function loadPublicVerdicts(): PublicVerdict[] {
     .map((line) => JSON.parse(line) as PublicVerdict);
 }
 
-export interface AgreementCI {
-  point: number;
-  low: number;
-  high: number;
-  n: number;
-  method: string;
-}
-
+// Shape matches the REAL writer of this exact file -- ground_truth.publish.artifacts.emit_all
+// (its `decisions` list comprehension, verbatim dump of the `judge_decisions` table) -- not
+// ground_truth.publish.leaderboard._agreement_to_dict, which has a similar-looking but
+// different shape (nested alpha_ci, a `statement` field) and is only ever embedded inside
+// leaderboard.json's `judge_agreement` array, never written to this standalone file. Corrected
+// post-review (task-46-report.md): the first draft was modeled on the wrong emitter.
 export interface AgreementDecision {
   field_type: string;
+  rubric_version: string;
   alpha: number;
-  alpha_ci: AgreementCI;
-  status: "ACCEPTED" | "REJECTED";
+  alpha_low: number;
+  alpha_high: number;
   n_units: number;
-  statement: string;
+  threshold: number;
+  status: "accepted" | "rejected";
+  decided_at: string;
+  // emit_all's DB-backed dump carries none of AgreementReport's prose -- optional so a real
+  // publish (which will never set this) still renders instead of showing `undefined`.
+  statement?: string;
 }
 
 export interface OrderEffectSummary {
@@ -122,14 +126,15 @@ export interface ConfusionMatrixData {
 
 export interface JudgeAgreementPayload {
   placeholder?: boolean;
-  threshold: number;
   decisions: AgreementDecision[];
-  // Not yet emitted by ground_truth.publish.leaderboard._agreement_to_dict (it serializes
-  // only field_type/alpha/alpha_ci/status/n_units/statement) -- placeholder-only until that
-  // publishing gap is closed; see this payload's own `note` field.
-  order_effect: OrderEffectSummary;
-  length_effect: LengthEffectSummary;
-  confusion_matrix: ConfusionMatrixData;
+  // None of these three are emitted by ground_truth.publish.artifacts.emit_all today -- it
+  // scopes this file to a verbatim dump of the judge_decisions table (Task 40's deliberate
+  // ruling), and order/length effects and confusion matrices aren't stored anywhere queryable
+  // yet. Optional here so the day a real (narrower) publish overwrites this placeholder, the
+  // page degrades to an honest "not yet measured" state instead of crashing on `undefined`.
+  order_effect?: OrderEffectSummary;
+  length_effect?: LengthEffectSummary;
+  confusion_matrix?: ConfusionMatrixData;
   note?: string;
 }
 
