@@ -7,6 +7,7 @@ import pytest
 
 from ground_truth.publish.artifacts import (
     PrivateVerdict,
+    emit_all,
     emit_private_verdicts_by_hash,
     emit_public_verdicts,
 )
@@ -93,3 +94,23 @@ def test_empty_split_writes_an_empty_file_not_a_crash(con, tmp_path):
     path = tmp_path / "v.jsonl"
     assert emit_private_verdicts_by_hash(con, path) == 0
     assert path.read_text(encoding="utf-8") == ""
+
+
+def test_judge_agreement_decided_at_is_utc_normalised(con, tmp_path):
+    """Review finding (task-40): a bare CAST(decided_at AS VARCHAR) renders in duckdb's
+    session TimeZone, which defaults to the host's local OS timezone and is never pinned in
+    this repo -- so the same stored instant would render differently on two machines,
+    breaking byte-for-byte reproducibility. Pin a non-UTC session zone here to prove the fix
+    holds independent of the host, not just "happens to pass" on a UTC CI runner."""
+    con.execute("SET TimeZone='America/New_York'")
+    con.execute(
+        "INSERT INTO judge_decisions VALUES "
+        "('money','v1',0.9,0.8,0.95,40,0.8,'accepted','2026-09-04 15:34:56.789+03')"
+    )
+    out_dir = tmp_path / "out"
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 7, tzinfo=UTC), analysis_seed=1)
+    decided_at = json.loads(
+        (out_dir / "judge_agreement.json").read_text(encoding="utf-8")
+    )["decisions"][0]["decided_at"]
+    assert decided_at == "2026-09-04 12:34:56.789", decided_at
+    assert not decided_at.endswith(("+03", "-04")), "must not carry a session-timezone offset"

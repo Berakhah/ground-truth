@@ -210,9 +210,15 @@ def emit_all(
             # decided_at is TIMESTAMPTZ; cast in SQL rather than let duckdb hand back a
             # native tz-aware datetime, which this driver version cannot do without the
             # optional `pytz` package (not a project dependency) even installed at all.
+            # `AT TIME ZONE 'UTC'` normalises to UTC *before* the VARCHAR render, so the
+            # string is stable regardless of duckdb's session TimeZone (which otherwise
+            # defaults to the host's local OS timezone and is never pinned in this repo) --
+            # a bare `CAST(decided_at AS VARCHAR)` renders in session-local time and would
+            # make this file byte-different on two machines for the same stored instant
+            # (review finding, task-40).
             "SELECT field_type, rubric_version, alpha, alpha_low, alpha_high, n_units, "
-            "threshold, status, CAST(decided_at AS VARCHAR) FROM judge_decisions "
-            "ORDER BY field_type"
+            "threshold, status, CAST(decided_at AT TIME ZONE 'UTC' AS VARCHAR) "
+            "FROM judge_decisions ORDER BY field_type"
         ).fetchall()
     ]
     _write_json(judge_path, {"decisions": decisions})
