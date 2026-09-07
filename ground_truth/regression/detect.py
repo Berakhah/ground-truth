@@ -78,32 +78,35 @@ def detect_drift(
     keys = sorted(current)
     n_comparisons = len(keys)
 
-    intervals: dict[tuple[str, str], tuple[Interval, Interval]] = {}
-    zs: dict[tuple[str, str], float] = {}
+    intervals: list[tuple[Interval, Interval]] = []
+    zs: list[float] = []
     comparisons: list[Comparison] = []
     for key in keys:
         baseline_obs = baseline[key]  # raise KeyError on a miss -- never skip a comparison
         current_obs = current[key]
         baseline_interval = cluster_bootstrap_ci(baseline_obs, seed=seed)
         current_interval = cluster_bootstrap_ci(current_obs, seed=seed)
-        intervals[key] = (baseline_interval, current_interval)
+        intervals.append((baseline_interval, current_interval))
         z = (current_interval.point - baseline_interval.point) / math.sqrt(
             _se(current_interval) ** 2 + _se(baseline_interval) ** 2
         )
-        zs[key] = z
-        p_value = 2 * (1 - norm.cdf(abs(z)))
+        zs.append(z)
         slot, field_type = key
-        comparisons.append(Comparison(label=f"{slot}/{field_type}", p_value=p_value))
+        comparisons.append(
+            Comparison(label=f"{slot}/{field_type}", p_value=2 * (1 - norm.cdf(abs(z))))
+        )
 
-    corrected = {c.label: c for c in benjamini_hochberg(comparisons)}
-
+    # Positional pairing, not a label-keyed dict: `comparisons` was appended in exact lockstep
+    # with `keys` above, with no filtering in between, so the correspondence is already
+    # guaranteed by construction. A label-keyed dict would silently collide (and misattribute a
+    # corrected p-value) if two distinct (slot, field_type) pairs ever produced the same
+    # f"{slot}/{field_type}" string -- e.g. a slot or field_type containing "/".
     alerts: list[Alert] = []
-    for key in keys:
+    for key, (baseline_interval, current_interval), z, cc in zip(
+        keys, intervals, zs, benjamini_hochberg(comparisons), strict=True
+    ):
         slot, field_type = key
-        baseline_interval, current_interval = intervals[key]
-        z = zs[key]
         seq_result = evaluate_look(z, look, total_looks)
-        cc = corrected[f"{slot}/{field_type}"]
         detected = seq_result.reject and cc.significant
 
         prefix = (
