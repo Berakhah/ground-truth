@@ -1,6 +1,8 @@
 # Ground Truth
 
-An eval and regression harness for one regulated task: pay-application and invoice field-extraction accuracy.
+An eval and regression harness for one regulated task: field extraction accuracy on pay
+application and invoice documents. It does not benchmark general-purpose language ability
+and is not a platform for arbitrary evals — see [`docs/non-goals.md`](docs/non-goals.md).
 
 > Before you build anything, I will tell you which of your intents are safe to automate, which must route to a human, and what it costs — with a published methodology and a number you can reproduce.
 
