@@ -15,6 +15,7 @@ TABLES: tuple[str, ...] = (
     "verdicts",
     "human_labels",
     "judge_decisions",
+    "looks",
 )
 
 _SCHEMA = """
@@ -69,6 +70,10 @@ CREATE TABLE IF NOT EXISTS judge_decisions (
     alpha_low DOUBLE NOT NULL, alpha_high DOUBLE NOT NULL, n_units INTEGER NOT NULL,
     threshold DOUBLE NOT NULL, status TEXT NOT NULL CHECK (status IN ('accepted','rejected')),
     decided_at TIMESTAMPTZ NOT NULL);
+
+CREATE TABLE IF NOT EXISTS looks (
+    quarter TEXT NOT NULL, look INTEGER NOT NULL, total_looks INTEGER NOT NULL,
+    run_at TIMESTAMP NOT NULL, PRIMARY KEY (quarter, look));
 """
 
 
