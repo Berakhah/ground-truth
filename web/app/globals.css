@@ -1,0 +1,247 @@
+/* Light-first only -- no dark mode required by the plan, not building one. */
+:root {
+  --paper: oklch(0.98 0.005 90);
+  --ink: oklch(0.20 0.01 264);
+  --ink-muted: oklch(0.45 0.01 264);
+  --hairline: oklch(0.85 0.005 90);
+  --accent: oklch(0.52 0.10 232);
+  --warning-bg: oklch(0.94 0.03 80);
+  --warning-ink: oklch(0.32 0.04 70);
+
+  --font-serif-stack: var(--font-serif), Georgia, "Times New Roman", serif;
+  --font-sans-stack: var(--font-sans), system-ui, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  height: 100%;
+  color-scheme: light;
+}
+
+body {
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans-stack);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif-stack);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+a {
+  color: var(--ink);
+}
+
+/* Visible keyboard focus everywhere; never the measurement accent -- accent is
+   reserved for the interval bar only. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.report {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+/* Masthead: title and methodology link inline, in the header landmark -- not
+   the footer. */
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 1.5rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.masthead__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.masthead h1 {
+  font-size: 1.75rem;
+}
+
+.masthead__subtitle {
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
+.masthead nav a {
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* Placeholder banner: a real visitor must see this instantly. Muted warning
+   tone, never the measurement accent -- color must never imply a judgment on
+   data quality. */
+.placeholder-banner {
+  max-width: 56rem;
+  margin: 1.5rem auto 0;
+  padding: 0.75rem 1.5rem;
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+  border: 1px solid var(--warning-ink);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.distinguishability {
+  margin: 2rem 0 1.5rem;
+  font-size: 1rem;
+  color: var(--ink);
+  max-width: 42rem;
+}
+
+table.leaderboard {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+table.leaderboard caption {
+  text-align: left;
+}
+
+table.leaderboard th,
+table.leaderboard td {
+  text-align: left;
+  padding: 0.75rem 1rem 0.75rem 0;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+}
+
+table.leaderboard thead th {
+  font-family: var(--font-sans-stack);
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--ink);
+}
+
+.th-caveat {
+  display: block;
+  margin-top: 0.2rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.claim {
+  display: block;
+}
+
+.claim__value {
+  display: block;
+}
+
+.claim__caveat {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+}
+
+.latency-cell {
+  color: var(--ink-muted);
+}
+
+.print-footnote {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+@media not print {
+  .print-footnote {
+    display: none;
+  }
+}
+
+/* --- IntervalBar: the signature element. Accent color used only here, on the
+   measurement range and point mark -- never on chrome, never on caveats. --- */
+.interval-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 12rem;
+}
+
+.interval-bar__track {
+  position: relative;
+  height: 4px;
+  background: var(--hairline);
+  border-radius: 2px;
+}
+
+.interval-bar__range {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.interval-bar__point {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  background: var(--accent);
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.interval-bar__labels {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.interval-bar__n {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}

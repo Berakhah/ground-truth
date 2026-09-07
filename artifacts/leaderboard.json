@@ -1,0 +1,28 @@
+{
+  "version": "0.0.0-placeholder",
+  "as_of": "2026-01-01T00:00:00+00:00",
+  "methodology_url": "/methodology",
+  "placeholder": true,
+  "rows": [
+    {
+      "slot": "demo-slot-a",
+      "accuracy": {"point": 0.92, "low": 0.87, "high": 0.96, "n": 180, "method": "cluster-BCa"},
+      "cost": {"value": "1.2500", "unit": "USD per 1,000 items", "method": "DERIVED", "source_url": "https://example.invalid/pricing", "retrieved_at": "2026-01-01", "caveat": "List price, not measured spend."},
+      "latency": {"p50": 850.0, "p95": 2100.0, "n": 180, "ecdf_x": [200.0, 850.0, 2100.0], "ecdf_y": [0.1, 0.5, 0.95], "caveat": "Measured on free tier."},
+      "per_field": {"money": {"point": 0.94, "low": 0.89, "high": 0.98, "n": 180, "method": "cluster-BCa"}}
+    },
+    {
+      "slot": "demo-slot-b",
+      "accuracy": {"point": 0.90, "low": 0.84, "high": 0.95, "n": 180, "method": "cluster-BCa"},
+      "cost": {"value": "0.4000", "unit": "USD per 1,000 items", "method": "DERIVED", "source_url": "https://example.invalid/pricing", "retrieved_at": "2026-01-01", "caveat": "List price, not measured spend."},
+      "latency": {"p50": 620.0, "p95": 1500.0, "n": 180, "ecdf_x": [150.0, 620.0, 1500.0], "ecdf_y": [0.1, 0.5, 0.95], "caveat": "Measured on free tier."},
+      "per_field": {"money": {"point": 0.88, "low": 0.80, "high": 0.94, "n": 180, "method": "cluster-BCa"}}
+    }
+  ],
+  "distinguishability": [
+    "demo-slot-a and demo-slot-b are not distinguishable at this sample size: 0.920 [0.870, 0.960] versus 0.900 [0.840, 0.950], n=180."
+  ],
+  "judge_agreement": [],
+  "fingerprints": [],
+  "mde": {"statements": [], "note": "no minimum-detectable-effect calculation attached to this payload."}
+}
