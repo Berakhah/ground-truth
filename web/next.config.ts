@@ -22,6 +22,13 @@ const nextConfig: NextConfig = {
   // (Playwright's driver sets it directly). Without this, every interactive E2E test here
   // fails while looking, on the surface, like a React state bug.
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  // Task 48: the dev-mode route indicator renders a <nextjs-portal> overlay that grabs
+  // keyboard focus with no visible focus ring of its own (its ring lives inside a shadow
+  // root, invisible to getComputedStyle on the host element) -- E2E runs against `next dev`
+  // (playwright.config.ts's webServer), so left on this dev-only overlay would make the
+  // a11y.spec.ts tab-sweep both flaky and, when it lands on the portal, a false failure
+  // against chrome that never ships to a visitor.
+  devIndicators: false,
 };
 
 export default nextConfig;

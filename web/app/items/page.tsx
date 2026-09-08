@@ -7,6 +7,9 @@ export default function ItemsPage() {
 
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="masthead">
         <div className="masthead__heading">
           <h1>Item Explorer</h1>
@@ -26,7 +29,7 @@ export default function ItemsPage() {
         not a result.
       </div>
 
-      <main className="report">
+      <main className="report" id="main-content">
         <p className="split-notice" data-testid="split-notice">
           This explorer shows the 120-item public split. The 180-item private split is
           withheld; its hashes are published and headline numbers are computed against it.

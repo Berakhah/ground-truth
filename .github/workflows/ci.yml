@@ -27,3 +27,15 @@ jobs:
       - run: uv run pytest -v --cov=ground_truth --cov-report=term-missing --cov-fail-under=75
       - name: slow tests (coverage and null simulations)
         run: uv run pytest -m slow -v
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm ci --prefix web
+      - run: npx --prefix web tsc --noEmit
+      - run: npm run build --prefix web
+      - run: npx --prefix web playwright install --with-deps chromium
+      - run: npx --prefix web playwright test

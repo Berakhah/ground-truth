@@ -23,6 +23,9 @@ export function JudgeAgreementView({ judge, methodologyUrl }: JudgeAgreementView
 
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="masthead">
         <div className="masthead__heading">
           <h1>Judge Agreement</h1>
@@ -40,7 +43,7 @@ export function JudgeAgreementView({ judge, methodologyUrl }: JudgeAgreementView
         </div>
       ) : null}
 
-      <main className="report">
+      <main className="report" id="main-content">
         <p className="threshold-notice" data-testid="threshold-notice">
           A field type is accepted for headline scoring only when judge-human agreement
           (Krippendorff&rsquo;s alpha) meets or exceeds the pre-registered threshold of{" "}
@@ -48,40 +51,44 @@ export function JudgeAgreementView({ judge, methodologyUrl }: JudgeAgreementView
           reported as rejected and not used for headline scoring, never silently dropped.
         </p>
 
-        <table className="report-table agreement-table" data-testid="agreement-table">
-          <caption className="visually-hidden">Judge-versus-human agreement by field type</caption>
-          <thead>
-            <tr>
-              <th scope="col">Field type</th>
-              <th scope="col">Alpha</th>
-              <th scope="col">Status</th>
-              <th scope="col">Statement</th>
-            </tr>
-          </thead>
-          <tbody>
-            {judge.decisions.map((decision) => (
-              <tr key={decision.field_type} data-testid="agreement-row">
-                <th scope="row">{decision.field_type}</th>
-                <td data-testid="alpha-value">
-                  <IntervalBar
-                    low={decision.alpha_low}
-                    high={decision.alpha_high}
-                    point={decision.alpha}
-                    n={decision.n_units}
-                  />
-                </td>
-                <td className={`agreement-status agreement-status--${decision.status}`}>
-                  {decision.status === "accepted" ? "Accepted" : "Rejected"}
-                </td>
-                {/* emit_all's real output carries no per-decision statement (see
-                    AgreementDecision's own comment in lib/artifacts.ts) -- fall back to an
-                    em dash rather than rendering "undefined" or leaving the cell blank
-                    without explanation. */}
-                <td>{decision.statement ?? "—"}</td>
+        <div className="table-scroll">
+          <table className="report-table agreement-table" data-testid="agreement-table">
+            <caption className="visually-hidden">
+              Judge-versus-human agreement by field type
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Field type</th>
+                <th scope="col">Alpha</th>
+                <th scope="col">Status</th>
+                <th scope="col">Statement</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {judge.decisions.map((decision) => (
+                <tr key={decision.field_type} data-testid="agreement-row">
+                  <th scope="row">{decision.field_type}</th>
+                  <td data-testid="alpha-value">
+                    <IntervalBar
+                      low={decision.alpha_low}
+                      high={decision.alpha_high}
+                      point={decision.alpha}
+                      n={decision.n_units}
+                    />
+                  </td>
+                  <td className={`agreement-status agreement-status--${decision.status}`}>
+                    {decision.status === "accepted" ? "Accepted" : "Rejected"}
+                  </td>
+                  {/* emit_all's real output carries no per-decision statement (see
+                      AgreementDecision's own comment in lib/artifacts.ts) -- fall back to an
+                      em dash rather than rendering "undefined" or leaving the cell blank
+                      without explanation. */}
+                  <td>{decision.statement ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <section className="effects" aria-label="Judge bias controls">
           <div className="effects__item" data-testid="order-effect">

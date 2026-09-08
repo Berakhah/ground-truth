@@ -1,0 +1,57 @@
+/* Print stylesheet for every report route. These pages get emailed to auditors as
+   PDFs -- printed, not screenshotted -- so this file governs what survives that trip.
+   Entirely scoped to @media print; imported unconditionally from layout.tsx and never
+   affects screen rendering. */
+
+@media print {
+  /* Drop navigation chrome: the masthead (title + methodology/site links) is
+     wayfinding for a live browsing session, not part of the printed record. */
+  .masthead {
+    display: none;
+  }
+
+  /* Triage: each intent is its own printable unit -- break before every row after
+     the first so a long calculation block never splits across a page boundary. */
+  .triage-row {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .triage-row:first-of-type {
+    break-before: auto;
+    page-break-before: auto;
+  }
+
+  /* A printed link carries no href -- restate the target after the link text, the
+     standard print-stylesheet technique. Skip same-page anchors (the skip link and
+     any future in-page jump), whose fragment is meaningless once printed. */
+  a[href]:not([href^="#"])::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: var(--ink-muted);
+  }
+
+  /* Tabular figures must line up on paper exactly as they do on screen -- some print
+     engines substitute a print-safe font stack that silently drops
+     font-variant-numeric, so pin it explicitly rather than trusting inheritance. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Every visual encoding must survive greyscale printing -- no meaning carried by
+     hue alone. IntervalBar's range/point are the one place accent colour paints a
+     shape rather than text: add a border so the filled range still reads as a
+     distinct mark once colour desaturates to a tone close to the track's own grey.
+     Status (alert/fingerprint/agreement/recommendation) is never colour-only to
+     begin with -- each already carries its own explicit text label on screen, so
+     nothing further is needed for those here. */
+  .interval-bar__range,
+  .interval-bar__point {
+    border: 1px solid black;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+}
