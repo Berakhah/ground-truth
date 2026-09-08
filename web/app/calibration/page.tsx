@@ -51,6 +51,9 @@ export default function CalibrationPage() {
 
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="masthead">
         <div className="masthead__heading">
           <h1>Calibration</h1>
@@ -68,7 +71,7 @@ export default function CalibrationPage() {
         </div>
       ) : null}
 
-      <main className="report">
+      <main className="report" id="main-content">
         <p className="signal-notice" data-testid="signal-notice">
           The confidence signal calibrated here is <strong>replicate agreement</strong> — the
           fraction of n&ge;5 repeated runs per item that agree with each other, not a model&rsquo;s

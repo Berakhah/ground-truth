@@ -67,6 +67,33 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+/* Skip link: WCAG 2.4.1 (Bypass Blocks). Every route repeats the same masthead
+   before its report content -- offscreen until focused, then pinned top-left. */
+.skip-link {
+  position: absolute;
+  top: -3rem;
+  left: 1rem;
+  z-index: 10;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* A table wide enough to overflow at narrow viewports scrolls in its own box
+   rather than widening the document -- see e2e/a11y.spec.ts's 375px check. */
+.table-scroll {
+  overflow-x: auto;
+  contain: layout;
+}
+
 .report {
   max-width: 56rem;
   margin: 0 auto;

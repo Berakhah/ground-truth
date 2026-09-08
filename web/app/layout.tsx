@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+// Print-only rules (@media print inside the file itself) -- imported unconditionally
+// so every route gets the same print treatment without a per-page import.
+import "./print.css";
 
 // Self-hosted fonts (web/public/fonts/), NOT next/font/google -- see CLAUDE.md's
 // security-hardening direction to forbid the Google Fonts CDN from day one.

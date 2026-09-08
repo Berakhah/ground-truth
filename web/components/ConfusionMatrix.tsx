@@ -8,30 +8,32 @@ interface ConfusionMatrixProps {
 // same as everywhere else). Judge verdict on the rows, human verdict on the columns.
 export function ConfusionMatrix({ labels, counts }: ConfusionMatrixProps) {
   return (
-    <table className="confusion-matrix" data-testid="confusion-matrix">
-      <caption>Judge vs. human verdict (rows: judge, columns: human)</caption>
-      <thead>
-        <tr>
-          <th scope="col" />
-          {labels.map((label) => (
-            <th scope="col" key={label}>
-              {label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {counts.map((row, i) => (
-          <tr key={labels[i] ?? i}>
-            <th scope="row">{labels[i] ?? i}</th>
-            {row.map((count, j) => (
-              <td className="tabular" key={labels[j] ?? j}>
-                {count}
-              </td>
+    <div className="table-scroll">
+      <table className="confusion-matrix" data-testid="confusion-matrix">
+        <caption>Judge vs. human verdict (rows: judge, columns: human)</caption>
+        <thead>
+          <tr>
+            <th scope="col" />
+            {labels.map((label) => (
+              <th scope="col" key={label}>
+                {label}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {counts.map((row, i) => (
+            <tr key={labels[i] ?? i}>
+              <th scope="row">{labels[i] ?? i}</th>
+              {row.map((count, j) => (
+                <td className="tabular" key={labels[j] ?? j}>
+                  {count}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

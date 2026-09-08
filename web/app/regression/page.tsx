@@ -7,6 +7,9 @@ export default function RegressionPage() {
 
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="masthead">
         <div className="masthead__heading">
           <h1>Regression Watch</h1>
@@ -29,11 +32,14 @@ export default function RegressionPage() {
         </div>
       ) : null}
 
-      <main className="report">
+      <main className="report" id="main-content">
         {/* Every alert renders as its full statement -- the sentence Alert.statement already
             is, never a bare arrow or delta. See ground_truth.regression.detect: `detected`
             requires BOTH the O'Brien-Fleming sequential boundary and the Benjamini-Hochberg
-            corrected p-value, and the statement names both tests regardless of the result. */}
+            corrected p-value, and the statement names both tests regardless of the result.
+            `status-badge` restates that same detected/not-detected verdict as its own
+            short, explicit text node -- `alert--detected`'s border colour is never the only
+            carrier of the verdict (see e2e/a11y.spec.ts's colour-only-encoding check). */}
         {data.alerts.length === 0 ? (
           <p className="empty-state" data-testid="alerts-empty">
             No comparisons recorded for this look.
@@ -47,7 +53,10 @@ export default function RegressionPage() {
                 data-testid="alert"
               >
                 <h2>
-                  {alert.slot} / {alert.field_type}
+                  {alert.slot} / {alert.field_type}{" "}
+                  <span className="status-badge" data-testid="status-badge">
+                    {alert.detected ? "Detected" : "Not detected"}
+                  </span>
                 </h2>
                 <p>{alert.statement}</p>
               </li>
@@ -84,7 +93,12 @@ export default function RegressionPage() {
                   className={`fingerprint fingerprint--${fingerprint.status.toLowerCase()}`}
                 >
                   <span className="fingerprint__slot tabular">{fingerprint.slot}</span>{" "}
-                  <span className="fingerprint__status">{fingerprint.status}</span>
+                  <span
+                    className="fingerprint__status status-badge"
+                    data-testid="status-badge"
+                  >
+                    {fingerprint.status}
+                  </span>
                   <p>{fingerprint.statement}</p>
                 </li>
               ))}
