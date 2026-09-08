@@ -10,6 +10,10 @@ htmlcov/
 data/*.duckdb
 golden/corpus/private/
 !golden/corpus/private/.gitkeep
+
+# Real triage output is CLIENT_CONFIDENTIAL (00 R4) -- see
+# ground_truth/publish/artifacts.py's emit_all docstring. Never published to artifacts/.
+deliverables/
 node_modules/
 web/.next/
 web/out/
