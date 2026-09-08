@@ -4,9 +4,10 @@
    affects screen rendering. */
 
 @media print {
-  /* Drop navigation chrome: the masthead (title + methodology/site links) is
-     wayfinding for a live browsing session, not part of the printed record. */
-  .masthead {
+  /* Drop navigation chrome: the methodology/site nav links are wayfinding for a
+     live browsing session, meaningless on paper. The title and subtitle stay --
+     these documents get emailed to auditors, and an untitled PDF is a defect. */
+  .masthead nav {
     display: none;
   }
 
