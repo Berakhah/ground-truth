@@ -1,0 +1,110 @@
+{
+  "note": "Synthetic worked example -- never a real client engagement.",
+  "placeholder": true,
+  "rows": [
+    {
+      "accuracy": {
+        "high": 0.96,
+        "low": 0.87,
+        "method": "cluster-BCa",
+        "n": 180,
+        "point": 0.92
+      },
+      "client_quote": "Acme Construction Co.'s AP lead says a wrong invoice total gets caught in the three-way match before it is ever paid -- a two-minute fix, not a loss",
+      "cost_of_error": "2.00",
+      "current_cost_per_item": "0.50",
+      "ev": {
+        "ev_high": "1520.00",
+        "ev_low": "440.00",
+        "ev_point": "1040.00",
+        "n": 180,
+        "rationale": "Expected value is positive across the whole accuracy interval [0.870, 0.960] at n=180.",
+        "recommendation": "automate"
+      },
+      "flip": {
+        "flips_at": "2.68",
+        "sentence": "This becomes insufficient evidence if a wrong extraction costs more than $2.68. The client's stated cost of error is $2.00, in their words: \"Acme Construction Co.'s AP lead says a wrong invoice total gets caught in the three-way match before it is ever paid -- a two-minute fix, not a loss\"."
+      },
+      "intent": "invoice_total_extraction",
+      "volume_per_month": 5000
+    },
+    {
+      "accuracy": {
+        "high": 0.96,
+        "low": 0.87,
+        "method": "cluster-BCa",
+        "n": 180,
+        "point": 0.92
+      },
+      "client_quote": "Bramblewood Builders LLC's general counsel says a mis-extracted indemnification cap is a legal exposure with no dollar ceiling they would be willing to name",
+      "cost_of_error": "unbounded",
+      "current_cost_per_item": "15.00",
+      "ev": {
+        "ev_high": "2860.80",
+        "ev_low": "2592.60",
+        "ev_point": "2741.60",
+        "n": 180,
+        "rationale": "Cost of error is unbounded in the client's own words: \"Bramblewood Builders LLC's general counsel says a mis-extracted indemnification cap is a legal exposure with no dollar ceiling they would be willing to name\". No accuracy justifies automation when the downside has no ceiling (n=180).",
+        "recommendation": "never_automate"
+      },
+      "flip": {
+        "flips_at": null,
+        "sentence": "This recommendation does not flip anywhere between $0.00 and $1,000.00 of cost of error."
+      },
+      "intent": "contract_indemnification_cap_extraction",
+      "volume_per_month": 200
+    },
+    {
+      "accuracy": {
+        "high": 0.96,
+        "low": 0.87,
+        "method": "cluster-BCa",
+        "n": 180,
+        "point": 0.92
+      },
+      "client_quote": "Northgate Fabrication Co.'s controller says releasing retention on a wrong percentage is money they rarely see again",
+      "cost_of_error": "90.00",
+      "current_cost_per_item": "0.30",
+      "ev": {
+        "ev_high": "-2726.40",
+        "ev_low": "-9220.80",
+        "ev_point": "-5612.80",
+        "n": 180,
+        "rationale": "Expected value is negative across the whole accuracy interval [0.870, 0.960] at n=180.",
+        "recommendation": "route_to_human"
+      },
+      "flip": {
+        "flips_at": "4.81",
+        "sentence": "This already became route to human once cost of error passed $4.81 (below that, it was insufficient evidence). The client's stated cost of error is $90.00, in their words: \"Northgate Fabrication Co.'s controller says releasing retention on a wrong percentage is money they rarely see again\"."
+      },
+      "intent": "retention_percentage_extraction",
+      "volume_per_month": 800
+    },
+    {
+      "accuracy": {
+        "high": 0.96,
+        "low": 0.87,
+        "method": "cluster-BCa",
+        "n": 180,
+        "point": 0.92
+      },
+      "client_quote": "Silverline Contracting Inc. is not sure what a wrong line-item description actually costs them -- maybe a dollar, maybe more if it trips up matching",
+      "cost_of_error": "1.20",
+      "current_cost_per_item": "0.20",
+      "ev": {
+        "ev_high": "144.00",
+        "ev_low": "-207.00",
+        "ev_point": "-12.00",
+        "n": 180,
+        "rationale": "Expected value spans zero: [-207.00, 144.00] per month at n=180. This does not yet support a decision. A larger sample would narrow it.",
+        "recommendation": "insufficient_evidence"
+      },
+      "flip": {
+        "flips_at": "2.41",
+        "sentence": "This becomes route to human if a wrong extraction costs more than $2.41. The client's stated cost of error is $1.20, in their words: 'Silverline Contracting Inc. is not sure what a wrong line-item description actually costs them -- maybe a dollar, maybe more if it trips up matching'."
+      },
+      "intent": "line_item_description_extraction",
+      "volume_per_month": 3000
+    }
+  ]
+}
