@@ -4,8 +4,11 @@
 // (see that file's own `placeholder: true` field and CLAUDE.md's cost/latency rules).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import calibration from "../../artifacts/calibration.json";
 import judgeAgreement from "../../artifacts/judge_agreement.json";
 import leaderboard from "../../artifacts/leaderboard.json";
+import regression from "../../artifacts/regression.json";
+import triageExample from "../../artifacts/triage_example.json";
 
 export interface AccuracyEstimate {
   point: number;
@@ -140,4 +143,132 @@ export interface JudgeAgreementPayload {
 
 export function loadJudgeAgreement(): JudgeAgreementPayload {
   return judgeAgreement as JudgeAgreementPayload;
+}
+
+// Shape matches the REAL producer of this exact file -- ground_truth.calibrate.export's
+// export_curves -- not artifacts.py's emit_all, whose own calibration.json write today is a
+// bare `{"curves": [], "note": ...}` placeholder (task-47 brief: two separate, standalone
+// publish paths with no runtime coupling, same as the regression watch below). Typed against
+// the richer shape so a real export_curves run degrades nothing; schema_version/note are
+// optional extras neither producer's shape depends on.
+export interface ThresholdRecommendation {
+  target_precision: number;
+  threshold: number;
+}
+
+export interface CalibrationCurve {
+  field_type: string;
+  method: string;
+  curve_points: [number, number][];
+  n: number;
+  fitted_at: string;
+  rubric_version: string;
+  source_split: string;
+  threshold_recommendations: ThresholdRecommendation[];
+}
+
+export interface CalibrationPayload {
+  schema_version?: string;
+  placeholder?: boolean;
+  note?: string;
+  curves: CalibrationCurve[];
+}
+
+export function loadCalibration(): CalibrationPayload {
+  return calibration as CalibrationPayload;
+}
+
+// Shape matches ground_truth.regression.detect.Alert and
+// ground_truth.regression.fingerprint.SlotFingerprint exactly (task-47 brief: no
+// reconciliation needed here, unlike calibration.json above).
+export interface RegressionInterval {
+  point: number;
+  low: number;
+  high: number;
+  n: number;
+  method: string;
+}
+
+export interface RegressionAlert {
+  slot: string;
+  field_type: string;
+  baseline: RegressionInterval;
+  current: RegressionInterval;
+  z: number;
+  adjusted_p: number;
+  look: number;
+  total_looks: number;
+  detected: boolean;
+  statement: string;
+}
+
+export interface RegressionFingerprint {
+  slot: string;
+  status: "STABLE" | "CHANGED" | "NOT_EXPOSED";
+  values: string[];
+  first_seen: string;
+  last_seen: string;
+  statement: string;
+}
+
+export interface RegressionPayload {
+  look?: number;
+  total_looks?: number;
+  generated_at?: string;
+  placeholder?: boolean;
+  note?: string;
+  alerts: RegressionAlert[];
+  fingerprints: RegressionFingerprint[];
+}
+
+export function loadRegression(): RegressionPayload {
+  return regression as RegressionPayload;
+}
+
+// Shape matches ground_truth.triage.export_example's output -- a synthetic worked example
+// (docs/triage-example.csv) run through the real, already-tested triage.report pipeline
+// (load_intents -> expected_value.evaluate -> sensitivity.find_flip_point). Never a real
+// client engagement: real triage output is CLIENT_CONFIDENTIAL and goes to gitignored
+// deliverables/, never to artifacts/ (ground_truth.publish.artifacts.emit_all's docstring).
+export interface TriageAccuracy {
+  point: number;
+  low: number;
+  high: number;
+  n: number;
+  method: string;
+}
+
+export interface TriageEV {
+  recommendation: string;
+  ev_low: string;
+  ev_point: string;
+  ev_high: string;
+  n: number;
+  rationale: string;
+}
+
+export interface TriageFlip {
+  sentence: string;
+  flips_at: string | null;
+}
+
+export interface TriageRow {
+  intent: string;
+  volume_per_month: number;
+  current_cost_per_item: string;
+  cost_of_error: string;
+  client_quote: string;
+  accuracy: TriageAccuracy;
+  ev: TriageEV;
+  flip: TriageFlip;
+}
+
+export interface TriageExamplePayload {
+  placeholder?: boolean;
+  note?: string;
+  rows: TriageRow[];
+}
+
+export function loadTriageExample(): TriageExamplePayload {
+  return triageExample as TriageExamplePayload;
 }
