@@ -1,0 +1,5 @@
+intent,volume_per_month,current_cost_per_item,cost_of_error,client_quote
+invoice_total_extraction,5000,0.50,2.00,"Acme Construction Co.'s AP lead says a wrong invoice total gets caught in the three-way match before it is ever paid -- a two-minute fix, not a loss"
+contract_indemnification_cap_extraction,200,15.00,unbounded,"Bramblewood Builders LLC's general counsel says a mis-extracted indemnification cap is a legal exposure with no dollar ceiling they would be willing to name"
+retention_percentage_extraction,800,0.30,90.00,"Northgate Fabrication Co.'s controller says releasing retention on a wrong percentage is money they rarely see again"
+line_item_description_extraction,3000,0.20,1.20,"Silverline Contracting Inc. is not sure what a wrong line-item description actually costs them -- maybe a dollar, maybe more if it trips up matching"

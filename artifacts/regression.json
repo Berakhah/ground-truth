@@ -1,0 +1,51 @@
+{
+  "look": 3,
+  "total_looks": 13,
+  "generated_at": "2026-09-01T00:00:00+00:00",
+  "placeholder": true,
+  "note": "Placeholder data -- no live regression watch has run yet. See ground_truth.regression.detect and ground_truth.regression.fingerprint for the real, standalone computation.",
+  "alerts": [
+    {
+      "slot": "demo-slot-a",
+      "field_type": "money",
+      "baseline": {"point": 0.930, "low": 0.900, "high": 0.958, "n": 180, "method": "cluster-BCa"},
+      "current": {"point": 0.860, "low": 0.820, "high": 0.897, "n": 180, "method": "cluster-BCa"},
+      "z": -3.41,
+      "adjusted_p": 0.0084,
+      "look": 3,
+      "total_looks": 13,
+      "detected": true,
+      "statement": "demo-slot-a/money: 0.930 [0.900, 0.958] -> 0.860 [0.820, 0.897]. Change detected at look 3 of 13 (O'Brien-Fleming alpha spending, |z| = 3.410; Benjamini-Hochberg adjusted p = 0.0084 across 2 comparisons)."
+    },
+    {
+      "slot": "demo-slot-b",
+      "field_type": "date",
+      "baseline": {"point": 0.910, "low": 0.870, "high": 0.944, "n": 150, "method": "cluster-BCa"},
+      "current": {"point": 0.897, "low": 0.855, "high": 0.933, "n": 150, "method": "cluster-BCa"},
+      "z": -0.62,
+      "adjusted_p": 0.5350,
+      "look": 3,
+      "total_looks": 13,
+      "detected": false,
+      "statement": "demo-slot-b/date: 0.910 [0.870, 0.944] -> 0.897 [0.855, 0.933]. No change detected at look 3 of 13 (O'Brien-Fleming alpha spending; Benjamini-Hochberg adjusted p = 0.5350). At n=150 items with a 10% discordance rate, this comparison can detect a difference of 7.8 percentage points or larger (80% power, alpha=0.05, Bonferroni-corrected across 1 comparisons). A null result means no difference larger than that was detectable — not that none exists."
+    }
+  ],
+  "fingerprints": [
+    {
+      "slot": "demo-slot-a",
+      "status": "STABLE",
+      "values": ["fp_2026_08_a1"],
+      "first_seen": "2026-08-01T00:00:00+00:00",
+      "last_seen": "2026-09-01T00:00:00+00:00",
+      "statement": "demo-slot-a reported a single fingerprint 'fp_2026_08_a1' across the sweep (2026-08-01 to 2026-09-01)."
+    },
+    {
+      "slot": "demo-slot-b",
+      "status": "NOT_EXPOSED",
+      "values": [],
+      "first_seen": "2026-08-01T00:00:00+00:00",
+      "last_seen": "2026-09-01T00:00:00+00:00",
+      "statement": "demo-slot-b does not expose a version fingerprint. We cannot pin the served version and do not claim to; results are attributed to the slot as served between 2026-08-01 and 2026-09-01."
+    }
+  ]
+}
