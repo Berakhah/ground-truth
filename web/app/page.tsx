@@ -7,6 +7,9 @@ export default function Page() {
 
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="masthead">
         <div className="masthead__heading">
           <h1>Ground Truth</h1>
@@ -26,67 +29,69 @@ export default function Page() {
         </div>
       ) : null}
 
-      <main className="report">
+      <main className="report" id="main-content">
         <p className="distinguishability" data-testid="distinguishability">
           {data.distinguishability.length > 0
             ? data.distinguishability.join(" ")
             : "All models are distinguishable at this sample size."}
         </p>
 
-        <table className="leaderboard">
-          <caption className="visually-hidden">
-            Model leaderboard: accuracy, cost, and latency
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Model</th>
-              <th scope="col">Accuracy</th>
-              <th scope="col">
-                Cost
-                {data.rows[0] ? (
-                  <span className="th-caveat" data-testid="cost-caveat">
-                    {data.rows[0].cost.caveat}
-                  </span>
-                ) : null}
-              </th>
-              <th scope="col" title={data.rows[0]?.latency.caveat ?? "Latency"}>
-                Latency
-                {data.rows[0] ? (
-                  // Same caveat as the title tooltip and the print footnote below,
-                  // but always in the accessibility tree -- title-only tooltips are
-                  // unreachable by keyboard, screen reader, and touch.
-                  <span className="visually-hidden" data-testid="latency-caveat">
-                    {data.rows[0].latency.caveat}
-                  </span>
-                ) : null}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.rows.map((row) => (
-              <tr key={row.slot} data-testid="leaderboard-row">
-                <th scope="row">{row.slot}</th>
-                <td>
-                  <IntervalBar
-                    low={row.accuracy.low}
-                    high={row.accuracy.high}
-                    point={row.accuracy.point}
-                    n={row.accuracy.n}
-                  />
-                </td>
-                <td>
-                  {/* The list-price caveat is stated once, in the Cost column header
-                      above -- CLAUDE.md rule 5 makes it a property of the cost
-                      methodology, not a per-row fact, so every row shares it. */}
-                  <Claim value={`${row.cost.value} ${row.cost.unit}`} />
-                </td>
-                <td className="latency-cell tabular" title={row.latency.caveat}>
-                  p50 {row.latency.p50.toFixed(0)} ms / p95 {row.latency.p95.toFixed(0)} ms
-                </td>
+        <div className="table-scroll">
+          <table className="leaderboard">
+            <caption className="visually-hidden">
+              Model leaderboard: accuracy, cost, and latency
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col">Accuracy</th>
+                <th scope="col">
+                  Cost
+                  {data.rows[0] ? (
+                    <span className="th-caveat" data-testid="cost-caveat">
+                      {data.rows[0].cost.caveat}
+                    </span>
+                  ) : null}
+                </th>
+                <th scope="col" title={data.rows[0]?.latency.caveat ?? "Latency"}>
+                  Latency
+                  {data.rows[0] ? (
+                    // Same caveat as the title tooltip and the print footnote below,
+                    // but always in the accessibility tree -- title-only tooltips are
+                    // unreachable by keyboard, screen reader, and touch.
+                    <span className="visually-hidden" data-testid="latency-caveat">
+                      {data.rows[0].latency.caveat}
+                    </span>
+                  ) : null}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.rows.map((row) => (
+                <tr key={row.slot} data-testid="leaderboard-row">
+                  <th scope="row">{row.slot}</th>
+                  <td>
+                    <IntervalBar
+                      low={row.accuracy.low}
+                      high={row.accuracy.high}
+                      point={row.accuracy.point}
+                      n={row.accuracy.n}
+                    />
+                  </td>
+                  <td>
+                    {/* The list-price caveat is stated once, in the Cost column header
+                        above -- CLAUDE.md rule 5 makes it a property of the cost
+                        methodology, not a per-row fact, so every row shares it. */}
+                    <Claim value={`${row.cost.value} ${row.cost.unit}`} />
+                  </td>
+                  <td className="latency-cell tabular" title={row.latency.caveat}>
+                    p50 {row.latency.p50.toFixed(0)} ms / p95 {row.latency.p95.toFixed(0)} ms
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <p className="print-footnote">
           Latency figures are measured on the free tier ({data.rows[0]?.latency.caveat}); not a

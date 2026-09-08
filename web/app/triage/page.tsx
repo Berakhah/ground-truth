@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { loadTriageExample } from "@/lib/artifacts";
 
 function readable(recommendation: string): string {
@@ -13,11 +14,17 @@ export default function TriagePage() {
 
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="masthead">
         <div className="masthead__heading">
           <h1>Triage Report</h1>
           <p className="masthead__subtitle">Synthetic worked example — never a real engagement</p>
         </div>
+        <nav aria-label="Report">
+          <Link href="/">Leaderboard</Link>
+        </nav>
       </header>
 
       {data.placeholder ? (
@@ -27,7 +34,7 @@ export default function TriagePage() {
         </div>
       ) : null}
 
-      <main className="report" data-testid="report">
+      <main className="report" data-testid="report" id="main-content">
         <p className="distinguishability">
           Each intent is scored by expected value, not raw accuracy: a wrong extraction&rsquo;s
           cost of error, in the client&rsquo;s own words, decides whether it is worth
