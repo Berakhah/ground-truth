@@ -1,0 +1,92 @@
+name: publish
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+env:
+  # Matches the seed already used throughout tests/publish/test_artifacts.py,
+  # tests/test_reproducibility.py, and tests/test_contamination.py -- not a fabricated
+  # number, the one convention this codebase already publishes.
+  ANALYSIS_SEED: 1
+jobs:
+  gate:
+    name: full Python gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --all-extras
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - name: no float in the money path
+        run: |
+          targets=()
+          for d in ground_truth/graders ground_truth/triage \
+                   ground_truth/matrix/cost.py ground_truth/matrix/build.py; do
+            [ -e "$d" ] && targets+=("$d")
+          done
+          if [ "${#targets[@]}" -gt 0 ] && grep -rn "float(" "${targets[@]}"; then
+            echo "float() is forbidden in the money path"; exit 1
+          fi
+      - run: uv run pytest -v --cov=ground_truth --cov-report=term-missing --cov-fail-under=75
+      - run: uv run pytest -m slow -v
+
+  release:
+    name: regenerate artifacts, verify reproduction, build the site
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --all-extras
+      - name: derive --as-of from the tag's own date, never `now`
+        # A release's --as-of is fixed at tag time so a later re-run of this exact command
+        # regenerates byte-identical output -- the whole point of test_reproducibility.py.
+        id: as_of
+        run: echo "value=$(git log -1 --format=%aI "${GITHUB_REF_NAME}")" >> "$GITHUB_OUTPUT"
+      - name: regenerate published artifacts
+        # KNOWN GAP (Task 49 Step 2, not yet implemented): data/results.duckdb is gitignored
+        # and never committed, and no live sweep has ever run, so this step has nothing to
+        # read from until a human produces that database as part of cutting a real release.
+        # It is left failing honestly rather than faked, per this project's own rule against
+        # fabricated numbers.
+        run: >
+          uv run python -m ground_truth.publish.artifacts
+          --out artifacts/ --as-of "${{ steps.as_of.outputs.value }}"
+          --analysis-seed "${{ env.ANALYSIS_SEED }}"
+      - name: reproducibility and contamination gates (blocking)
+        # A release that cannot regenerate its own numbers, or that leaks a private item,
+        # must not reach the web. GT_REQUIRE_DB=1 turns the two tests' local "skip" behavior
+        # into a hard failure here (2026-08-29 audit finding 7).
+        env:
+          GT_REQUIRE_DB: '1'
+        run: uv run pytest tests/test_reproducibility.py tests/test_contamination.py -v
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm ci --prefix web
+      - run: npx --prefix web tsc --noEmit
+      - run: npm run build --prefix web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/out
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
