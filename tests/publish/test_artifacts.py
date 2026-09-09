@@ -1,7 +1,10 @@
 # tests/publish/test_artifacts.py
 import dataclasses
 import json
+import subprocess
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -114,3 +117,35 @@ def test_judge_agreement_decided_at_is_utc_normalised(con, tmp_path):
     )["decisions"][0]["decided_at"]
     assert decided_at == "2026-09-04 12:34:56.789", decided_at
     assert not decided_at.endswith(("+03", "-04")), "must not carry a session-timezone offset"
+
+
+def test_cli_entrypoint_writes_artifacts_to_out_dir(tmp_path):
+    """Task 49 Step 1: publish.yml's own release command runs this as
+    `python -m ground_truth.publish.artifacts --out ... --as-of ...`."""
+    db_path = tmp_path / "t.duckdb"
+    con = connect(db_path)
+    migrate(con)
+    con.close()
+    out_dir = tmp_path / "out"
+    repo_root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ground_truth.publish.artifacts",
+            "--db",
+            str(db_path),
+            "--out",
+            str(out_dir),
+            "--as-of",
+            "2026-10-15T00:00:00+00:00",
+            "--analysis-seed",
+            "1",
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (out_dir / "leaderboard.json").exists()

@@ -8,6 +8,7 @@ import pytest
 
 from ground_truth.publish.artifacts import emit_all
 from ground_truth.store.db import connect
+from tests.conftest import require_or_skip
 
 REPO = Path(__file__).resolve().parents[1]
 DB = REPO / "data" / "results.duckdb"
@@ -24,10 +25,11 @@ def _only_placeholder_published() -> bool:
 
 @pytest.fixture()
 def con():
-    if not DB.exists() or not PUBLISHED.exists():
-        pytest.skip("run the sweep and publish first")
-    if _only_placeholder_published():
-        pytest.skip("only placeholder/demo data is published; run the sweep and publish for real")
+    require_or_skip(DB.exists() and PUBLISHED.exists(), "run the sweep and publish first")
+    require_or_skip(
+        not _only_placeholder_published(),
+        "only placeholder/demo data is published; run the sweep and publish for real",
+    )
     c = connect(DB)
     yield c
     c.close()
@@ -52,10 +54,11 @@ def test_regeneration_is_stable_across_two_runs(con, tmp_path):
 
 def test_headline_accuracy_recomputes_from_published_verdicts_alone():
     """A stranger holding only the published verdict files must reach the published number."""
-    if not PUBLISHED.exists():
-        pytest.skip("run the sweep and publish first")
-    if _only_placeholder_published():
-        pytest.skip("only placeholder/demo data is published; run the sweep and publish for real")
+    require_or_skip(PUBLISHED.exists(), "run the sweep and publish first")
+    require_or_skip(
+        not _only_placeholder_published(),
+        "only placeholder/demo data is published; run the sweep and publish for real",
+    )
     leaderboard = json.loads((PUBLISHED / "leaderboard.json").read_text(encoding="utf-8"))
     verdicts = [
         json.loads(line)
