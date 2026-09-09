@@ -8,6 +8,7 @@ import pytest
 
 from ground_truth.publish.artifacts import emit_all
 from ground_truth.store.db import connect
+from tests.conftest import require_or_skip
 
 REPO = Path(__file__).resolve().parents[1]
 DB = REPO / "data" / "results.duckdb"
@@ -16,8 +17,7 @@ AS_OF = datetime(2026, 10, 15, tzinfo=UTC)
 
 @pytest.fixture()
 def emitted(tmp_path):
-    if not DB.exists():
-        pytest.skip("run the sweep first")
+    require_or_skip(DB.exists(), "run the sweep first")
     con = connect(DB)
     paths = emit_all(con, tmp_path, as_of=AS_OF, analysis_seed=1)
     yield con, paths

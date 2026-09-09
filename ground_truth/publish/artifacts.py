@@ -18,7 +18,9 @@ never happens.
 
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -27,6 +29,7 @@ import duckdb
 
 from ground_truth.golden.schema import Split
 from ground_truth.matrix.build import LeaderboardRow, build_leaderboard
+from ground_truth.store.db import connect
 
 
 @dataclass(frozen=True)
@@ -241,3 +244,51 @@ def emit_all(
     paths.append(regression_path)
 
     return paths
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Emit publication artifacts (leaderboard, verdicts, calibration, "
+        "regression watch, judge agreement) from the results store."
+    )
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=Path("data/results.duckdb"),
+        help="path to the results DuckDB file (default: data/results.duckdb)",
+    )
+    parser.add_argument("--out", type=Path, required=True, help="output directory")
+    # A release's --as-of must be the release tag's own date, not `now`: the reproducibility
+    # test re-runs emit_all later and compares byte-for-byte, so a timestamp that moves with
+    # the clock can never regenerate identically.
+    parser.add_argument(
+        "--as-of",
+        type=datetime.fromisoformat,
+        required=True,
+        help="ISO 8601 timestamp stamped into the published artifacts, e.g. the release "
+        "tag's date -- never `now`",
+    )
+    parser.add_argument(
+        "--analysis-seed",
+        type=int,
+        required=True,
+        help="bootstrap/analysis RNG seed, published alongside the results so a stranger "
+        "can regenerate them exactly",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    con = connect(args.db)
+    try:
+        paths = emit_all(con, args.out, as_of=args.as_of, analysis_seed=args.analysis_seed)
+    finally:
+        con.close()
+    for path in paths:
+        print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
