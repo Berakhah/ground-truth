@@ -156,3 +156,17 @@ def test_fraction_out_of_range_raises(con, tmp_path):
             salt=_SALT,
             repo_root=tmp_path,
         )
+
+
+def test_short_salt_is_refused(con, tmp_path):
+    with pytest.raises(ValueError, match="entropy"):
+        rotate_private_split(
+            con,
+            fraction=0.20,
+            new_seed=99,
+            seed_ref="ref",
+            release="2027.01.15",
+            rubric_version="v1",
+            salt="too-short",
+            repo_root=tmp_path,
+        )
