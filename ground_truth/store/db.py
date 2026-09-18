@@ -16,6 +16,7 @@ TABLES: tuple[str, ...] = (
     "human_labels",
     "judge_decisions",
     "looks",
+    "rotations",
 )
 
 _SCHEMA = """
@@ -74,7 +75,19 @@ CREATE TABLE IF NOT EXISTS judge_decisions (
 CREATE TABLE IF NOT EXISTS looks (
     quarter TEXT NOT NULL, look INTEGER NOT NULL, total_looks INTEGER NOT NULL,
     run_at TIMESTAMP NOT NULL, PRIMARY KEY (quarter, look));
+
+CREATE TABLE IF NOT EXISTS rotations (
+    release TEXT PRIMARY KEY, rotated_at TIMESTAMP NOT NULL,
+    retired_hashes TEXT NOT NULL, added_hashes TEXT NOT NULL, seed_ref TEXT NOT NULL);
 """
+
+# Kept separate from `_SCHEMA` above: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` has different
+# idempotency semantics than `CREATE TABLE IF NOT EXISTS` and is run after the schema is in
+# place, not folded into the same CREATE-TABLE string (Task 51, ruling 5).
+_ALTER_ITEMS = (
+    "ALTER TABLE items ADD COLUMN IF NOT EXISTS retired_at TIMESTAMP",
+    "ALTER TABLE items ADD COLUMN IF NOT EXISTS introduced_release TEXT",
+)
 
 
 def connect(path: Path) -> duckdb.DuckDBPyConnection:
@@ -84,3 +97,5 @@ def connect(path: Path) -> duckdb.DuckDBPyConnection:
 
 def migrate(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(_SCHEMA)
+    for stmt in _ALTER_ITEMS:
+        con.execute(stmt)

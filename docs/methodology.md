@@ -144,6 +144,44 @@ GT_PUBLIC_SEED=32611816645452341011091101610726
 `GT_PRIVATE_SEED` and `GT_HASH_SALT` are never published anywhere, by design -- see
 above.
 
+### Rotating the private split (Task 51)
+
+Spec §5.4 commits to rotating 20% of the private split at each published release
+(`ground_truth/golden/rotate.py`, `rotate_private_split`). The rotation fraction is fixed at
+20%, and it runs once per published release -- attempting a second rotation for a release
+that has already rotated raises rather than silently rotating twice.
+
+**Retired items are marked, never deleted.** A rotated-out item's row stays in `items` with
+`retired_at` set; it is simply excluded from the *active* private split
+(`split='private' AND retired_at IS NULL`) going forward. This is what keeps every verdict
+and every published number computed under an earlier release valid after that release's
+items have rotated out -- deleting the row would silently invalidate history.
+
+**The rotation seed is withheld the same way the original build seeds are (see above): only
+its name is ever published, never its value.** Each rotation is driven by a `new_seed` that
+regenerates the replacement items, but `rotate_private_split` records and returns only
+`seed_ref` -- a pointer at an `.env` key (e.g. `GT_PRIVATE_SEED_2027Q1`), never the seed
+itself, in the `rotations` audit table, in `manifest_private.json`, or anywhere else. This is
+the same distinction drawn above for `GT_PRIVATE_SEED`/`GT_HASH_SALT`: it is a *related but
+distinct* secret -- the seed that produces the rotated-in replacement items, not the seed or
+salt behind the original build -- and it is withheld for the identical reason: publishing it
+would let anyone reconstruct the replacement items and defeat the whole point of holding a
+private split.
+
+**Cross-release comparisons are computed on the shared cohort only.** Comparing release N's
+private-split results to release N+1's directly would measure partly cohort change (20% of
+the items differ), not model change, and report the difference as drift when it is really a
+sampling artifact of the rotation policy. `cohort_intersection(con, release_a, release_b)`
+returns the `content_hash` set of private items active in *both* releases -- introduced at or
+before the earlier release, and not retired by any rotation up to and including the later
+one. `ground_truth.regression.detect.detect_drift` takes this set as its `cohort` parameter:
+when supplied, every observation is filtered to the cohort before any interval is computed,
+and every alert's statement states the shared sample size explicitly (`"Comparison restricted
+to the N private items present in both releases; M items rotated between them and are
+excluded."`). A cross-release comparison requested via `cross_release=True` without an
+explicit `cohort` is refused outright, rather than silently attributing rotation churn to
+model drift.
+
 ## Phase 2 — Measurement
 
 > **NOT A MEASUREMENT RUN.** This section documents Phase 2's *code and its own internal

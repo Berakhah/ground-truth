@@ -113,8 +113,23 @@ def test_per_key_attribution_is_positional_not_label_based():
         ("slot-b", "money"): obs(180, 0.90, 4),
     }
     alerts = {
-        (a.slot, a.field_type): a
-        for a in detect_drift(base, curr, look=5, total_looks=13, seed=1)
+        (a.slot, a.field_type): a for a in detect_drift(base, curr, look=5, total_looks=13, seed=1)
     }
     assert alerts[("slot-a", "money")].detected
     assert not alerts[("slot-b", "money")].detected
+
+
+def test_cohort_restriction_excludes_rotated_items_and_says_so():
+    base = {("slot-a", "money"): obs(100, 0.90, 1)}
+    curr = {("slot-a", "money"): obs(100, 0.90, 2)}
+    cohort = {f"i{i}" for i in range(80)}
+    alert = detect_drift(base, curr, look=5, total_looks=13, seed=1, cohort=cohort)[0]
+    assert alert.baseline.n == 80 and alert.current.n == 80  # noqa: PLR2004
+    assert "present in both releases" in alert.statement
+
+
+def test_comparing_across_a_rotation_without_a_cohort_is_refused():
+    base = {("slot-a", "money"): obs(100, 0.90, 1)}
+    curr = {("slot-a", "money"): obs(100, 0.90, 2)}
+    with pytest.raises(ValueError, match="cohort"):
+        detect_drift(base, curr, look=5, total_looks=13, seed=1, cross_release=True)

@@ -27,17 +27,23 @@ def con(tmp_path):
 
 def seed(con, item_id, split, secret_value, content_hash):
     now = datetime.now(UTC)
-    con.execute("INSERT INTO items VALUES (?,?,'v1','synthetic',?,?)",
-                [item_id, split, content_hash, now])
-    con.execute("INSERT INTO item_fields VALUES (?,'contract_sum','money',?,NULL,'0.01')",
-                [item_id, secret_value])
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES (?,?,'v1','synthetic',?,?)",
+        [item_id, split, content_hash, now],
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES (?,'contract_sum','money',?,NULL,'0.01')",
+        [item_id, secret_value],
+    )
     con.execute(
         "INSERT INTO runs VALUES (?,?,NULL,'slot-a','ref','prov',false,'s1','sha','h')",
         [f"r-{item_id}", now],
     )
-    con.execute("INSERT INTO outputs VALUES (?,?,?,1,?,'call','prov',NULL,10,'ph',?)",
-                [f"o-{item_id}", f"r-{item_id}", item_id,
-                 json.dumps({"contract_sum": secret_value}), now])
+    con.execute(
+        "INSERT INTO outputs VALUES (?,?,?,1,?,'call','prov',NULL,10,'ph',?)",
+        [f"o-{item_id}", f"r-{item_id}", item_id, json.dumps({"contract_sum": secret_value}), now],
+    )
     con.execute(
         "INSERT INTO verdicts VALUES (?,?,'contract_sum','exact','1','v1',true,'ok',?)",
         [f"v-{item_id}", f"o-{item_id}", now],
@@ -112,9 +118,9 @@ def test_judge_agreement_decided_at_is_utc_normalised(con, tmp_path):
     )
     out_dir = tmp_path / "out"
     emit_all(con, out_dir, as_of=datetime(2026, 9, 7, tzinfo=UTC), analysis_seed=1)
-    decided_at = json.loads(
-        (out_dir / "judge_agreement.json").read_text(encoding="utf-8")
-    )["decisions"][0]["decided_at"]
+    decided_at = json.loads((out_dir / "judge_agreement.json").read_text(encoding="utf-8"))[
+        "decisions"
+    ][0]["decided_at"]
     assert decided_at == "2026-09-04 12:34:56.789", decided_at
     assert not decided_at.endswith(("+03", "-04")), "must not carry a session-timezone offset"
 
