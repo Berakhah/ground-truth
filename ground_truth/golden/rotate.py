@@ -25,10 +25,9 @@ from pathlib import Path
 
 import duckdb
 
+from ground_truth.golden.build import _ENTROPY_FLOOR
 from ground_truth.golden.generate import generate, render_document
 from ground_truth.golden.schema import Item, Split
-
-_REPO = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -101,8 +100,16 @@ def rotate_private_split(  # noqa: PLR0913, PLR0917 -- each param is a distinct,
     release: str,
     rubric_version: str,
     salt: str,
-    repo_root: Path = _REPO,
+    repo_root: Path,
 ) -> RotationRecord:
+    if len(salt) < _ENTROPY_FLOOR:
+        raise ValueError(
+            f"salt must carry at least 128 bits of entropy (>= {_ENTROPY_FLOOR} characters, "
+            f'e.g. `python -c "import secrets; print(secrets.token_hex(16))"`) -- generate.py '
+            "is a published module, so a short salt makes its message space brute-forceable "
+            "(audit B4b)."
+        )
+
     if not 0 < fraction < 1:
         raise ValueError(f"fraction must be in (0, 1), got {fraction!r}")
 
