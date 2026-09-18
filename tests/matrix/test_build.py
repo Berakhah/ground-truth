@@ -107,7 +107,10 @@ def _populate_two_field_types(con, *, rejected_status: str | None) -> None:
     """One item, one slot, one run, two field types (`money`, `date`) each graded once.
     `rejected_status` controls whether `money` carries a judge_decisions row and what its
     status is; `date` never gets one, so it always survives the exclusion join."""
-    con.execute("INSERT INTO items VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())")
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
+    )
     con.execute("INSERT INTO item_fields VALUES ('i1', 'total', 'money', '1.00', NULL, NULL)")
     con.execute(
         "INSERT INTO item_fields VALUES ('i1', 'invoice_date', 'date', '2026-01-01', NULL, NULL)"
