@@ -67,23 +67,41 @@ def _discordance_rate(
     return current_interval.n, max(1 - current_interval.point, _MIN_DISCORDANCE_RATE)
 
 
-def detect_drift(
+def _filter_to_cohort(obs: list[tuple[str, bool]], cohort: set[str]) -> list[tuple[str, bool]]:
+    return [o for o in obs if o[0] in cohort]
+
+
+def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     baseline: dict[tuple[str, str], list[tuple[str, bool]]],
     current: dict[tuple[str, str], list[tuple[str, bool]]],
     *,
     look: int,
     total_looks: int,
     seed: int,
+    cohort: set[str] | None = None,
+    cross_release: bool = False,
 ) -> list[Alert]:
+    if cross_release and cohort is None:
+        raise ValueError(
+            "cross_release=True requires an explicit cohort: comparing across a private-split "
+            "rotation without restricting to the shared cohort would attribute cohort churn to "
+            "model drift (Task 51)."
+        )
+
     keys = sorted(current)
     n_comparisons = len(keys)
 
     intervals: list[tuple[Interval, Interval]] = []
     zs: list[float] = []
     comparisons: list[Comparison] = []
+    n_rotated_by_key: dict[tuple[str, str], int] = {}
     for key in keys:
         baseline_obs = baseline[key]  # raise KeyError on a miss -- never skip a comparison
         current_obs = current[key]
+        if cohort is not None:
+            n_rotated_by_key[key] = len({i for i, _ in baseline_obs} - cohort)
+            baseline_obs = _filter_to_cohort(baseline_obs, cohort)
+            current_obs = _filter_to_cohort(current_obs, cohort)
         baseline_interval = cluster_bootstrap_ci(baseline_obs, seed=seed)
         current_interval = cluster_bootstrap_ci(current_obs, seed=seed)
         intervals.append((baseline_interval, current_interval))
@@ -123,10 +141,20 @@ def detect_drift(
             )
         else:
             n_items, discordance_rate = _discordance_rate(baseline, current, key, current_interval)
-            statement = prefix + (
-                f"No change detected at look {look} of {total_looks} (O'Brien-Fleming alpha "
-                f"spending; Benjamini-Hochberg adjusted p = {cc.adjusted_p:.4f}). "
-            ) + describe_mde(n_items, discordance_rate)
+            statement = (
+                prefix
+                + (
+                    f"No change detected at look {look} of {total_looks} (O'Brien-Fleming alpha "
+                    f"spending; Benjamini-Hochberg adjusted p = {cc.adjusted_p:.4f}). "
+                )
+                + describe_mde(n_items, discordance_rate)
+            )
+
+        if cohort is not None:
+            statement += (
+                f" Comparison restricted to the {len(cohort)} private items present in both "
+                f"releases; {n_rotated_by_key[key]} items rotated between them and are excluded."
+            )
 
         alerts.append(
             Alert(

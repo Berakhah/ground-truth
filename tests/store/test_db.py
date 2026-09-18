@@ -17,6 +17,7 @@ EXPECTED = (
     "human_labels",
     "judge_decisions",
     "looks",
+    "rotations",
 )
 
 
@@ -61,4 +62,7 @@ def test_outputs_rejects_duplicate_replicate(con):
 
 def test_split_check_constraint_rejects_a_third_split(con):
     with pytest.raises(duckdb.ConstraintException):
-        con.execute("INSERT INTO items VALUES ('i1', 'holdout', 'v1', 'synthetic', 'h', now())")
+        con.execute(
+            "INSERT INTO items (item_id, split, rubric_version, source, content_hash, "
+            "created_at) VALUES ('i1', 'holdout', 'v1', 'synthetic', 'h', now())"
+        )

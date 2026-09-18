@@ -88,8 +88,12 @@ def test_no_client_quote_appears_in_any_published_artifact(emitted):
     intake_dir = REPO / "deliverables"
     if not intake_dir.exists():
         pytest.skip("no client intake present")
-    quotes = {r["client_quote"] for p in intake_dir.glob("*.csv")
-              for r in csv.DictReader(p.open(encoding="utf-8")) if r["client_quote"]}
+    quotes = {
+        r["client_quote"]
+        for p in intake_dir.glob("*.csv")
+        for r in csv.DictReader(p.open(encoding="utf-8"))
+        if r["client_quote"]
+    }
     for path in paths:
         blob = path.read_text(encoding="utf-8")
         leaked = sorted(q for q in quotes if q in blob)
@@ -116,19 +120,28 @@ def test_published_hashes_match_the_manifest(emitted):
     manifest = next(p for p in paths if p.name == "manifest_private.json")
     published = set(json.loads(manifest.read_text(encoding="utf-8"))["item_hashes"])
     actual = {
-        r[0] for r in con.execute("SELECT content_hash FROM items WHERE split='private'").fetchall()
+        r[0]
+        for r in con.execute(
+            "SELECT content_hash FROM items WHERE split='private' AND retired_at IS NULL"
+        ).fetchall()
     }
     assert published == actual
 
 
 def test_private_corpus_not_tracked_by_git():
-    out = subprocess.run(["git", "ls-files", "golden/corpus/private/"], cwd=REPO,
-                         capture_output=True, text=True, check=True)
+    out = subprocess.run(
+        ["git", "ls-files", "golden/corpus/private/"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     tracked = [p for p in out.stdout.splitlines() if p.strip() and not p.endswith(".gitkeep")]
     assert tracked == []
 
 
 def test_private_seed_not_tracked_by_git():
-    out = subprocess.run(["git", "ls-files", ".env"], cwd=REPO,
-                         capture_output=True, text=True, check=True)
+    out = subprocess.run(
+        ["git", "ls-files", ".env"], cwd=REPO, capture_output=True, text=True, check=True
+    )
     assert out.stdout.strip() == ""

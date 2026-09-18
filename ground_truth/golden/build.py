@@ -56,7 +56,7 @@ def _write_corpus(items: list[Item], split_dir: Path) -> None:
         (split_dir / f"{item.item_id}.txt").write_text(render_document(item), encoding="utf-8")
 
 
-def _insert_items(con: duckdb.DuckDBPyConnection, items: list[Item]) -> None:
+def _insert_items(con: duckdb.DuckDBPyConnection, items: list[Item], release: str) -> None:
     # Full rebuild semantics: a second `python -m ground_truth.golden.build` against an
     # existing data/results.duckdb replaces the prior build's rows rather than raising a
     # PRIMARY KEY violation on `items`/`item_fields`.
@@ -65,7 +65,8 @@ def _insert_items(con: duckdb.DuckDBPyConnection, items: list[Item]) -> None:
     created_at = datetime.now(UTC)
     for item in items:
         con.execute(
-            "INSERT INTO items VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO items (item_id, split, rubric_version, source, content_hash, "
+            "created_at, introduced_release) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 item.item_id,
                 item.split.value,
@@ -73,6 +74,7 @@ def _insert_items(con: duckdb.DuckDBPyConnection, items: list[Item]) -> None:
                 item.source.value,
                 item.content_hash,
                 created_at,
+                release,
             ),
         )
         for field in item.fields:
@@ -89,7 +91,13 @@ def _insert_items(con: duckdb.DuckDBPyConnection, items: list[Item]) -> None:
             )
 
 
-def main(repo_root: Path = _REPO, public_count: int = 120, private_count: int = 180) -> None:
+def main(
+    repo_root: Path = _REPO,
+    public_count: int = 120,
+    private_count: int = 180,
+    release: str | None = None,
+) -> None:
+    release = release if release is not None else datetime.now(UTC).date().isoformat()
     public_seed = _require_env("GT_PUBLIC_SEED")
     private_seed = _require_env("GT_PRIVATE_SEED")
     hash_salt = _require_env("GT_HASH_SALT")
@@ -113,7 +121,7 @@ def main(repo_root: Path = _REPO, public_count: int = 120, private_count: int = 
     db_con = connect(repo_root / "data" / "results.duckdb")
     migrate(db_con)
     try:
-        _insert_items(db_con, public_items + private_items)
+        _insert_items(db_con, public_items + private_items, release)
     finally:
         db_con.close()
 
