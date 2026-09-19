@@ -51,12 +51,12 @@ def test_outputs_rejects_duplicate_replicate(con):
         "INSERT INTO runs VALUES ('r1', now(), NULL, 'slot-a', 'ref', 'prov', false, 's1',"
         " 'sha', 'h')"
     )
-    row = ("o1", "r1", "i1", 1, "{}", "call1", "prov", None, 100, "ph", "2026-09-01")
-    con.execute("INSERT INTO outputs VALUES (?,?,?,?,?,?,?,?,?,?,?)", row)
+    row = ("o1", "r1", "i1", 1, "{}", "call1", "prov", None, 100, "ph", "2026-09-01", None)
+    con.execute("INSERT INTO outputs VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", row)
     with pytest.raises(duckdb.ConstraintException):
         con.execute(
-            "INSERT INTO outputs VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            ("o2", "r1", "i1", 1, "{}", "call2", "prov", None, 100, "ph", "2026-09-01"),
+            "INSERT INTO outputs VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("o2", "r1", "i1", 1, "{}", "call2", "prov", None, 100, "ph", "2026-09-01", None),
         )
 
 

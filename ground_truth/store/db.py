@@ -89,6 +89,11 @@ _ALTER_ITEMS = (
     "ALTER TABLE items ADD COLUMN IF NOT EXISTS introduced_release TEXT",
 )
 
+# Nullable, not NOT NULL: rows written before this column existed have no token count and
+# must stay queryable (matrix/build.py excludes them from the mean rather than treating a
+# missing count as zero -- zero would be a fabricated cost, not an absent one).
+_ALTER_OUTPUTS = ("ALTER TABLE outputs ADD COLUMN IF NOT EXISTS token_count INTEGER",)
+
 
 def connect(path: Path) -> duckdb.DuckDBPyConnection:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -98,4 +103,6 @@ def connect(path: Path) -> duckdb.DuckDBPyConnection:
 def migrate(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(_SCHEMA)
     for stmt in _ALTER_ITEMS:
+        con.execute(stmt)
+    for stmt in _ALTER_OUTPUTS:
         con.execute(stmt)

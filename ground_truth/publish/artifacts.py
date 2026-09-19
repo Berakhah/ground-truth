@@ -29,7 +29,11 @@ import duckdb
 
 from ground_truth.golden.schema import Split
 from ground_truth.matrix.build import LeaderboardRow, build_leaderboard
+from ground_truth.providers import load_slots
 from ground_truth.store.db import connect
+
+_REPO = Path(__file__).resolve().parents[2]
+_DEFAULT_MODELS_YAML = _REPO / "models.yaml"
 
 
 @dataclass(frozen=True)
@@ -146,18 +150,24 @@ def leaderboard_row_to_dict(row: LeaderboardRow) -> dict[str, object]:
 
 
 def emit_all(
-    con: duckdb.DuckDBPyConnection, out_dir: Path, *, as_of: datetime, analysis_seed: int
+    con: duckdb.DuckDBPyConnection,
+    out_dir: Path,
+    *,
+    as_of: datetime,
+    analysis_seed: int,
+    models_yaml: Path = _DEFAULT_MODELS_YAML,
 ) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
 
     # Headline numbers are computed against the private split, never the public one (the
-    # public split exists only for reproducibility). specs={} is deliberate: build_leaderboard
-    # has a documented KNOWN GAP (its own module docstring) where it raises
-    # TokenCountsUnavailable for any slot with real accuracy data before specs is ever
-    # touched. That exception is left to propagate uncaught here -- fabricating a placeholder
-    # cost is exactly what CLAUDE.md rule 5 forbids.
-    rows = build_leaderboard(con, split=Split.PRIVATE, seed=analysis_seed, specs={})
+    # public split exists only for reproducibility). Real specs, loaded from models.yaml:
+    # build_leaderboard raises TokenCountsUnavailable for any slot whose outputs carry no
+    # token count, and that exception is left to propagate uncaught here -- fabricating a
+    # placeholder cost is exactly what CLAUDE.md rule 5 forbids.
+    rows = build_leaderboard(
+        con, split=Split.PRIVATE, seed=analysis_seed, specs=load_slots(models_yaml)
+    )
     leaderboard_path = out_dir / "leaderboard.json"
     write_json(
         leaderboard_path,
@@ -275,6 +285,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="bootstrap/analysis RNG seed, published alongside the results so a stranger "
         "can regenerate them exactly",
     )
+    parser.add_argument(
+        "--models-yaml",
+        type=Path,
+        default=_DEFAULT_MODELS_YAML,
+        help="path to models.yaml (default: repo root's models.yaml)",
+    )
     return parser.parse_args(argv)
 
 
@@ -282,7 +298,13 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     con = connect(args.db)
     try:
-        paths = emit_all(con, args.out, as_of=args.as_of, analysis_seed=args.analysis_seed)
+        paths = emit_all(
+            con,
+            args.out,
+            as_of=args.as_of,
+            analysis_seed=args.analysis_seed,
+            models_yaml=args.models_yaml,
+        )
     finally:
         con.close()
     for path in paths:

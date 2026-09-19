@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from ground_truth.matrix.cost import PlaceholderPricingError
 from ground_truth.publish.artifacts import (
     PrivateVerdict,
     emit_all,
@@ -41,13 +42,25 @@ def seed(con, item_id, split, secret_value, content_hash):
         [f"r-{item_id}", now],
     )
     con.execute(
-        "INSERT INTO outputs VALUES (?,?,?,1,?,'call','prov',NULL,10,'ph',?)",
+        "INSERT INTO outputs VALUES (?,?,?,1,?,'call','prov',NULL,10,'ph',?,NULL)",
         [f"o-{item_id}", f"r-{item_id}", item_id, json.dumps({"contract_sum": secret_value}), now],
     )
     con.execute(
         "INSERT INTO verdicts VALUES (?,?,'contract_sum','exact','1','v1',true,'ok',?)",
         [f"v-{item_id}", f"o-{item_id}", now],
     )
+
+
+def test_emit_all_refuses_placeholder_pricing_for_a_real_slot(con, tmp_path):
+    """emit_all's default models_yaml is the repo's real, checked-in models.yaml -- which is
+    explicitly an unaudited placeholder scaffold (see its own header). Real accuracy data on
+    a slot that file describes ('slot-a') must not reach a published CostClaim built from
+    fake prices; PlaceholderPricingError proves this end to end, not just at the cost.py
+    unit level."""
+    seed(con, "priv1", "private", "999.99", "hash-priv")
+    con.execute("UPDATE outputs SET token_count = 500 WHERE item_id = 'priv1'")
+    with pytest.raises(PlaceholderPricingError):
+        emit_all(con, tmp_path, as_of=datetime(2026, 9, 7, tzinfo=UTC), analysis_seed=1)
 
 
 def test_private_verdict_type_carries_no_item_id_and_no_output():

@@ -80,6 +80,11 @@ class Response:
     provider_served: str
     fingerprint: str | None
     latency_ms: int
+    # Total tokens billed for the call (in + out combined). bok_ledger only stores one
+    # `tokens` column (INTERFACE-CONTRACT.md sec 3.4) -- no in/out split -- so that is all
+    # this shim can expose too. ground_truth.matrix.cost prices this against a blended
+    # rate rather than pretending it knows the split.
+    tokens: int
 
 
 class Quota(BaseModel):

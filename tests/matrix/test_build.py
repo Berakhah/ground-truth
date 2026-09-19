@@ -10,6 +10,7 @@ from ground_truth.graders.judge.aggregate import Sample
 from ground_truth.graders.judge.agreement import JudgeStatus, assess, record_decision
 from ground_truth.matrix.build import (
     LeaderboardRow,
+    SlotSpecMissing,
     TokenCountsUnavailable,
     _slot_accuracy,
     build_leaderboard,
@@ -42,7 +43,7 @@ def row(slot: str, low: float, point: float, high: float) -> LeaderboardRow:
     return LeaderboardRow(
         slot=slot,
         accuracy=Interval(point=point, low=low, high=high, n=180, method="cluster-BCa"),
-        cost=cost_per_1k_items(spec(slot), 2000, 500),
+        cost=cost_per_1k_items(spec(slot), 2000),
         latency=summarise_latency([100, 200, 300]),
         per_field={},
     )
@@ -87,26 +88,28 @@ def test_rows_carry_the_cost_caveat():
 
 # -- build_leaderboard / the judge-rejection exclusion guarantee -----------------------
 #
-# KNOWN GAP (see ground_truth/matrix/build.py's module docstring): `outputs`/`runs` do not
-# record token counts anywhere in the schema, so `build_leaderboard` cannot produce a real,
-# non-fabricated `CostClaim` -- `LeaderboardRow.cost` is a required field, and
-# `cost_per_1k_items` itself refuses non-positive token counts. Task 31's brief said to
-# escalate this rather than add schema beyond `judge_decisions` or invent a token count, so
-# `build_leaderboard` raises `TokenCountsUnavailable` at the cost step instead of guessing.
+# COST (see ground_truth/matrix/build.py's module docstring): `outputs.token_count` is
+# nullable -- rows written before that column existed, or written by a degraded-mode run
+# with providers disabled, carry no token count. `build_leaderboard` raises
+# `TokenCountsUnavailable` for any such slot rather than reporting a fabricated cost; once a
+# slot's outputs do carry token counts, it computes a real `CostClaim` via
+# `cost_per_1k_items`'s blended rate. Both paths are exercised below.
 #
 # The exclusion-join logic itself -- the actual guarantee this task exists to enforce -- is
 # fully implemented and real (`_slot_accuracy`, which `build_leaderboard` calls first). The
 # tests below prove: (1) that logic excludes a rejected field type's verdicts from the
 # accuracy that would become the headline number, on the real query against a real store,
 # and (2) `build_leaderboard` fails loudly rather than silently shipping a fabricated cost
-# once accuracy is ready to be reported. Once token-count storage exists, wiring
-# `_slot_accuracy`'s output into `LeaderboardRow.cost` is the one remaining line.
+# when token counts are missing, and (3) it produces a real cost when they are present.
 
 
-def _populate_two_field_types(con, *, rejected_status: str | None) -> None:
+def _populate_two_field_types(
+    con, *, rejected_status: str | None, token_count: int | None = None
+) -> None:
     """One item, one slot, one run, two field types (`money`, `date`) each graded once.
     `rejected_status` controls whether `money` carries a judge_decisions row and what its
-    status is; `date` never gets one, so it always survives the exclusion join."""
+    status is; `date` never gets one, so it always survives the exclusion join.
+    `token_count` defaults to NULL -- the pre-migration / degraded-mode case."""
     con.execute(
         "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
         "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
@@ -121,7 +124,8 @@ def _populate_two_field_types(con, *, rejected_status: str | None) -> None:
     )
     con.execute(
         "INSERT INTO outputs VALUES ('o1', 'r1', 'i1', 1, '{}', 'call1', 'prov', NULL, 100,"
-        " 'ph', now())"
+        " 'ph', now(), ?)",
+        [token_count],
     )
     con.execute(
         "INSERT INTO verdicts VALUES ('v1', 'o1', 'total', 'exact', '1', 'v1', true, 'ok', now())"
@@ -172,9 +176,28 @@ def test_latency_counts_each_output_once_not_once_per_graded_field(con):
 
 
 def test_build_leaderboard_refuses_to_fabricate_cost(con):
-    _populate_two_field_types(con, rejected_status=None)
+    _populate_two_field_types(con, rejected_status=None, token_count=None)
     with pytest.raises(TokenCountsUnavailable):
         build_leaderboard(con, split=Split.PUBLIC, seed=1, specs={"slot-a": spec("slot-a")})
+
+
+def test_build_leaderboard_reports_missing_spec_clearly(con):
+    """A slot present in the store (with real token counts) but absent from `specs` --
+    e.g. renamed or retired in models.yaml -- must fail with a documented error, not a bare
+    KeyError (cross-file tracer finding)."""
+    _populate_two_field_types(con, rejected_status=None, token_count=2000)
+    with pytest.raises(SlotSpecMissing):
+        build_leaderboard(con, split=Split.PUBLIC, seed=1, specs={})
+
+
+def test_build_leaderboard_computes_real_cost_when_token_counts_present(con):
+    _populate_two_field_types(con, rejected_status=None, token_count=2000)
+    rows = build_leaderboard(con, split=Split.PUBLIC, seed=1, specs={"slot-a": spec("slot-a")})
+    assert len(rows) == 1
+    row_ = rows[0]
+    assert row_.slot == "slot-a"
+    assert row_.cost.value == cost_per_1k_items(spec("slot-a"), 2000).value
+    assert "date" in row_.per_field
 
 
 # -- Task 27's writer wired into Task 31's reader --------------------------------------
