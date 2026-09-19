@@ -22,7 +22,7 @@ def seed(con, slot: str, fingerprints: list[str | None]) -> None:
     )
     for i, fp in enumerate(fingerprints):
         con.execute(
-            "INSERT INTO outputs VALUES (?,?,?,1,'{}','call','prov',?,10,'ph',?)",
+            "INSERT INTO outputs VALUES (?,?,?,1,'{}','call','prov',?,10,'ph',?,NULL)",
             [f"{slot}-{i}", run_id, f"i{i}", fp, datetime.now(UTC)],
         )
 

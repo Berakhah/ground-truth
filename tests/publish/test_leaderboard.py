@@ -28,7 +28,7 @@ def spec(slot):
 def row(slot, low, point, high):
     return LeaderboardRow(
         slot=slot, accuracy=Interval(point=point, low=low, high=high, n=180, method="cluster-BCa"),
-        cost=cost_per_1k_items(spec(slot), 2000, 500),
+        cost=cost_per_1k_items(spec(slot), 2000),
         latency=summarise_latency([100, 200, 300]), per_field={})
 
 

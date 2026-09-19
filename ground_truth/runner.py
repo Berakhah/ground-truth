@@ -221,7 +221,7 @@ def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces
                     failover=BENCHMARK_FAILOVER,
                 )
                 con.execute(
-                    "INSERT INTO outputs VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO outputs VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                     [
                         uuid.uuid4().hex,
                         run_id,
@@ -234,6 +234,7 @@ def execute_sweep(  # noqa: PLR0913 -- contract-shaped signature, see Interfaces
                         result.latency_ms,
                         prompt_hash,
                         datetime.now(UTC),
+                        result.tokens,
                     ],
                 )
         con.execute("UPDATE runs SET finished_at = ? WHERE run_id = ?", [datetime.now(UTC), run_id])

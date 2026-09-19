@@ -70,6 +70,7 @@ class CorrectFakeGateway(FakeGateway):
             provider_served="fake",
             fingerprint=None,
             latency_ms=42,
+            tokens=123,
         )
 
 
