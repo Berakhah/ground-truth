@@ -65,6 +65,7 @@ class FakeGateway:
             provider_served="fake",
             fingerprint=None,
             latency_ms=42,
+            tokens=123,
         )
 
 
@@ -95,6 +96,14 @@ def test_sweep_writes_one_output_per_item_slot_replicate(con):
     items = generate(count=4, seed=1, rubric_version="v1")
     sweep(con, FakeGateway(), items, ["slot-a", "slot-b"], 5)
     assert con.execute("SELECT count(*) FROM outputs").fetchone()[0] == 4 * 2 * 5
+
+
+def test_sweep_records_token_count(con):
+    """matrix/build.py's cost step reads outputs.token_count -- if the sweep never wrote it,
+    the whole "blended-rate, real cost" gap fix would still ship an unreachable column."""
+    items = generate(count=1, seed=1, rubric_version="v1")
+    sweep(con, FakeGateway(), items, ["slot-a"], 1)
+    assert con.execute("SELECT token_count FROM outputs").fetchone()[0] == 123  # noqa: PLR2004
 
 
 def test_sweep_never_writes_verdicts(con):
