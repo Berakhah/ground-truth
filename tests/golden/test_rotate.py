@@ -158,6 +158,26 @@ def test_fraction_out_of_range_raises(con, tmp_path):
         )
 
 
+def test_rotation_with_fraction_rounding_to_zero_is_a_noop(con, tmp_path):
+    # 100 active items * 0.001 rounds to 0 -- must not build an empty SQL `IN ()`.
+    record = rotate_private_split(
+        con,
+        fraction=0.001,
+        new_seed=99,
+        seed_ref="ref",
+        release="2027.01.15",
+        rubric_version="v1",
+        salt=_SALT,
+        repo_root=tmp_path,
+    )
+    assert record.retired_hashes == []
+    assert record.added_hashes == []
+    after = con.execute(
+        "SELECT count(*) FROM items WHERE split='private' AND retired_at IS NULL"
+    ).fetchone()[0]
+    assert after == 100  # noqa: PLR2004
+
+
 def test_short_salt_is_refused(con, tmp_path):
     with pytest.raises(ValueError, match="entropy"):
         rotate_private_split(

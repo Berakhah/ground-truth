@@ -175,6 +175,18 @@ def test_latency_counts_each_output_once_not_once_per_graded_field(con):
     assert result["slot-a"].latency.n == 1
 
 
+def test_retired_item_is_excluded_from_current_accuracy(con):
+    """A private item that a later rotation retired (golden/rotate.py) is marked, never
+    deleted, so historical verdicts against it stay valid -- but a *current* leaderboard
+    build must not mix its stale outputs back into the active cohort's headline number
+    (review finding: retired items were never excluded from the accuracy query)."""
+    _populate_two_field_types(con, rejected_status=None)
+    con.execute("UPDATE items SET split = 'private' WHERE item_id = 'i1'")
+    con.execute("UPDATE items SET retired_at = now() WHERE item_id = 'i1'")
+    result = _slot_accuracy(con, split=Split.PRIVATE, seed=1)
+    assert "slot-a" not in result, "a retired item's verdicts must not reach current accuracy"
+
+
 def test_build_leaderboard_refuses_to_fabricate_cost(con):
     _populate_two_field_types(con, rejected_status=None, token_count=None)
     with pytest.raises(TokenCountsUnavailable):
