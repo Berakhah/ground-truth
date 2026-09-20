@@ -58,7 +58,8 @@ _OBSERVATIONS_SQL = """
     JOIN items i ON i.item_id = o.item_id
     JOIN item_fields ifld ON ifld.item_id = o.item_id AND ifld.field_name = v.field_name
     LEFT JOIN judge_decisions jd ON jd.field_type = ifld.field_type
-    WHERE i.split = ? AND (jd.status IS NULL OR jd.status != 'rejected')
+    WHERE i.split = ? AND i.retired_at IS NULL
+          AND (jd.status IS NULL OR jd.status != 'rejected')
 """
 
 
