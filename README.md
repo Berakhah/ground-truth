@@ -56,3 +56,9 @@ This is a published document with an interface, not a dashboard.
 
 - [`docs/methodology.md`](docs/methodology.md) — how the golden set, splits, and statistics are built, and why.
 - [`docs/rubric.md`](docs/rubric.md) — what counts as a correct extraction, per field type, frozen before labelling.
+
+## Security
+
+To report a vulnerability, see [`SECURITY.md`](SECURITY.md). For the fuller security posture —
+private-split protection, secret handling, supply-chain and CI/CD controls — see
+[`docs/security.md`](docs/security.md).
