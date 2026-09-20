@@ -31,9 +31,34 @@ export const metadata: Metadata = {
     "Pay-application and invoice field-extraction accuracy: a published methodology and a number you can reproduce.",
 };
 
+// GitHub Pages serves this as a static site and cannot set response headers, so the CSP has
+// to be a <meta http-equiv> tag in <head> rather than a real Content-Security-Policy header
+// (00 SS5.2 / security baseline, Task 52 item 7). The whole site is self-contained -- no
+// external scripts, styles, images, fonts, or API calls -- so every directive below is
+// `'self'`-only except two `'unsafe-inline'`s that Next.js's static export leaves no way
+// around: it embeds its own RSC hydration payload as inline <script> tags and its
+// critical-path CSS as inline <style>, with no per-request server to hand out a nonce. Both
+// gaps are Next.js's own inline bootstrap, not third-party or user-controlled content -- there
+// is no template injection point here, so `'unsafe-inline'` does not reopen an XSS the rest of
+// this CSP was meant to close.
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+      <head>
+        <meta httpEquiv="Content-Security-Policy" content={CONTENT_SECURITY_POLICY} />
+      </head>
       <body>{children}</body>
     </html>
   );
