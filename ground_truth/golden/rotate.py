@@ -27,6 +27,7 @@ import duckdb
 
 from ground_truth.golden.build import _ENTROPY_FLOOR
 from ground_truth.golden.generate import generate, render_document
+from ground_truth.golden.manifest import write_manifest_from_db
 from ground_truth.golden.schema import Item, Split
 
 
@@ -37,27 +38,6 @@ class RotationRecord:
     retired_hashes: list[str]
     added_hashes: list[str]
     seed_ref: str
-
-
-def _write_manifest_from_db(con: duckdb.DuckDBPyConnection, golden_dir: Path) -> None:
-    # Deliberately NOT `write_manifest(items, ...)` (ruling 3): that function needs full
-    # in-memory `Item` objects (fields, layout), which are not recoverable from DB rows for
-    # the items that were already active before this rotation ran. Rewritten directly from
-    # the DB instead, in the exact shape `write_manifest` produces.
-    rows = con.execute(
-        "SELECT content_hash FROM items WHERE split='private' AND retired_at IS NULL "
-        "ORDER BY content_hash"
-    ).fetchall()
-    hashes = [r[0] for r in rows]
-    body = {
-        "split": Split.PRIVATE.value,
-        "count": len(hashes),
-        "generated_at": datetime.now(UTC).isoformat(),
-        "item_hashes": hashes,
-    }
-    path = golden_dir / "manifest_private.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(body, indent=2), encoding="utf-8")
 
 
 def _insert_replacement_items(
@@ -150,7 +130,7 @@ def rotate_private_split(  # noqa: PLR0913, PLR0917 -- each param is a distinct,
     for item in replacements:
         (corpus_dir / f"{item.item_id}.txt").write_text(render_document(item), encoding="utf-8")
 
-    _write_manifest_from_db(con, repo_root / "golden")
+    write_manifest_from_db(con, Split.PRIVATE, repo_root / "golden" / "manifest_private.json")
 
     added_hashes = [item.content_hash for item in replacements]
     con.execute(
