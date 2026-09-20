@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/PageHeader";
 import { loadLeaderboard, loadRegression } from "@/lib/artifacts";
 
 export default function RegressionPage() {
@@ -7,23 +8,18 @@ export default function RegressionPage() {
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      <header className="masthead">
-        <div className="masthead__heading">
-          <h1>Regression Watch</h1>
-          <p className="masthead__subtitle">
+      <PageHeader
+        title="Regression Watch"
+        subtitle={
+          <>
             Scheduled drift detection
             {data.look !== undefined && data.total_looks !== undefined
               ? ` — look ${data.look} of ${data.total_looks}`
               : null}
-          </p>
-        </div>
-        <nav aria-label="Report">
-          <a href={methodology_url}>Methodology</a>
-        </nav>
-      </header>
+          </>
+        }
+        nav={<a href={methodology_url}>Methodology</a>}
+      />
 
       {data.placeholder ? (
         <div className="placeholder-banner" role="status" data-testid="placeholder-banner">
