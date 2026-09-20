@@ -41,9 +41,18 @@ export const metadata: Metadata = {
 // gaps are Next.js's own inline bootstrap, not third-party or user-controlled content -- there
 // is no template injection point here, so `'unsafe-inline'` does not reopen an XSS the rest of
 // this CSP was meant to close.
+// `next dev` (used by local dev and by the Playwright e2e/a11y suite, playwright.config.ts)
+// genuinely needs 'unsafe-eval' for React Fast Refresh -- it is a dev-server-only mechanism
+// that never ships in `next build`'s static export, so scoping it to non-production keeps
+// the deployed CSP exactly as strict as the comment above describes.
+const SCRIPT_SRC =
+  process.env.NODE_ENV === "production"
+    ? "script-src 'self' 'unsafe-inline'"
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  SCRIPT_SRC,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
