@@ -27,6 +27,7 @@ from pathlib import Path
 
 import duckdb
 
+from ground_truth.golden.manifest import write_manifest_from_db
 from ground_truth.golden.schema import Split
 from ground_truth.matrix.build import LeaderboardRow, build_leaderboard
 from ground_truth.providers import load_slots
@@ -188,11 +189,7 @@ def emit_all(
     paths.append(private_path)
 
     manifest_path = out_dir / "manifest_private.json"
-    hashes = [
-        row[0]
-        for row in con.execute("SELECT content_hash FROM items WHERE split = 'private'").fetchall()
-    ]
-    write_json(manifest_path, {"item_hashes": sorted(hashes)})
+    write_manifest_from_db(con, Split.PRIVATE, manifest_path)
     paths.append(manifest_path)
 
     calibration_path = out_dir / "calibration.json"
