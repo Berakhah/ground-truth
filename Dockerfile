@@ -5,19 +5,22 @@
 #
 # `docker compose up`'s default command runs the test suite as the
 # fresh-machine smoke test (00-SHARED-FOUNDATION.md R5), which needs
-# pytest/pytest-cov -- both live in [dependency-groups] dev, so this stays
-# one stage with the dev group installed, not a slim --no-dev runtime image
-# that couldn't run its own smoke test.
-FROM python:3.12-slim
+# pytest/pytest-cov -- both live in [dependency-groups] dev, so the venv
+# built below keeps the dev group installed, not a slim --no-dev runtime
+# venv that couldn't run its own smoke test.
+#
+# Multi-stage (00 security baseline, Task 52 item 1): the `builder` stage
+# holds `uv` itself and the full `uv sync` build cache; the final stage
+# copies only the resulting venv and the source tree, so `uv` and its
+# resolver/download cache never ship in the image that runs untrusted-ish
+# test input.
 
-RUN groupadd --gid 1000 groundtruth \
-    && useradd --uid 1000 --gid groundtruth --create-home --shell /usr/sbin/nologin groundtruth
+FROM python:3.12-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /usr/local/bin/
 
 WORKDIR /app
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
-    PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
@@ -28,7 +31,23 @@ RUN uv sync --frozen
 
 COPY . .
 
-RUN chown -R groundtruth:groundtruth /app
+FROM python:3.12-slim AS runtime
+
+RUN groupadd --gid 1000 groundtruth \
+    && useradd --uid 1000 --gid groundtruth --create-home --shell /usr/sbin/nologin groundtruth
+
+WORKDIR /app
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+COPY --from=builder --chown=groundtruth:groundtruth /app /app
+
+# Read-only rootfs (docker-compose.yml sets `read_only: true`): the app
+# never writes outside /app/data and /tmp, both mounted as writable
+# tmpfs/volumes by the compose file, so no further writable paths are
+# declared here.
 USER groundtruth
 
 CMD ["uv", "run", "pytest", "--cov=ground_truth", "--cov-report=term-missing", "--cov-fail-under=75"]

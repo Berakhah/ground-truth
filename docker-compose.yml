@@ -10,8 +10,26 @@
 # fresh machine's setup works with no manual steps beyond copying
 # .env.example to .env. For the actual CLI commands (build the golden
 # set, render a triage report), see README.md.
+#
+# read_only: true (00 security baseline, Task 52 item 1): the container's
+# root filesystem is mounted read-only. The only things the process needs
+# to write are pytest/coverage scratch state and the DuckDB result file --
+# both are given explicit writable mounts below rather than loosening the
+# rootfs.
 services:
   app:
     build: .
     env_file:
       - .env
+    environment:
+      # Keep pytest/coverage scratch state off the read-only /app tree.
+      - COVERAGE_FILE=/tmp/.coverage
+      - PYTEST_ADDOPTS=-p no:cacheprovider
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      # data/results.duckdb is gitignored (never published) and is the one
+      # file the app writes under its own tree; bind-mount it so it stays
+      # writable and persists across `docker compose up` runs.
+      - ./data:/app/data
