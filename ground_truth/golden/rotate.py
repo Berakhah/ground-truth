@@ -132,11 +132,12 @@ def rotate_private_split(  # noqa: PLR0913, PLR0917 -- each param is a distinct,
     retired_hashes = [r[0] for r in retiring]
 
     rotated_at = datetime.now(UTC)
-    con.execute(
-        f"UPDATE items SET retired_at = ? WHERE content_hash IN "
-        f"({','.join(['?'] * len(retired_hashes))})",
-        [rotated_at, *retired_hashes],
-    )
+    if retired_hashes:
+        con.execute(
+            f"UPDATE items SET retired_at = ? WHERE content_hash IN "
+            f"({','.join(['?'] * len(retired_hashes))})",
+            [rotated_at, *retired_hashes],
+        )
 
     replacements = [
         item.model_copy(update={"split": Split.PRIVATE})
