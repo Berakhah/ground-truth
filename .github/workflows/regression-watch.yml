@@ -1,3 +1,8 @@
+# H12 / 00 security baseline (Task 52 item 5): schedule-only trigger, never
+# pull_request_target -- a fork-submitted PR must never run this with repository secrets.
+# This workflow does not hold, and must never be given, a model-provider API key: the live
+# sweep that needs one runs locally, and only its redacted result (artifacts/regression.json)
+# is committed for this workflow to read.
 name: regression-watch
 on:
   schedule:

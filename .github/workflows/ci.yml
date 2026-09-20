@@ -1,5 +1,7 @@
 name: ci
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -39,3 +41,25 @@ jobs:
       - run: npm run build --prefix web
       - run: npx --prefix web playwright install --with-deps chromium
       - run: npx --prefix web playwright test
+
+  dependency-audit:
+    name: dependency scanning (00 SS8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: pip-audit (Python dependencies)
+        # continue-on-error: this is a new gate (Task 52 item 3) surfacing findings for
+        # triage; it is advisory, not blocking, until a first pass of findings has been
+        # reviewed and either fixed or explicitly accepted. Flip to blocking once that
+        # triage has happened -- see docs/security.md.
+        continue-on-error: true
+        run: |
+          uv export --frozen --no-hashes -o /tmp/requirements.txt
+          uvx pip-audit -r /tmp/requirements.txt
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm ci --prefix web
+      - name: npm audit (web/ dependencies)
+        continue-on-error: true
+        run: npm audit --prefix web --audit-level=high
