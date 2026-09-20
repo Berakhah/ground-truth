@@ -1,0 +1,34 @@
+# Nightly live smoke test (00 B4 / 04 B6, security baseline Task 52 item 8). A *weekly full
+# sweep* (regression-watch.yml) is not a smoke test for a model silently disappearing behind a
+# stable name -- if quota for the week is already spent, the first sign could be days late.
+# This runs cheaply, once a day, and opens an issue on failure WITHOUT failing the job itself:
+# a scheduled workflow nobody is watching in real time must not go red and be ignored forever.
+name: nightly-smoke
+on:
+  schedule:
+    - cron: '17 5 * * *'
+permissions:
+  contents: read
+  issues: write
+jobs:
+  smoke:
+    name: nightly-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
+      - run: uv sync --all-extras
+      - name: run the smoke check
+        id: smoke
+        # continue-on-error: this job must never go red for a scheduled run nobody is
+        # watching -- a real failure is reported as a GitHub issue below instead.
+        continue-on-error: true
+        run: uv run python -m ground_truth.regression.smoke
+      - name: open an issue if the smoke check itself errored
+        if: steps.smoke.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Nightly smoke test failed to run on $(date -u +%Y-%m-%d)" \
+            --body "ground_truth.regression.smoke exited non-zero. See the workflow run for this job's log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
