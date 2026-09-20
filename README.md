@@ -39,12 +39,12 @@ The two CLI entrypoints:
 # Build the golden corpus (120 public + 180 private items) into
 # golden/corpus/ and data/results.duckdb, from GT_PUBLIC_SEED /
 # GT_PRIVATE_SEED / GT_HASH_SALT in .env.
-docker compose run app uv run python -m ground_truth.golden.build
+docker compose run app python -m ground_truth.golden.build
 
 # Render the print-ready triage report (expected-value automate /
 # route-to-human recommendations) from an intake CSV -- see
 # docs/triage-intake-template.csv for the expected columns.
-docker compose run app uv run python -m ground_truth.triage.report \
+docker compose run app python -m ground_truth.triage.report \
   --intake path/to/intake.csv \
   --out path/to/report.html \
   --methodology-url https://example.com/methodology
