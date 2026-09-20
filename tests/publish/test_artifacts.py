@@ -51,6 +51,47 @@ def seed(con, item_id, split, secret_value, content_hash):
     )
 
 
+def test_manifest_private_excludes_retired_items(con, tmp_path):
+    """emit_all's manifest previously built its own inline query (`WHERE split = 'private'`,
+    no `retired_at` filter) -- a third, drifted-out-of-sync copy of the manifest-building
+    logic in golden/manifest.py and golden/rotate.py. A rotated-out item's hash must not
+    keep appearing in a manifest published after its rotation, and the shape must match the
+    one canonical manifest format (`split`, `count`, `generated_at`, `item_hashes`)."""
+    seed(con, "priv1", "private", "999.99", "hash-priv")
+    seed(con, "priv2", "private", "888.88", "hash-retired")
+    con.execute("UPDATE items SET retired_at = now() WHERE item_id = 'priv2'")
+    con.execute("UPDATE outputs SET token_count = 500 WHERE item_id = 'priv1'")
+    real_models_yaml = tmp_path / "models.yaml"
+    real_models_yaml.write_text(
+        "slots:\n"
+        "  slot-a:\n"
+        "    family: acme-family\n"
+        "    provider: acme-cloud\n"
+        "    model_ref: acme-v1\n"
+        "    trains_on_data: false\n"
+        "    commercial_use: true\n"
+        "    exposes_fingerprint: false\n"
+        "    list_price_in_per_1m: '1.00'\n"
+        "    list_price_out_per_1m: '2.00'\n"
+        "    pricing_url: https://example.invalid/pricing\n"
+        "    retrieved_at: 2026-09-01\n",
+        encoding="utf-8",
+    )
+    out_dir = tmp_path / "out"
+    emit_all(
+        con,
+        out_dir,
+        as_of=datetime(2026, 9, 7, tzinfo=UTC),
+        analysis_seed=1,
+        models_yaml=real_models_yaml,
+    )
+    manifest = json.loads((out_dir / "manifest_private.json").read_text(encoding="utf-8"))
+    assert manifest["item_hashes"] == ["hash-priv"]
+    assert manifest["count"] == 1
+    assert manifest["split"] == "private"
+    assert "generated_at" in manifest
+
+
 def test_emit_all_refuses_placeholder_pricing_for_a_real_slot(con, tmp_path):
     """emit_all's default models_yaml is the repo's real, checked-in models.yaml -- which is
     explicitly an unaudited placeholder scaffold (see its own header). Real accuracy data on
