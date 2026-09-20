@@ -21,6 +21,13 @@ must not outweigh one with fewer). This is exactly the arithmetic in
 
 Exits 0 if every slot's recomputed accuracy matches the published point estimate within
 TOLERANCE, non-zero otherwise.
+
+SECURITY (00 security baseline, Task 52): this is the one script strangers are invited to
+download and run against untrusted, attacker-controllable input -- a downloaded `artifacts/`
+directory nobody here signs or vets before a reader fetches it. It parses that input with
+`json.loads` only, and must NEVER be changed to use `eval`, `exec`, `pickle`, or `yaml.load`
+(even with a "trusted" default `Loader=` -- use `yaml.safe_load` if YAML is ever needed here),
+all of which can execute arbitrary code from file content alone.
 """
 
 from __future__ import annotations
