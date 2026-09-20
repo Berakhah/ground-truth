@@ -1,5 +1,6 @@
 import { ConfusionMatrix } from "@/components/ConfusionMatrix";
 import { IntervalBar } from "@/components/IntervalBar";
+import { PageHeader } from "@/components/PageHeader";
 import { loadJudgeAgreement, loadLeaderboard, type JudgeAgreementPayload } from "@/lib/artifacts";
 
 // Mirrors ground_truth.graders.judge.agreement.REJECTION_THRESHOLD (0.667, pinned to
@@ -23,18 +24,11 @@ export function JudgeAgreementView({ judge, methodologyUrl }: JudgeAgreementView
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      <header className="masthead">
-        <div className="masthead__heading">
-          <h1>Judge Agreement</h1>
-          <p className="masthead__subtitle">Judge-versus-human agreement, by field type</p>
-        </div>
-        <nav aria-label="Report">
-          <a href={methodologyUrl}>Methodology</a>
-        </nav>
-      </header>
+      <PageHeader
+        title="Judge Agreement"
+        subtitle="Judge-versus-human agreement, by field type"
+        nav={<a href={methodologyUrl}>Methodology</a>}
+      />
 
       {judge.placeholder ? (
         <div className="placeholder-banner" role="status" data-testid="placeholder-banner">

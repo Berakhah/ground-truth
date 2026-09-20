@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/PageHeader";
 import { loadTriageExample } from "@/lib/artifacts";
 
 function readable(recommendation: string): string {
@@ -14,18 +15,11 @@ export default function TriagePage() {
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      <header className="masthead">
-        <div className="masthead__heading">
-          <h1>Triage Report</h1>
-          <p className="masthead__subtitle">Synthetic worked example — never a real engagement</p>
-        </div>
-        <nav aria-label="Report">
-          <Link href="/">Leaderboard</Link>
-        </nav>
-      </header>
+      <PageHeader
+        title="Triage Report"
+        subtitle="Synthetic worked example — never a real engagement"
+        nav={<Link href="/">Leaderboard</Link>}
+      />
 
       {data.placeholder ? (
         <div className="placeholder-banner" role="status" data-testid="placeholder-banner">

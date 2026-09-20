@@ -1,5 +1,6 @@
 import { Claim } from "@/components/Claim";
 import { IntervalBar } from "@/components/IntervalBar";
+import { PageHeader } from "@/components/PageHeader";
 import { loadLeaderboard } from "@/lib/artifacts";
 
 export default function Page() {
@@ -7,20 +8,11 @@ export default function Page() {
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      <header className="masthead">
-        <div className="masthead__heading">
-          <h1>Ground Truth</h1>
-          <p className="masthead__subtitle">
-            Pay-application &amp; invoice field-extraction accuracy
-          </p>
-        </div>
-        <nav aria-label="Report">
-          <a href={data.methodology_url}>Methodology</a>
-        </nav>
-      </header>
+      <PageHeader
+        title="Ground Truth"
+        subtitle="Pay-application & invoice field-extraction accuracy"
+        nav={<a href={data.methodology_url}>Methodology</a>}
+      />
 
       {data.placeholder ? (
         <div className="placeholder-banner" role="status" data-testid="placeholder-banner">

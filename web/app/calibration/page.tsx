@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/PageHeader";
 import { ReliabilityDiagram } from "@/components/ReliabilityDiagram";
 import { loadCalibration, loadLeaderboard, type CalibrationCurve } from "@/lib/artifacts";
 
@@ -51,18 +52,11 @@ export default function CalibrationPage() {
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      <header className="masthead">
-        <div className="masthead__heading">
-          <h1>Calibration</h1>
-          <p className="masthead__subtitle">Reliability curves, by field type</p>
-        </div>
-        <nav aria-label="Report">
-          <a href={methodology_url}>Methodology</a>
-        </nav>
-      </header>
+      <PageHeader
+        title="Calibration"
+        subtitle="Reliability curves, by field type"
+        nav={<a href={methodology_url}>Methodology</a>}
+      />
 
       {data.placeholder ? (
         <div className="placeholder-banner" role="status" data-testid="placeholder-banner">

@@ -1,4 +1,5 @@
 import { ItemsTable } from "@/components/ItemsTable";
+import { PageHeader } from "@/components/PageHeader";
 import { loadLeaderboard, loadPublicVerdicts } from "@/lib/artifacts";
 
 export default function ItemsPage() {
@@ -7,18 +8,11 @@ export default function ItemsPage() {
 
   return (
     <>
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-      <header className="masthead">
-        <div className="masthead__heading">
-          <h1>Item Explorer</h1>
-          <p className="masthead__subtitle">Public-split verdicts, by field and failure mode</p>
-        </div>
-        <nav aria-label="Report">
-          <a href={methodology_url}>Methodology</a>
-        </nav>
-      </header>
+      <PageHeader
+        title="Item Explorer"
+        subtitle="Public-split verdicts, by field and failure mode"
+        nav={<a href={methodology_url}>Methodology</a>}
+      />
 
       {/* verdicts_public.jsonl is a line-delimited list of PublicVerdict records -- it has no
           top-level slot for a `placeholder` flag the way leaderboard.json and
