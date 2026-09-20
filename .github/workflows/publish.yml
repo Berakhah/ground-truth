@@ -5,8 +5,6 @@ on:
       - 'v*'
 permissions:
   contents: read
-  pages: write
-  id-token: write
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -44,6 +42,10 @@ jobs:
     name: regenerate artifacts, verify reproduction, build the site
     needs: gate
     runs-on: ubuntu-latest
+    # contents: write is needed only here, to create the tag's GitHub release and attach the
+    # SBOM asset to it -- narrower than the workflow-default contents: read.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -79,11 +81,27 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/out
+      - name: generate CycloneDX SBOM for the Python dependency set
+        # 00 SS8 / Task 52 item 3: a downstream consumer of a release should be able to audit
+        # exactly what shipped without re-resolving the lockfile themselves.
+        run: |
+          uv export --frozen --no-hashes -o /tmp/requirements.txt
+          uvx --from cyclonedx-bom cyclonedx-py requirements /tmp/requirements.txt \
+            --output-format json --output-file sbom.cdx.json
+      - name: attach the SBOM to this tag's GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --generate-notes --verify-tag || true
+          gh release upload "${GITHUB_REF_NAME}" sbom.cdx.json --clobber
 
   deploy:
     name: deploy to GitHub Pages
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

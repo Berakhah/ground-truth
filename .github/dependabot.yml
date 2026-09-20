@@ -1,0 +1,22 @@
+# Dependabot config (00 SS8 / Task 52 item 3). Weekly PRs proposing version bumps for the
+# three dependency ecosystems this repo actually has: the Python project (pyproject.toml /
+# uv.lock), the web/ npm project, and the GitHub Actions used in .github/workflows/. Every
+# action reference in those workflows is pinned to a commit SHA (Task 52 item 4); Dependabot
+# still tracks and proposes updates to those pins, it just does so as a reviewed PR rather than
+# a live mutable-tag rewrite.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
