@@ -1,16 +1,18 @@
+# Every `rev:` below is pinned to an immutable commit SHA, not a mutable tag (00 security
+# baseline, Task 52 item 4). The tag is kept as a trailing comment for human readability.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: 75b98813cfb7e663870a28c74366a1e99d7bfe79 # v0.6.9
     hooks:
       - id: ruff
         args: [--fix]
       - id: ruff-format
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.21.0
+    rev: aabe3815394d24d5b8198ba6068a99e0ba7601b1 # v8.21.0
     hooks:
       - id: gitleaks
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: d4911cfb7f1010759fde68da196036feeb25b99d # v1.11.2
     hooks:
       - id: mypy
         args: [--strict]

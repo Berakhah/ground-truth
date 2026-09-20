@@ -6,9 +6,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with: { fetch-depth: 0 }
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
       - run: uv sync --all-extras
       - run: uv run ruff check .
       - run: uv run ruff format --check .
@@ -33,8 +33,8 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: '22' }
       - run: npm ci --prefix web
       - run: npx --prefix web tsc --noEmit
@@ -46,8 +46,8 @@ jobs:
     name: dependency scanning (00 SS8)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
       - name: pip-audit (Python dependencies)
         # continue-on-error: this is a new gate (Task 52 item 3) surfacing findings for
         # triage; it is advisory, not blocking, until a first pass of findings has been
@@ -57,7 +57,7 @@ jobs:
         run: |
           uv export --frozen --no-hashes -o /tmp/requirements.txt
           uvx pip-audit -r /tmp/requirements.txt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: '22' }
       - run: npm ci --prefix web
       - name: npm audit (web/ dependencies)
