@@ -11,9 +11,9 @@ security baseline Task 52 item 8).
   ```python
   import vcr
 
+
   @vcr.use_cassette("tests/cassettes/<descriptive-name>.yaml")
-  def test_something_that_calls_a_real_provider() -> None:
-      ...
+  def test_something_that_calls_a_real_provider() -> None: ...
   ```
 
 - Record the cassette once, against a real (rate-limited, free-tier) call, then commit it.
