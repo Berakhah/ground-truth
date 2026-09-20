@@ -1,0 +1,32 @@
+# Custom gitleaks rules for Ground Truth (00 SS3.4 / SS5.4, Task 52 item 6).
+#
+# The default gitleaks ruleset (extended below, not replaced) matches well-known provider key
+# shapes -- it has no idea that this project's own env vars, GT_PRIVATE_SEED and GT_HASH_SALT,
+# are secrets. Without a custom rule, either could be committed with a real value and the
+# `gitleaks` pre-commit hook (00 SS3.4) would say nothing.
+#
+# `tests/test_gitleaks_rules.py` loads these rules directly (it does not shell out to the
+# gitleaks binary, which may not be installed on every machine that runs `pytest`) so the rule
+# and its regression test can never drift apart.
+
+title = "ground-truth custom rules"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "gt-private-seed-or-hash-salt"
+description = "Ground Truth private generator seed or hash salt (GT_PRIVATE_SEED / GT_HASH_SALT / GT_*_SEED) committed with a real-looking value"
+# Matches `GT_..._SEED` or `GT_HASH_SALT` (case-insensitive) -- but never `GT_PUBLIC_SEED`,
+# which docs/methodology.md and .env.example intentionally publish -- followed on the SAME
+# line by an `=`/`:` assignment (bounded by [ \t]*, never \s*, so this cannot false-match
+# across a paragraph of prose) and a value that looks like a real generated secret (>=16
+# contiguous alnum/underscore chars, no punctuation or spaces) -- not the obvious
+# "change-me-and-never-commit-this" placeholder shipped in .env.example, whose hyphenated
+# English words are all shorter than that.
+regex = '''(?i)\bGT_(?!PUBLIC_SEED\b)(?:[A-Z0-9]*_SEED|HASH_SALT)\b[ \t]*[:=][ \t]*["']?[A-Za-z0-9_]{16,}["']?'''
+tags = ["ground-truth", "secret", "private-split"]
+
+[allowlist]
+description = "the checked-in template ships only the already-public GT_PUBLIC_SEED value and obvious change-me placeholders for the two vars that must never be committed for real"
+paths = ['''(^|/)\.env\.example$''']
