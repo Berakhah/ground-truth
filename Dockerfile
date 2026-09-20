@@ -50,4 +50,11 @@ COPY --from=builder --chown=groundtruth:groundtruth /app /app
 # declared here.
 USER groundtruth
 
-CMD ["uv", "run", "pytest", "--cov=ground_truth", "--cov-report=term-missing", "--cov-fail-under=75"]
+# Invoke pytest directly from the venv, not via `uv run`: the runtime stage never copies the
+# `uv`/`uvx` binaries in (deliberately -- they're a build tool, not a runtime dependency, see
+# the multi-stage comment above), so `uv run ...` would fail with "executable file not found
+# in $PATH" on a fresh `docker compose up`. PATH already puts /app/.venv/bin first (line 41),
+# and `uv sync --frozen` in the builder stage installed every [dependency-groups] dev tool
+# (including pytest itself) straight into that venv, so the venv's own `pytest` is already the
+# complete, correct one to run -- no `uv` needed at runtime at all.
+CMD ["pytest", "--cov=ground_truth", "--cov-report=term-missing", "--cov-fail-under=75"]

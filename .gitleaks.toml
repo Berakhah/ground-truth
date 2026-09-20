@@ -5,9 +5,20 @@
 # are secrets. Without a custom rule, either could be committed with a real value and the
 # `gitleaks` pre-commit hook (00 SS3.4) would say nothing.
 #
-# `tests/test_gitleaks_rules.py` loads these rules directly (it does not shell out to the
-# gitleaks binary, which may not be installed on every machine that runs `pytest`) so the rule
-# and its regression test can never drift apart.
+# gitleaks is a Go binary and its regex engine is RE2, which has NO lookahead/lookbehind or
+# backreference support at all (https://github.com/google/re2/wiki/Syntax). Every regex below
+# -- both rule regexes and allowlist regexes -- is written to avoid `(?!...)`, `(?<!...)`,
+# `(?=...)`, `(?<=...)`, and backreferences for exactly that reason. GT_PUBLIC_SEED (which
+# docs/methodology.md and .env.example intentionally publish) is excluded via a *separate*
+# rule-level `[[rules.allowlists]]` pass (gitleaks' own exclusion mechanism, matched against
+# the whole line) rather than an inline negative-lookahead assertion, which RE2 cannot express.
+#
+# `tests/test_gitleaks_rules.py` loads these rules -- main regex AND each rule's line-target
+# allowlist -- directly out of this file so the rule and its regression test can never drift
+# apart. It cannot substitute for actually running the real `gitleaks` binary (not available in
+# every environment that runs `pytest`), but every construct used here is confirmed against
+# gitleaks' own shipped config.toml (as of v8.21.0, the version pinned in
+# .pre-commit-config.yaml) to use only RE2-supported syntax.
 
 title = "ground-truth custom rules"
 
@@ -15,16 +26,25 @@ title = "ground-truth custom rules"
 useDefault = true
 
 [[rules]]
-id = "gt-private-seed-or-hash-salt"
-description = "Ground Truth private generator seed or hash salt (GT_PRIVATE_SEED / GT_HASH_SALT / GT_*_SEED) committed with a real-looking value"
-# Matches `GT_..._SEED` or `GT_HASH_SALT` (case-insensitive) -- but never `GT_PUBLIC_SEED`,
-# which docs/methodology.md and .env.example intentionally publish -- followed on the SAME
-# line by an `=`/`:` assignment (bounded by [ \t]*, never \s*, so this cannot false-match
-# across a paragraph of prose) and a value that looks like a real generated secret (>=16
-# contiguous alnum/underscore chars, no punctuation or spaces) -- not the obvious
-# "change-me-and-never-commit-this" placeholder shipped in .env.example, whose hyphenated
-# English words are all shorter than that.
-regex = '''(?i)\bGT_(?!PUBLIC_SEED\b)(?:[A-Z0-9]*_SEED|HASH_SALT)\b[ \t]*[:=][ \t]*["']?[A-Za-z0-9_]{16,}["']?'''
+id = "gt-seed"
+description = "Ground Truth generator seed (GT_PRIVATE_SEED or any other GT_*_SEED) committed with a real-looking value -- excludes GT_PUBLIC_SEED via the allowlist below, which is intentionally published"
+# Matches `GT_..._SEED` (case-insensitive) followed on the SAME line by an `=`/`:` assignment
+# (bounded by [ \t]*, never \s*, so this cannot false-match across a paragraph of prose) and a
+# value that looks like a real generated secret (>=16 contiguous alnum/underscore chars, no
+# punctuation or spaces) -- not the obvious "change-me-and-never-commit-this" placeholder
+# shipped in .env.example, whose hyphenated English words are all shorter than that.
+regex = '''(?i)\bGT_[A-Z0-9]*_SEED\b[ \t]*[:=][ \t]*["']?[A-Za-z0-9_]{16,}["']?'''
+tags = ["ground-truth", "secret", "private-split"]
+
+[[rules.allowlists]]
+description = "GT_PUBLIC_SEED is intentionally published -- exclude any line that names it, matched against the whole line (RE2 has no lookahead to do this inline)"
+regexTarget = "line"
+regexes = ['''(?i)GT_PUBLIC_SEED''']
+
+[[rules]]
+id = "gt-hash-salt"
+description = "Ground Truth hash salt (GT_HASH_SALT) committed with a real-looking value"
+regex = '''(?i)\bGT_HASH_SALT\b[ \t]*[:=][ \t]*["']?[A-Za-z0-9_]{16,}["']?'''
 tags = ["ground-truth", "secret", "private-split"]
 
 [allowlist]
