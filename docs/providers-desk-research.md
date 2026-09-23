@@ -557,3 +557,130 @@ No other public-source material turned up this pass that bears on the 16-column
 worksheet beyond the three threads above. In particular: no new OpenRouter,
 Cloudflare, Google, or GitHub Models findings — the first pass's coverage of those
 stands as-is.
+
+## Addendum — 2026-09-23 (third desk-research pass, nine parallel agents)
+
+Same standing as everything above: public, dated, cited, **not yet re-read on an
+account**. This pass ran nine independent research agents (one per candidate
+provider) without seeing this file first, then cross-checked their output against
+it after the fact. Recorded below only where it **confirms, extends, or conflicts**
+with the first two passes — not a restatement of what already stands.
+
+**GitHub Models.** Independently reconfirmed retired 2026-07-30, same citation
+(`docs.github.com/en/github-models`). No change.
+
+**Google AI Studio.** Two things this pass adds that the worksheet had marked
+`[YOU]`:
+- `GenerateContentResponse.modelVersion` and a `responseId` field are documented in
+  the API reference (`ai.google.dev/api/generate-content`) as present on every
+  response — a real fingerprint-equivalent signal, from a docs page rather than a
+  live call. Still needs a live response inspection to close `exposes_fingerprint`
+  properly (a documented schema isn't the same as an observed body), but it's a
+  stronger starting point than `[YOU]` blank.
+- The commercial-use terms (`ai.google.dev/gemini-api/terms`) explicitly frame the
+  free tier as "for developers building with Google AI models for professional or
+  business purposes, not for consumer use" — with a carve-out that **paid-only**
+  applies to serving end users in the EEA, Switzerland, or the UK. This doesn't
+  change the training finding above (still trains by default on the free tier,
+  confirmed independently again this pass, same quote) — training and
+  commercial-use permission are separate questions, and Google clears the second
+  while failing the first for `CLIENT_CONFIDENTIAL` purposes per `policy.py`.
+
+**Groq.** Rate limits reconfirmed byte-for-byte against `console.groq.com/docs/rate-limits`
+(30 RPM / 8K TPM / 1K RPD for `openai/gpt-oss-20b`) — matches the first pass
+exactly. Pricing remains unconfirmed against a vendor page (JS-rendered
+`groq.com/pricing` still won't fetch as text) — same wall, no progress. **One real
+gap closed**: the worksheet flagged Groq's website ToS as the *wrong* document and
+asked for the Services Agreement instead. This pass fetched
+`console.groq.com/docs/legal/services-agreement` directly and found: "Groq is not
+permitted to use Inputs or Outputs for training or fine-tuning any AI Model
+Services or other models, unless explicitly granted permission or instructed by
+Customer." This is the correct document, but it's a blanket contract clause, not
+free-tier-scoped language — treat `trains_on_data: false` as provisional on that
+basis, same caveat pattern as the Mistral/NVIDIA findings above.
+
+**OpenRouter.** This pass live-verified one `:free` model
+(`meta-llama/llama-3.3-70b-instruct:free`) exists via a direct
+`GET /api/v1/models/.../endpoints` call, and its response carries `text`-only
+`input_modalities` and no fingerprint-like field. **Important gap**: this model is
+*not* one of the 18 `:free` endpoints the worksheet's per-endpoint training-policy
+table above covers — its `data_policy.training` value is therefore still unknown by
+this file's own (more rigorous, endpoint-level) method, not just unconfirmed at the
+account level. Before this model enters `models.yaml`, it needs the same
+`all-providers` / per-endpoint `data_policy` lookup the worksheet already worked out
+how to do (see "Where the data actually lives" above) — reusing that method on this
+specific model, not re-deriving it.
+
+**Mistral.** New vendor-cited pricing this pass didn't have before:
+`mistral-small-2603` at $0.15 in / $0.60 out per 1M, fetched directly from
+`docs.mistral.ai/inference/pricing` (this URL rendered as plain text for this
+pass's agent, unlike the JS-rendering problems noted above — inconsistent
+renderability across fetch attempts is itself worth flagging, not just the
+individual results). Training finding **converges independently**: this pass's
+agent found the same training-by-default-with-opt-out policy via
+`help.mistral.ai/en/articles/347617`, a different URL than the addendum's Privacy
+Policy / DPA pair above, reaching the same conclusion via a second primary source.
+The tier-specific question (does "Experiment" specifically differ from paid) is
+still open in both passes.
+
+**Cloudflare Workers AI.** This pass priced a different model
+(`@cf/meta/llama-3.1-8b-instruct-fp8`: $0.045 in / $0.384 out) than the addendum's
+table above (Llama 3.2 1B / Llama 3.1 70B / DeepSeek V4 Pro) — not a conflict, just
+a different row of the same vendor-cited pricing page, confirming the page is
+readable and current. The no-training quote this pass found
+(`developers.cloudflare.com/workers-ai/platform/data-usage/`) is worded
+differently from the worksheet's service-specific-terms quote above but states the
+same thing — two independent Cloudflare pages agreeing `trains_on_data: false`.
+Commercial-use on the free tier specifically remains unresolved in both passes; a
+follow-up direct check of `cloudflare.com/service-specific-terms-application-services/`
+this session did not find a Workers AI section either (that page covers other
+products only — the worksheet's `service-specific-terms-developer-platform` URL is
+the one that actually addresses Workers AI training language and should be used for
+future commercial-use checks too, not the `-application-services` one).
+
+**SambaNova.** Pricing this pass found matches the addendum's table above exactly
+(Meta-Llama-3.3-70B-Instruct $0.60/$1.20, gpt-oss-120b $0.22/$0.59) — same vendor
+page, independently reconfirmed. Two new findings the worksheet didn't have: a
+`trains_on_data: false` reading from the Cloud EULA's Customer-Content exclusion
+language, and confirmation that responses carry a `system_fingerprint` field
+(example value `"fastcoe"`) per `docs.sambanova.ai/cloud/api-reference` — a genuine
+version signal, though SambaNova doesn't document what changes it. Commercial-use
+on the free tier specifically remains unresolved — a live search this session of
+SambaNova's own community forum found other developers asking the same open
+question with no official answer on record.
+
+**Cerebras.** Rate limits reconfirmed exactly (5 RPM / 30K–90K TPM / 1M TPD,
+`gpt-oss-120b` + `qwen-3.8-27b`). Pricing hit the identical JS-rendering wall the
+addendum already documented — no progress, same $0.35/$0.75 figure surfaced only
+via third-party aggregators, still not vendor-confirmed as text. New: responses
+carry a genuine `system_fingerprint` field
+(`fp_{backend_hash}_{model_arch_id}_v{version_id}`) per
+`inference-docs.cerebras.ai/api-reference/chat-completions` — the worksheet hadn't
+checked this. Also surfaced a real conflict worth flagging: one third-party source
+claims Cerebras replaced its free tier with a one-time $5 trial credit on
+2026-07-21; the primary rate-limits doc still describes an ongoing "Free Trial"
+tier with per-minute/per-day limits, not one-time credits. Trust the primary doc,
+but re-check at experiment-design time since the two disagree.
+
+**NVIDIA NIM.** No standalone hosted-inference price found, same as both earlier
+passes. This pass's agent independently found similar "improve NVIDIA products"
+language in `developer.nvidia.com/legal/terms`, but **missed the addendum's more
+important finding above** — the API-catalog Terms of Use's explicit prohibition on
+submitting confidential or sensitive data as User Content at all. That clause (not
+the training question) is the one worth designing around for this repo's
+Never-rule 1, and it was only found by reading the actual Trial ToS PDF directly,
+which this pass's agent could not parse (WebFetch returned raw compressed PDF
+stream data, not text) — the addendum's PDF read stands as the better source on
+this provider; don't let this pass's weaker finding replace it.
+
+### Net effect on the worksheet's own verdict
+
+Nothing in this pass closes what the worksheet already identified as
+account-gated: `reachable`, a genuinely *observed* (not just documented)
+`exposes_fingerprint`, and Google/Mistral's real rate limits still require signing
+up and making live authenticated calls. Two gaps did close for real this pass —
+Groq's correct ToS document (Services Agreement, not website ToS) and Mistral's
+first vendor-cited price — and one new open thread appeared (OpenRouter's chosen
+model needs the same per-endpoint `data_policy` lookup the worksheet already
+designed, not a fresh method). Still a worksheet to falsify from an account, not an
+audit.
