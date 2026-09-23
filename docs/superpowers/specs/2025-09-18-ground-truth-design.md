@@ -14,12 +14,12 @@ Every decision below is closed. Re-opening one is a design change, not an implem
 
 | # | Decision | Answer |
 |---|---|---|
-| Q1 | Ledger Sense design partner and labelled corpus? | **Not assumed.** Plan stands alone on a synthetic golden set as the default. A real labelled corpus is a documented upgrade, never a blocker. |
+| Q1 | Ledger Sense design partner and labelled corpus? | **Not assumed.** Plan stands alone on a synthetic golden set as the default. A real labelled corpus is a documented upgrade, never a blocker. *Confirmed delivered 2026-09-23: `golden/corpus` and `golden/manifest_{public,private}.json` exist and stand alone — no Ledger Sense corpus was substituted.* |
 | Q2 | Own the runner, or adopt `inspect-ai` / `promptfoo`? | **Own a thin executor** (~200 lines). Adopting duplicates `bok-core`'s gateway, cache and ledger, which breaks R7 fingerprint tracking, and version-couples the published methodology to a third party's semantics. |
 | Q3 | Leaderboard of models, or of vendor products? | **Models only.** Lower exposure, no ToS benchmark-publishing risk, and the only form that yields calibration curves Ledger Sense can consume. |
 | Q4 | Private split size and rotation? | **300 items: 120 public / 180 private (40/60).** Rotate 20% of private (36 items) at each published release, minimum quarterly. Growth path to 500 in the regression phase. |
 | Q5 | Publish where the judge is weak? | **Yes, with a pre-registered rejection threshold** (Krippendorff's α ≥ 0.667). Field types below it are barred from headline scoring and appear in the published table labelled *rejected*. |
-| Q6 | Triage sellable standalone in week 22? | **Yes — sequenced first.** Weeks 21–22 build the harness spine in client-facing order. |
+| Q6 | Triage sellable standalone in week 22? | **Yes — sequenced first.** Weeks 21–22 build the harness spine in client-facing order. *Confirmed delivered 2026-09-23: a built, standalone `triage.html` exists in the static web export (`web/out/triage.html`), independently of the harness sweep.* |
 | Q7 | Right-of-reply process? | Public GitHub issue template (`right-of-reply`) plus a `corrections@` alias; outcome published either way. **Acknowledge in 5 business days, resolve in 15.** No advance notice for routine scores; **10 business days' notice for any regression/drift finding naming a provider.** Standing re-run offer, both results published side by side. |
 
 ### From `00` §12 (cross-cutting — carry to the other three sessions)
