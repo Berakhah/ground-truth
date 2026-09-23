@@ -7,6 +7,7 @@ from ground_truth.analysis_plan import assert_frozen_before_first_sweep
 from ground_truth.golden.rubric import loaded_rubric
 from ground_truth.golden.schema import FieldType  # noqa: F401
 from ground_truth.store.db import connect
+from tests.conftest import require_or_skip, require_sweep_data
 
 REPO = Path(__file__).resolve().parents[1]
 DB = REPO / "data" / "results.duckdb"
@@ -14,9 +15,9 @@ DB = REPO / "data" / "results.duckdb"
 
 @pytest.fixture()
 def con():
-    if not DB.exists():
-        pytest.skip("run the sweep first: python -m ground_truth.schedule")
+    require_or_skip(DB.exists(), "run the sweep first: python -m ground_truth.schedule")
     c = connect(DB)
+    require_sweep_data(c, "run the sweep first: python -m ground_truth.schedule")
     yield c
     c.close()
 
