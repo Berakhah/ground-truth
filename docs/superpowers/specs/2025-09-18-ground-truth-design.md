@@ -312,6 +312,18 @@ Benjamini–Hochberg via `scipy.stats.false_discovery_control`, wrapped to carry
 > This changes `docs/analysis-plan.md`, which freezes before the first sweep. **Settle it before
 > the freeze.** Evidence: `docs/superpowers/reviews/verify/verify_seq.py`.
 
+> **Superseded 2026-09-28 (analysis plan v2).** The O'Brien–Fleming design above, and the three
+> tests listed under it, are retired; the text is kept as the record of what was decided and why.
+> Testing a z pooled across looks diluted a change that starts mid-quarter -- a silent provider
+> update -- and the boundary was 7.58 at look 1 (stats review 2026-09-27, finding 1; code review
+> 2026-09-27 #2, finding 2). Each look is now tested on its own sweep against the quarter's fixed
+> baseline at the Šidák per-look boundary `|z| > 2.8831` (`alpha_look = 1 - 0.95^(1/13)`), with
+> Benjamini–Hochberg applied to the Šidák-adjusted p-values across cells. Šidák's inequality
+> bounds the family-wise error at 0.05 for any correlation between looks; the committed null
+> simulation measures 0.0501 (exactly 0.05 in theory; Monte Carlo error about ±0.0003) with a noiseless baseline and 0.0381 with a look-sized one. A naive
+> `|z| > 1.96` at every look under this design flags 0.334 of null quarters, which replaces 0.2119
+> as the methodology-page figure. v1 governed zero looks. Tests: `tests/stats/test_sequential.py`.
+
 - `test_sequential_controls_type_i_under_null` — 20,000 **correlated Brownian** trajectories x 13 looks; proportion with *any* rejection <= 0.055.
 - `test_fixed_threshold_inflates_alpha` — the same correlated simulation under a naive per-look threshold, asserting `0.18 <= rate <= 0.25`. **This is the figure that goes on the methodology page.** The test makes the page's central claim executable rather than rhetorical, which is exactly why the simulation behind it has to be the right one.
 - `test_calibrated_constant_controls_alpha` — binary-searches `C` under the same simulation and asserts the committed constant lands within Monte Carlo error of nominal alpha.
@@ -544,7 +556,7 @@ Quality floor per `00` §5.5: WCAG 2.2 AA via `axe-core` in CI, zero serious/cri
 
 `regression/detect.py` runs phase 2 over a time window on the pre-declared calendar (§7.4). `fingerprint.py` records model id, any exposed system fingerprint or version metadata, response metadata, provider served, and timestamp — and where a provider exposes no fingerprint at all, **says so** rather than implying we can pin a version we cannot.
 
-Drift is detected statistically, never by threshold: bootstrap CI on the score, BH correction across model x field-type comparisons, alpha-spending across the calendar's looks, and the MDE stated so a null result is legible as *"no change larger than X detectable at this n"* rather than as *"no change"*.
+Drift is detected statistically, never by threshold: bootstrap CI on the score, BH correction across model x field-type comparisons, alpha-spending across the calendar's looks (Šidák per-look correction since analysis plan v2, 2026-09-28), and the MDE stated so a null result is legible as *"no change larger than X detectable at this n"* rather than as *"no change"*.
 
 - `test_alert_states_its_test`, `test_no_alert_below_mde_is_reported_as_undetectable_not_absent`.
 

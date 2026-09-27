@@ -125,7 +125,11 @@ def test_dod_7_regression_watch_scheduled_and_alerts_state_their_test(tmp_path):
     # analysis calendar exists -- assert on the `looks` calendar record that
     # ground_truth.regression.schedule actually builds and enforces instead.
     from ground_truth.regression.schedule import next_look, record_look  # noqa: PLC0415
-    from ground_truth.stats.sequential import LOOKS_PER_QUARTER, spent_alpha  # noqa: PLC0415
+    from ground_truth.stats.sequential import (  # noqa: PLC0415
+        LOOKS_PER_QUARTER,
+        evaluate_look,
+        per_look_boundary,
+    )
     from ground_truth.store.db import connect, migrate  # noqa: PLC0415
 
     con = connect(tmp_path / "dod7-looks.duckdb")
@@ -147,16 +151,15 @@ def test_dod_7_regression_watch_scheduled_and_alerts_state_their_test(tmp_path):
         "every look must carry the date it ran"
     )
 
-    cumulative_spend = [spent_alpha(r.look, r.total_looks) for r in records]
-    assert cumulative_spend == sorted(cumulative_spend), (
-        "alpha spend must be monotone non-decreasing across the pre-registered looks"
-    )
-    assert cumulative_spend[-1] == pytest.approx(0.05), (
-        "the full alpha budget is spent by the final pre-registered look"
-    )
+    # Plan v2: the calendar the schedule records is the one the test accepts, and every look
+    # can see a change of the same size -- v1's O'Brien-Fleming boundary was 7.58 at look 1.
+    boundary = per_look_boundary(LOOKS_PER_QUARTER)
+    for r in records:
+        assert evaluate_look(boundary + 0.01, r.look, r.total_looks).reject, r.look
+        assert not evaluate_look(boundary - 0.01, r.look, r.total_looks).reject, r.look
 
     for alert in json.loads((ARTIFACTS / "regression.json").read_text(encoding="utf-8"))["alerts"]:
-        assert "O'Brien-Fleming" in alert["statement"]
+        assert "Šidák" in alert["statement"]
 
 
 def test_dod_8_triage_produced_end_to_end_with_sensitivity():

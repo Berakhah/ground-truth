@@ -30,9 +30,10 @@ export default function RegressionPage() {
 
       <main className="report" id="main-content">
         {/* Every alert renders as its full statement -- the sentence Alert.statement already
-            is, never a bare arrow or delta. See ground_truth.regression.detect: `detected`
-            requires BOTH the O'Brien-Fleming sequential boundary and the Benjamini-Hochberg
-            corrected p-value, and the statement names both tests regardless of the result.
+            is, never a bare arrow or delta. See ground_truth.regression.detect: each look's
+            p-value is Šidák-adjusted across the 13-look calendar, then Benjamini-Hochberg
+            corrected across cells (analysis plan v2), and the statement names both
+            corrections and every p-value regardless of the result.
             `status-badge` restates that same detected/not-detected verdict as its own
             short, explicit text node -- `alert--detected`'s border colour is never the only
             carrier of the verdict (see e2e/a11y.spec.ts's colour-only-encoding check). */}

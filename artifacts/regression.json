@@ -3,38 +3,64 @@
   "total_looks": 13,
   "generated_at": "2026-09-01T00:00:00+00:00",
   "placeholder": true,
-  "note": "Placeholder data -- no live regression watch has run yet. See ground_truth.regression.detect and ground_truth.regression.fingerprint for the real, standalone computation.",
+  "note": "Placeholder data -- no live regression watch has run yet. These alerts were produced by ground_truth.regression.detect.detect_drift on seeded synthetic observations (look 3 of 13; 180 and 150 items x 5 replicates; true accuracy 0.93 -> 0.84 and 0.91 -> 0.90), not by any provider call. See ground_truth.regression.detect and ground_truth.regression.fingerprint for the real, standalone computation.",
   "alerts": [
     {
       "slot": "demo-slot-a",
       "field_type": "money",
-      "baseline": {"point": 0.930, "low": 0.900, "high": 0.958, "n": 180, "method": "cluster-BCa"},
-      "current": {"point": 0.860, "low": 0.820, "high": 0.897, "n": 180, "method": "cluster-BCa"},
-      "z": -3.41,
-      "adjusted_p": 0.0084,
+      "baseline": {
+        "point": 0.9311111111111109,
+        "low": 0.9155555555555555,
+        "high": 0.9433333333333334,
+        "n": 180,
+        "method": "cluster-BCa"
+      },
+      "current": {
+        "point": 0.85,
+        "low": 0.8222222222222222,
+        "high": 0.8744444444444444,
+        "n": 180,
+        "method": "cluster-BCa"
+      },
+      "z": -5.375,
+      "adjusted_p": 1.988066193051294e-06,
       "look": 3,
       "total_looks": 13,
       "detected": true,
-      "statement": "demo-slot-a/money: 0.930 [0.900, 0.958] -> 0.860 [0.820, 0.897]. Change detected at look 3 of 13 (O'Brien-Fleming alpha spending, |z| = 3.410; Benjamini-Hochberg adjusted p = 0.0084 across 2 comparisons)."
+      "statement": "demo-slot-a/money: 0.931 [0.916, 0.943] -> 0.850 [0.822, 0.874]. Change detected at look 3 of 13: |z| = 5.375 exceeds the Šidák per-look boundary of 2.883 (per-look p = 7.6e-08, Šidák-adjusted p = 9.9e-07; family-wise type-I error of 0.05 across the 13-look calendar); Benjamini-Hochberg adjusted p = 2e-06 across 2 comparisons."
     },
     {
       "slot": "demo-slot-b",
       "field_type": "date",
-      "baseline": {"point": 0.910, "low": 0.870, "high": 0.944, "n": 150, "method": "cluster-BCa"},
-      "current": {"point": 0.897, "low": 0.855, "high": 0.933, "n": 150, "method": "cluster-BCa"},
-      "z": -0.62,
-      "adjusted_p": 0.5350,
+      "baseline": {
+        "point": 0.9039999999999999,
+        "low": 0.8813333333333333,
+        "high": 0.9253333333333332,
+        "n": 150,
+        "method": "cluster-BCa"
+      },
+      "current": {
+        "point": 0.8826666666666665,
+        "low": 0.8573333333333333,
+        "high": 0.9053333333333332,
+        "n": 150,
+        "method": "cluster-BCa"
+      },
+      "z": -1.284,
+      "adjusted_p": 0.9441697000450768,
       "look": 3,
       "total_looks": 13,
       "detected": false,
-      "statement": "demo-slot-b/date: 0.910 [0.870, 0.944] -> 0.897 [0.855, 0.933]. No change detected at look 3 of 13 (O'Brien-Fleming alpha spending; Benjamini-Hochberg adjusted p = 0.5350). At n=150 items with a 10% discordance rate, this comparison can detect a difference of 7.8 percentage points or larger (80% power, alpha=0.05, Bonferroni-corrected across 1 comparisons). A null result means no difference larger than that was detectable — not that none exists."
+      "statement": "demo-slot-b/date: 0.904 [0.881, 0.925] -> 0.883 [0.857, 0.905]. No change detected at look 3 of 13: |z| = 1.284 is within the Šidák per-look boundary of 2.883 (per-look p = 0.2, Šidák-adjusted p = 0.94; family-wise type-I error of 0.05 across the 13-look calendar); Benjamini-Hochberg adjusted p = 0.94 across 2 comparisons. At n=150 baseline and 150 current items, with the standard errors measured at this look, this comparison can detect a difference of 6.5 percentage points or larger (80% power, alpha=0.003938, Bonferroni-corrected across 2 comparisons). A null result means no difference larger than that was detectable — not that none exists. This minimum detectable effect is for one look's sweep at the per-look alpha."
     }
   ],
   "fingerprints": [
     {
       "slot": "demo-slot-a",
       "status": "STABLE",
-      "values": ["fp_2026_08_a1"],
+      "values": [
+        "fp_2026_08_a1"
+      ],
       "first_seen": "2026-08-01T00:00:00+00:00",
       "last_seen": "2026-09-01T00:00:00+00:00",
       "statement": "demo-slot-a reported a single fingerprint 'fp_2026_08_a1' across the sweep (2026-08-01 to 2026-09-01)."

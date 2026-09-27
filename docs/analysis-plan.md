@@ -1,5 +1,5 @@
 ---
-plan_version: v1
+plan_version: v2
 status: frozen-before-first-sweep
 ---
 
@@ -51,6 +51,10 @@ data-dependent and unknowable in advance, so it cannot be used to plan a sample 
 data exists. The conservative choice is stated as such wherever an MDE figure is published, not
 hidden behind a single number.
 
+For the regression watch, the alpha divided across the family is the per-look alpha, 0.003938
+(see "Sequential testing calendar"), and the sample is one look's sweep: the MDE describes what
+a single look can see, which is what each look's test is run on.
+
 ## Judge rejection threshold
 
 **Krippendorff's alpha >= 0.667** (the conventional tentative-conclusions floor) is the pre-registered
@@ -65,28 +69,89 @@ decision it caused.
 
 ## Sequential testing calendar
 
-**Thirteen weekly looks per quarter, O'Brien-Fleming alpha-spending, re-registered every quarter.**
-The calendar is declared in advance, once per quarter, and is not adjusted mid-quarter to
-accommodate however the data happens to look at look 6.
+**Thirteen weekly looks per quarter, each tested on its own data against a fixed baseline, with
+a Šidák per-look boundary of `|z| > 2.8831`, re-registered every quarter.** The calendar is
+declared in advance, once per quarter, and is not adjusted mid-quarter to accommodate however
+the data happens to look at look 6.
 
-The alpha-spending function is the Lan-DeMets O'Brien-Fleming closed form,
-`alpha(t) = 2 * (1 - Phi(z_{alpha/2} / sqrt(t)))`, and the look boundary at information fraction
-`t` is `C / sqrt(t)`, where **`C` is solved so the cumulative type-I error across all 13
-correlated looks equals the nominal alpha** — `C` is not `z_{alpha/2}`.
+**Baseline.** Each quarter has one baseline: a registration sweep of the same anchor items at the
+same replicate count, run before look 1 and fixed for the whole quarter. It is never replaced
+mid-quarter -- a baseline that moved with the data would absorb the drift it exists to detect.
 
-For this pre-registered 13-look quarterly calendar, the calibrated boundary constant is
-**`C = 2.1023`**, calibrated once by simulation over correlated Brownian trajectories and committed
-together with that simulation as its own test. It must be used explicitly and never replaced by the
-naive `z_{alpha/2} = 1.96`: substituting 1.96 spends nearly the full alpha budget at the earliest
-interim looks and inflates the true type-I error of this 13-look calendar to **0.0721** against the
-nominal **0.05** (audit finding B3, 2026-08-29) — a 2.3x understatement of how often the procedure
-would falsely flag a regression. Requesting any other calendar length or alpha requires
-recalibrating `C` by the same simulation; `C = 2.1023` is valid only for this exact calendar.
+**Each look is tested on that look's sweep alone**, never pooled with earlier looks. A silent
+provider update is a change at one point in time; pooling every look since the start of the
+quarter treats it as an effect present from look 1, so a model swapped at look 10 is diluted by
+nine looks of the old model and the test sees about a quarter of the real drop.
+
+**Per-look boundary.** Within one `(model_slot, field_type)` cell, the 13 looks are a family of
+13 two-sided tests. Each is run at the Šidák per-look level
+`alpha_look = 1 - (1 - 0.05)^(1/13) = 0.003938`, whose two-sided critical value is
+**`|z| > 2.8831`**. Šidák's inequality holds for two-sided tests on any multivariate normal, so
+the family-wise type-I error across the 13 looks is at most 0.05 whatever the correlation
+between looks. The shared baseline makes the looks positively correlated, which makes the
+bound conservative: the null simulation committed with this plan measures 0.0501 (exactly 0.05 in theory; Monte Carlo error about ±0.0003) with no
+baseline noise and 0.0381 when the baseline is as noisy as one look.
+
+**How the corrections stack.** Each cell's per-look p-value is Šidák-adjusted across the
+13-look calendar, `p_adj = 1 - (1 - p)^13`; Benjamini-Hochberg at FDR 0.05 is then applied to
+those adjusted p-values across every cell tested at that look. A change is reported only when
+its BH-adjusted p is at or below 0.05. With a single cell this is exactly `|z| > 2.8831`.
+Every alert states the per-look p, the Šidák-adjusted p, and the BH-adjusted p with the size
+of the family it was corrected against. The 13-look family resets each quarter.
+
+**What this cannot see.** A per-look test has one sweep's worth of data, so it has less power
+against a small drift that persists across many looks than a test that pools them. Every null
+result publishes its minimum detectable effect, computed for one look's sample at the per-look
+alpha and Bonferroni-corrected across the cells in the family (see "Minimum detectable effect").
 
 ## Unscheduled looks
 
 Any look at the data outside the pre-declared 13-per-quarter calendar **costs alpha and must be
-declared in the changelog** before its result is used in any published or internal decision. An
-undeclared unscheduled look invalidates the calendar's alpha-spending guarantee for the rest of the
-quarter, because the O'Brien-Fleming boundary is calibrated for exactly 13 correlated looks — not
-13 scheduled looks plus however many off-calendar peeks turned out to be convenient.
+declared in the changelog** before its result is used in any published or internal decision. The
+per-look boundary divides the quarter's 0.05 across exactly 13 tests; a 14th test is outside that
+budget, so an undeclared unscheduled look invalidates the calendar's family-wise guarantee for the
+rest of the quarter.
+
+## Revision history
+
+- **v2, 2026-09-28 -- sequential testing calendar replaced.** v1 tested a z computed on data
+  pooled across looks against the fixed-constant O'Brien-Fleming boundary `C / sqrt(t)`,
+  `C = 2.1023`. Two problems (stats review 2026-09-27, finding 1, and code review 2026-09-27
+  #2): the pooled z dilutes a change that starts mid-quarter, and the boundary is nearly blind
+  early, `2.1023 / sqrt(1/13) = 7.58` at look 1. v1 also named the Lan-DeMets spending function
+  as the spending rule, which is not the true spend of a fixed-C boundary. **v1 governed zero
+  looks:** on 2026-09-28 the results store held no frozen plan, no sweep run and no recorded
+  look, and `detect_drift` had no production caller. This change is therefore made before any
+  data exists. v1's text is kept below, unedited.
+
+### Superseded: v1 "Sequential testing calendar" and "Unscheduled looks"
+
+> The v1 text follows exactly as frozen, for the record. It does not govern any look.
+
+> ## Sequential testing calendar
+>
+> **Thirteen weekly looks per quarter, O'Brien-Fleming alpha-spending, re-registered every quarter.**
+> The calendar is declared in advance, once per quarter, and is not adjusted mid-quarter to
+> accommodate however the data happens to look at look 6.
+>
+> The alpha-spending function is the Lan-DeMets O'Brien-Fleming closed form,
+> `alpha(t) = 2 * (1 - Phi(z_{alpha/2} / sqrt(t)))`, and the look boundary at information fraction
+> `t` is `C / sqrt(t)`, where **`C` is solved so the cumulative type-I error across all 13
+> correlated looks equals the nominal alpha** — `C` is not `z_{alpha/2}`.
+>
+> For this pre-registered 13-look quarterly calendar, the calibrated boundary constant is
+> **`C = 2.1023`**, calibrated once by simulation over correlated Brownian trajectories and committed
+> together with that simulation as its own test. It must be used explicitly and never replaced by the
+> naive `z_{alpha/2} = 1.96`: substituting 1.96 spends nearly the full alpha budget at the earliest
+> interim looks and inflates the true type-I error of this 13-look calendar to **0.0721** against the
+> nominal **0.05** (audit finding B3, 2026-08-29) — a 2.3x understatement of how often the procedure
+> would falsely flag a regression. Requesting any other calendar length or alpha requires
+> recalibrating `C` by the same simulation; `C = 2.1023` is valid only for this exact calendar.
+>
+> ## Unscheduled looks
+>
+> Any look at the data outside the pre-declared 13-per-quarter calendar **costs alpha and must be
+> declared in the changelog** before its result is used in any published or internal decision. An
+> undeclared unscheduled look invalidates the calendar's alpha-spending guarantee for the rest of the
+> quarter, because the O'Brien-Fleming boundary is calibrated for exactly 13 correlated looks — not
+> 13 scheduled looks plus however many off-calendar peeks turned out to be convenient.
