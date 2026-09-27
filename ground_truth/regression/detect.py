@@ -1,30 +1,24 @@
 """Drift detection for the scheduled regression watch.
 
-Detection is a statistics problem, not a threshold problem (`04`, "Watch for"). A single look
-at one comparison is exactly the setup that produces alert spam, then muted alerts, then a
-missed real regression -- so `detected` requires BOTH the pre-registered O'Brien-Fleming
-sequential boundary to be crossed at this look AND the Benjamini-Hochberg-adjusted p-value
-(corrected across every comparison made in this call) to be significant. The alert **is** the
-sentence: a null result states the minimum detectable effect rather than implying absence of
-drift, per `describe_mde`'s own closing line.
+Detection is a statistics problem, not a threshold problem (`04`, "Watch for"). Each look is
+tested on that look's sweep alone against the quarter's fixed baseline (analysis plan v2). Each
+cell's per-look p-value is Šidák-adjusted across the 13-look calendar, then Benjamini-Hochberg is
+applied across every cell tested at this look; `detected` is BH-significance of the adjusted p.
+The alert **is** the sentence: it states the test, the boundary and every p-value, and a null
+result states the minimum detectable effect rather than implying absence of drift.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 from scipy.stats import norm
 
 from ground_truth.stats.bootstrap import Interval, cluster_bootstrap_ci
 from ground_truth.stats.correction import Comparison, benjamini_hochberg
-from ground_truth.stats.mde import describe_mde
-from ground_truth.stats.sequential import evaluate_look
-
-# describe_mde's discordance_rate must be in (0, 1] -- see the identical floor and reasoning in
-# ground_truth/triage/report.py's _mde_caveat for the "no true discordance rate available" case.
-_MIN_DISCORDANCE_RATE = 0.01
+from ground_truth.stats.mde import describe_mde_two_sample
+from ground_truth.stats.sequential import SequentialResult, evaluate_look
 
 Z_95 = norm.ppf(0.975)  # ~1.959964, matching cluster_bootstrap_ci's fixed 95% confidence level
 
@@ -50,41 +44,13 @@ def _se(interval: Interval) -> float:
     return float((interval.high - interval.low) / (2 * Z_95))
 
 
-def _discordance_rate(
-    baseline: dict[tuple[str, str], list[tuple[str, bool]]],
-    current: dict[tuple[str, str], list[tuple[str, bool]]],
-    key: tuple[str, str],
-    current_interval: Interval,
-) -> tuple[int, float]:
-    baseline_by_id = dict(baseline[key])
-    current_by_id = dict(current[key])
-    paired_ids = baseline_by_id.keys() & current_by_id.keys()
-    if paired_ids:
-        n_items = len(paired_ids)
-        disagreements = sum(1 for i in paired_ids if baseline_by_id[i] != current_by_id[i])
-        return n_items, max(disagreements / n_items, _MIN_DISCORDANCE_RATE)
-    # No id overlap -- shouldn't occur given the regression watch's anchor-subset design
-    # (Task 51), but must not crash. Same proxy as report.py's _mde_caveat.
-    return current_interval.n, max(1 - current_interval.point, _MIN_DISCORDANCE_RATE)
-
-
 def _filter_to_cohort(obs: list[tuple[str, bool]], cohort: set[str]) -> list[tuple[str, bool]]:
     return [o for o in obs if o[0] in cohort]
 
 
-def _pool(
-    looks: Sequence[dict[tuple[str, str], list[tuple[str, bool]]]],
-) -> dict[tuple[str, str], list[tuple[str, bool]]]:
-    pooled: dict[tuple[str, str], list[tuple[str, bool]]] = {}
-    for observations in looks:
-        for key, obs in observations.items():
-            pooled.setdefault(key, []).extend(obs)
-    return pooled
-
-
 def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     baseline: dict[tuple[str, str], list[tuple[str, bool]]],
-    current_by_look: Sequence[dict[tuple[str, str], list[tuple[str, bool]]]],
+    current: dict[tuple[str, str], list[tuple[str, bool]]],
     *,
     look: int,
     total_looks: int,
@@ -92,29 +58,27 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     cohort: set[str] | None = None,
     cross_release: bool = False,
 ) -> list[Alert]:
-    """Compare `baseline` against everything observed so far this quarter.
+    """Compare the quarter's fixed `baseline` against **this look's sweep only**.
 
-    **Input must be cumulative.** `current_by_look[k]` holds the observations from look k+1,
-    and the list must cover every look from 1 to `look` -- they are pooled here, so the z at
-    look k is computed on all data accumulated through look k. `C_OBF_13_LOOKS` was calibrated
-    for exactly that process, corr(Z_j, Z_k) = sqrt(t_j/t_k); fed only the current look's run,
-    the 13 looks are independent and the family-wise type-I error is ~0.12, not 0.05 (stats
-    review 2026-09-27, finding 2). A list of the wrong length raises rather than guessing which
-    looks it holds. A look that produced nothing for a key contributes an empty dict entry.
-
-    Pooling re-runs of the *same* anchor items adds replicates to existing item clusters rather
-    than new clusters, so information grows more slowly than t = k/13 and successive z's are
-    more correlated than sqrt(t_j/t_k). That direction makes the boundary conservative (fewer
-    false alarms, lower power), never anti-conservative.
+    Analysis plan v2: a silent provider update is a change at one point in time, so each look
+    is tested on its own data. v1 pooled every look since the start of the quarter, which
+    diluted a change at look 10 by nine looks of the old model (code review 2026-09-27 #2,
+    finding 2). Only cells with data at this look are tested; a cell that produced nothing is
+    absent from the result rather than re-tested on stale data under this look's number.
     """
-    if len(current_by_look) != look:
-        raise ValueError(
-            f"detect_drift needs cumulative input: one observation dict per look from 1 to "
-            f"{look}, got {len(current_by_look)}. The O'Brien-Fleming constant is calibrated for "
-            "a z on data accumulated across looks; this look's run alone inflates type-I error."
+    if not isinstance(current, dict):
+        raise TypeError(
+            "detect_drift takes this look's observations only, as one dict keyed by "
+            "(slot, field_type) -- not a per-look history to pool (analysis plan v2)"
         )
-    current = _pool(current_by_look)
-
+    # Checked before anything else so a bad look raises even when no cell has data.
+    evaluate_look(0.0, look, total_looks)
+    empty = [f"{slot}/{field}" for (slot, field), obs in sorted(current.items()) if not obs]
+    if empty:
+        raise ValueError(
+            f"no observations at look {look} for {', '.join(empty)}: leave a cell that ran "
+            "nothing out of `current` -- it is not tested at this look, rather than crashing it"
+        )
     if cross_release and cohort is None:
         raise ValueError(
             "cross_release=True requires an explicit cohort: comparing across a private-split "
@@ -125,8 +89,8 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     keys = sorted(current)
     n_comparisons = len(keys)
 
-    intervals: list[tuple[Interval, Interval]] = []
-    zs: list[float] = []
+    tested: list[tuple[Interval, Interval, float]] = []
+    sequential: list[SequentialResult] = []
     comparisons: list[Comparison] = []
     n_rotated_by_key: dict[tuple[str, str], int] = {}
     for key in keys:
@@ -138,15 +102,15 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
             current_obs = _filter_to_cohort(current_obs, cohort)
         baseline_interval = cluster_bootstrap_ci(baseline_obs, seed=seed)
         current_interval = cluster_bootstrap_ci(current_obs, seed=seed)
-        intervals.append((baseline_interval, current_interval))
         z = (current_interval.point - baseline_interval.point) / math.sqrt(
             _se(current_interval) ** 2 + _se(baseline_interval) ** 2
         )
-        zs.append(z)
+        tested.append((baseline_interval, current_interval, z))
+        seq = evaluate_look(z, look, total_looks)
+        sequential.append(seq)
         slot, field_type = key
-        comparisons.append(
-            Comparison(label=f"{slot}/{field_type}", p_value=2 * (1 - norm.cdf(abs(z))))
-        )
+        # The Šidák-adjusted p, not the raw one, is what BH corrects across cells (plan v2).
+        comparisons.append(Comparison(label=f"{slot}/{field_type}", p_value=seq.adjusted_p))
 
     # Positional pairing, not a label-keyed dict: `comparisons` was appended in exact lockstep
     # with `keys` above, with no filtering in between, so the correspondence is already
@@ -154,13 +118,15 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     # corrected p-value) if two distinct (slot, field_type) pairs ever produced the same
     # f"{slot}/{field_type}" string -- e.g. a slot or field_type containing "/".
     alerts: list[Alert] = []
-    for key, (baseline_interval, current_interval), z, cc in zip(
-        keys, intervals, zs, benjamini_hochberg(comparisons), strict=True
+    for key, (baseline_interval, current_interval, z), seq, cc in zip(
+        keys, tested, sequential, benjamini_hochberg(comparisons), strict=True
     ):
         slot, field_type = key
-        seq_result = evaluate_look(z, look, total_looks)
-        detected = seq_result.reject and cc.significant
-
+        detected = cc.significant
+        bh = (
+            f"Benjamini-Hochberg adjusted p = {cc.adjusted_p:.2g} across {n_comparisons} "
+            "comparisons"
+        )
         prefix = (
             f"{slot}/{field_type}: {baseline_interval.point:.3f} "
             f"[{baseline_interval.low:.3f}, {baseline_interval.high:.3f}] -> "
@@ -169,19 +135,25 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
         )
         if detected:
             statement = prefix + (
-                f"Change detected at look {look} of {total_looks} (O'Brien-Fleming alpha "
-                f"spending, |z| = {abs(z):.3f}; Benjamini-Hochberg adjusted p = "
-                f"{cc.adjusted_p:.4f} across {n_comparisons} comparisons)."
+                f"Change detected at look {look} of {total_looks}: |z| = {abs(z):.3f} exceeds "
+                f"{seq.test}; {bh}."
             )
         else:
-            n_items, discordance_rate = _discordance_rate(baseline, current, key, current_interval)
+            relation = "exceeds" if seq.reject else "is within"
             statement = (
                 prefix
                 + (
-                    f"No change detected at look {look} of {total_looks} (O'Brien-Fleming alpha "
-                    f"spending; Benjamini-Hochberg adjusted p = {cc.adjusted_p:.4f}). "
+                    f"No change detected at look {look} of {total_looks}: |z| = {abs(z):.3f} "
+                    f"{relation} {seq.test}; {bh}. "
                 )
-                + describe_mde(n_items, discordance_rate)
+                + describe_mde_two_sample(
+                    baseline_interval.n,
+                    current_interval.n,
+                    math.hypot(_se(baseline_interval), _se(current_interval)),
+                    alpha=seq.alpha_look,
+                    n_comparisons=n_comparisons,
+                )
+                + " This minimum detectable effect is for one look's sweep at the per-look alpha."
             )
 
         if cohort is not None:

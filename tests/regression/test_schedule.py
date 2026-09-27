@@ -9,7 +9,7 @@ from ground_truth.regression.schedule import (
     record_look,
     unscheduled_look_warning,
 )
-from ground_truth.stats.sequential import LOOKS_PER_QUARTER
+from ground_truth.stats.sequential import LOOKS_PER_QUARTER, evaluate_look, per_look_boundary
 from ground_truth.store.db import connect, migrate
 
 
@@ -62,3 +62,17 @@ def test_recording_the_same_look_twice_raises(con):
     record_look(con, record)
     with pytest.raises(Exception):  # noqa: B017
         record_look(con, record)
+
+
+def test_every_scheduled_look_is_testable_at_the_same_boundary(con):
+    """The calendar the schedule records is the one `evaluate_look` accepts (it refuses any
+    other), and look 1 can see a change of the same size as look 13 -- the v1 O'Brien-Fleming
+    boundary was 7.58 at look 1. Unlike DoD-7, which skips until real data is published, this
+    runs on every build."""
+    boundary = per_look_boundary(LOOKS_PER_QUARTER)
+    now = datetime(2026, 10, 5, tzinfo=UTC)
+    for i in range(LOOKS_PER_QUARTER):
+        record = next_look(con, now + timedelta(days=7 * i))
+        record_look(con, record)
+        assert evaluate_look(boundary + 0.01, record.look, record.total_looks).reject
+        assert not evaluate_look(boundary - 0.01, record.look, record.total_looks).reject
