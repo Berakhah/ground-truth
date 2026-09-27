@@ -47,6 +47,21 @@ def test_result_states_the_test_used():
     assert "look 2 of 13" in result.statement
 
 
+def test_rejection_does_not_publish_the_lan_demets_spend_as_this_boundarys_spend():
+    """The boundary is fixed-C classic O'Brien-Fleming, not the Lan-DeMets spending function,
+    so `spent_alpha` is not what this procedure has spent: at look 4 the true cumulative
+    crossing probability of C/sqrt(t) is ~0.00017 (2M-path Monte Carlo, stats review
+    2026-09-27) against Lan-DeMets' 0.00041. The alert must state the guarantee the boundary
+    was calibrated to carry, not a figure from a different procedure."""
+    result = evaluate_look(4.5, look=4, total_looks=13)
+    assert result.reject
+    assert f"{spent_alpha(4, 13):.4f}" not in result.statement
+    assert "alpha spent" not in result.statement
+    assert "family-wise type-I error of 0.05 across the 13-look pre-registered calendar" in (
+        result.statement
+    )
+
+
 def test_a_null_result_is_not_reported_as_no_change():
     result = evaluate_look(0.2, look=2, total_looks=13)
     assert not result.reject

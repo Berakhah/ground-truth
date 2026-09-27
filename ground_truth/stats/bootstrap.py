@@ -26,6 +26,21 @@ def _grouped(observations: list[tuple[str, bool]]) -> list[list[bool]]:
     return [buckets[k] for k in sorted(buckets)]
 
 
+def zero_count_upper_bound(n: int, confidence: float) -> float:
+    """Two-sided exact Clopper-Pearson upper bound on p when 0 events occur in n trials.
+
+    P(X=0 | p) = (1-p)**n = (1-confidence)/2 gives p_high = 1 - ((1-confidence)/2)**(1/n), the
+    Beta(1, n) upper quantile. Two-sided (half the miss rate per tail) so it sits on the same
+    footing as every BCa/percentile interval beside it (stats review 2026-09-27, finding 3).
+    The single home of this formula: accuracy at 0/n and n/n here, and observed disagreement at
+    0/n in `agreement._zero_disagreement_interval`, both call it, so the tail convention cannot
+    change in one and not the other (stats code review 2026-09-27, finding 9).
+    """
+    if n < 1:
+        raise ValueError("a Clopper-Pearson bound needs at least one trial")
+    return 1.0 - float(((1.0 - confidence) / 2.0) ** (1.0 / n))
+
+
 def _interval(  # noqa: PLR0913, PLR0917 -- private helper, each param is a distinct statistic
     values: np.ndarray, confidence: float, n_resamples: int, seed: int, n: int, method: str
 ) -> Interval:
@@ -44,19 +59,22 @@ def _interval(  # noqa: PLR0913, PLR0917 -- private helper, each param is a dist
         # missed for every constant except the two extremes. `values.min() == values.max()`
         # reads the data directly (no floating-point accumulation) and is exact for every
         # constant array.
-        alpha = 1.0 - confidence
+        # Two-sided (see `zero_count_upper_bound`). It was one-sided (0.9835 at 180/180
+        # against 0.9797 two-sided) until stats review 2026-09-27, finding 3.
         if point == 1.0:
-            # x = n successes: P(X=n | p) = p**n, so the lower Clopper-Pearson bound solves
-            # p_low**n = alpha, giving p_low = alpha**(1/n). One-sided by design (see brief).
+            # n successes is 0 failures: the failure rate's upper bound, mirrored.
             return Interval(
-                point=point, low=alpha ** (1 / n), high=1.0, n=n, method="clopper-pearson-exact"
+                point=point,
+                low=1.0 - zero_count_upper_bound(n, confidence),
+                high=1.0,
+                n=n,
+                method="clopper-pearson-exact",
             )
         if point == 0.0:
-            # mirror image of the point == 1.0 case.
             return Interval(
                 point=point,
                 low=0.0,
-                high=1.0 - alpha ** (1 / n),
+                high=zero_count_upper_bound(n, confidence),
                 n=n,
                 method="clopper-pearson-exact",
             )

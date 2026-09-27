@@ -47,6 +47,41 @@ const REAL_SHAPE_TODAY: JudgeAgreementPayload = {
       status: "rejected",
       decided_at: "2026-01-01 00:00:00",
     },
+    {
+      // emit_all's shape for a 0/0 alpha: nulls plus the reason it writes beside them.
+      field_type: "currency_code",
+      rubric_version: "v1",
+      alpha: null,
+      alpha_low: null,
+      alpha_high: null,
+      n_units: 60,
+      threshold: 0.667,
+      status: "rejected",
+      decided_at: "2026-01-01 00:00:00",
+      statement:
+        "Krippendorff's alpha is undefined, n=60 -- judge and human gave every unit the same " +
+        "verdict, so this sample cannot distinguish the judge from one that always gives that " +
+        "verdict. Treated as below the threshold of 0.667; this field type is not used for " +
+        "headline scoring and is reported as not measured.",
+    },
+    {
+      // A defined alpha whose every bootstrap resample was 0/0: no interval, so rejected.
+      field_type: "invoice_number",
+      rubric_version: "v1",
+      alpha: 0,
+      alpha_low: null,
+      alpha_high: null,
+      n_units: 10,
+      threshold: 0.667,
+      status: "rejected",
+      decided_at: "2026-01-01 00:00:00",
+      statement:
+        "Judge-human agreement on invoice_number: Krippendorff's alpha = 0.000 (interval could " +
+        "not be estimated: unit-bootstrap-percentile, 2 of 2 undefined resamples excluded), " +
+        "n=10. Below the pre-registered threshold of 0.667; this field type is not used for " +
+        "headline scoring and is reported as not measured.",
+      alpha_method: "unit-bootstrap-percentile, 2 of 2 undefined resamples excluded",
+    },
   ],
 };
 

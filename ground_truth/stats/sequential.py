@@ -57,6 +57,11 @@ def spent_alpha(look: int, total_looks: int, *, alpha: float = 0.05) -> float:
     Verified cumulative spend at 13 looks: look 4 -> 0.000410, look 7 -> 0.007563,
     look 10 -> 0.025437, look 13 -> 0.050000 exactly. Monotone and totalling alpha with no
     normalisation, which is what makes its test a test rather than a tautology.
+
+    This is NOT the cumulative type-I error of `obrien_fleming_boundary`: that boundary is
+    fixed-C classic O'Brien-Fleming, whose true spend is ~0.00017 at look 4 and ~0.0049 at
+    look 7 (2M-path Monte Carlo, stats review 2026-09-27). Never publish this value as what
+    the regression watch has spent.
     """
     _check(look, total_looks)
     t = look / total_looks
@@ -82,12 +87,16 @@ def evaluate_look(
     someone has to remember.
     """
     boundary = obrien_fleming_boundary(look, total_looks, alpha=alpha)
-    spent = spent_alpha(look, total_looks, alpha=alpha)
     reject = abs(z) > boundary
     if reject:
+        # No per-look "alpha spent to date" figure: `spent_alpha` is the Lan-DeMets function,
+        # not the cumulative crossing probability of this fixed-C boundary (look 4: 0.00041
+        # printed against ~0.00017 true, stats review 2026-09-27). The guarantee C was
+        # calibrated to carry is the family-wise one, so that is what the alert states.
         statement = (
             f"Change detected at look {look} of {total_looks}: |z| = {abs(z):.3f} exceeds the "
-            f"O'Brien-Fleming boundary of {boundary:.3f} (alpha spent to date {spent:.4f})."
+            f"O'Brien-Fleming boundary of {boundary:.3f}, calibrated for a family-wise type-I "
+            f"error of {alpha:g} across the {total_looks}-look pre-registered calendar."
         )
     else:
         statement = (
