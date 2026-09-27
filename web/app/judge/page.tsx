@@ -63,12 +63,24 @@ export function JudgeAgreementView({ judge, methodologyUrl }: JudgeAgreementView
                 <tr key={decision.field_type} data-testid="agreement-row">
                   <th scope="row">{decision.field_type}</th>
                   <td data-testid="alpha-value">
-                    <IntervalBar
-                      low={decision.alpha_low}
-                      high={decision.alpha_high}
-                      point={decision.alpha}
-                      n={decision.n_units}
-                    />
+                    {decision.alpha === null ? (
+                      // An undefined alpha has no interval to draw; say so in words rather
+                      // than plot a placeholder number (rule 2: no claim without its sample).
+                      <span className="tabular">Undefined, n={decision.n_units}</span>
+                    ) : decision.alpha_low === null || decision.alpha_high === null ? (
+                      // alpha was measured but no bootstrap resample was defined, so there is
+                      // no interval to draw -- the number stands, the interval does not.
+                      <span className="tabular">
+                        {decision.alpha.toFixed(3)}, interval not estimable, n={decision.n_units}
+                      </span>
+                    ) : (
+                      <IntervalBar
+                        low={decision.alpha_low}
+                        high={decision.alpha_high}
+                        point={decision.alpha}
+                        n={decision.n_units}
+                      />
+                    )}
                   </td>
                   <td className={`agreement-status agreement-status--${decision.status}`}>
                     {decision.status === "accepted" ? "Accepted" : "Rejected"}

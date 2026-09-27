@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from ground_truth.stats.agreement import (
@@ -223,13 +225,14 @@ def test_zero_disagreement_does_not_publish_a_zero_width_interval():
     """audit H5 on alpha: every resample of a perfectly-agreeing sample returns 1.0, so a bare
     percentile bootstrap publishes "1.000 [1.000, 1.000]" -- no uncertainty at all, at exactly
     the point the claim is strongest. 40 EQUIVALENT + 20 NOT_EQUIVALENT units, both raters
-    agreeing throughout: De = 6400/(120*119), Do_high = 1 - 0.05**(1/60), so the exact bound is
-    1 - Do_high/De = 0.8913."""
+    agreeing throughout: De = 6400/(120*119), Do_high = 1 - 0.025**(1/60) (two-sided 95%, like
+    every other interval published -- stats review 2026-09-27, finding 3; the one-sided bound
+    was 0.8913), so the exact bound is 1 - Do_high/De = 0.8670."""
     pairs = [("EQUIVALENT", "EQUIVALENT")] * 40 + [("NOT_EQUIVALENT", "NOT_EQUIVALENT")] * 20
     ci = alpha_bootstrap_ci(pairs, seed=1, n_resamples=400)
     assert ci.point == 1.0
     assert ci.high == 1.0
-    assert ci.low == pytest.approx(0.8913, abs=0.0005)
+    assert ci.low == pytest.approx(0.8670, abs=0.0005)
     assert ci.method == "clopper-pearson-exact-on-disagreement"
 
 
@@ -243,3 +246,33 @@ def test_the_exact_bound_tightens_as_the_sample_grows():
 def test_zero_units_raises_rather_than_returning_an_interval():
     with pytest.raises(ValueError, match="zero units"):
         alpha_bootstrap_ci([], seed=1)
+
+
+def test_undefined_resamples_are_excluded_not_scored_as_perfect_agreement():
+    """58 agreeing EQUIVALENT units + 2 disagreements. ~13% of resamples ((58/60)**60) draw no
+    disagreement unit, so alpha is 0/0 on them. Scoring those as 1.0 put a spike at perfect
+    agreement and dragged the upper percentile to 1.000 -- while the same 0/0 on the full
+    sample publishes as undefined and REJECTED (stats code review 2026-09-27, finding 7).
+    Every *defined* resample contains a disagreement, so alpha < 1 on each of them."""
+    pairs = [("EQUIVALENT", "EQUIVALENT")] * 58 + [("EQUIVALENT", "NOT_EQUIVALENT")] * 2
+    ci = alpha_bootstrap_ci(pairs, seed=1, n_resamples=2000)
+    assert ci.high < 1.0
+    assert ci.method.startswith("unit-bootstrap-percentile")
+    assert "undefined resamples excluded" in ci.method
+
+
+def test_method_string_is_unchanged_when_no_resample_is_undefined():
+    pairs = [("EQ", "EQ")] * 30 + [("NE", "NE")] * 25 + [("EQ", "NE")] * 5
+    ci = alpha_bootstrap_ci(pairs, seed=1, n_resamples=400)
+    assert ci.method == "unit-bootstrap-percentile"
+
+
+def test_all_undefined_resamples_return_an_undefined_interval_not_a_crash():
+    """Excluding 0/0 resamples means none may survive: 9 agreeing units + 1 disagreement with
+    two resamples at seed 3 draws no disagreement unit either time. `np.percentile` of an empty
+    array raised IndexError, and a crash in `assess` leaves no judge_decisions row, which
+    `matrix.build` reads as "no decision" (stats code review 2026-09-27 #2, finding 5)."""
+    pairs = [("EQUIVALENT", "EQUIVALENT")] * 9 + [("EQUIVALENT", "NOT_EQUIVALENT")]
+    ci = alpha_bootstrap_ci(pairs, seed=3, n_resamples=2)
+    assert math.isnan(ci.low) and math.isnan(ci.high)
+    assert "2 of 2 undefined resamples excluded" in ci.method

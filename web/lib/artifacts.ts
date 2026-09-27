@@ -96,16 +96,21 @@ export function loadPublicVerdicts(): PublicVerdict[] {
 export interface AgreementDecision {
   field_type: string;
   rubric_version: string;
-  alpha: number;
-  alpha_low: number;
-  alpha_high: number;
+  // null when alpha is 0/0 (judge and human gave every unit one verdict): emit_all maps the
+  // stored NaN to null. alpha_low/alpha_high are also null, with a defined alpha, when every
+  // bootstrap resample was 0/0 and the interval could not be estimated.
+  alpha: number | null;
+  alpha_low: number | null;
+  alpha_high: number | null;
   n_units: number;
   threshold: number;
   status: "accepted" | "rejected";
   decided_at: string;
-  // emit_all's DB-backed dump carries none of AgreementReport's prose -- optional so a real
-  // publish (which will never set this) still renders instead of showing `undefined`.
-  statement?: string;
+  // The statement assess() wrote and the interval's method (which records how many 0/0
+  // resamples were excluded), both stored with the decision. null on decisions recorded before
+  // they were stored; optional because the placeholder artifact predates them.
+  statement?: string | null;
+  alpha_method?: string | null;
 }
 
 export interface OrderEffectSummary {

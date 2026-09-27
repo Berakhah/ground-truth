@@ -17,22 +17,31 @@ def obs_with_ids(ids: list[str], p: float, seed: int) -> list[tuple[str, bool]]:
     return [(i, rng.random() < p) for i in ids]
 
 
+def at_look(curr, look: int = 5):
+    """`curr` as the whole cumulative record at `look`: earlier looks contributed nothing for
+    these keys, so the pooled observations are exactly `curr`."""
+    return [{} for _ in range(look - 1)] + [curr]
+
+
 def test_no_drift_produces_no_detection():
     base = {("slot-a", "money"): obs(180, 0.90, 1)}
     curr = {("slot-a", "money"): obs(180, 0.90, 2)}
-    assert not any(a.detected for a in detect_drift(base, curr, look=5, total_looks=13, seed=1))
+    alerts = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)
+    assert not any(a.detected for a in alerts)
 
 
 def test_large_drift_is_detected():
     base = {("slot-a", "money"): obs(180, 0.95, 1)}
     curr = {("slot-a", "money"): obs(180, 0.55, 2)}
-    assert any(a.detected for a in detect_drift(base, curr, look=5, total_looks=13, seed=1))
+    alerts = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)
+    assert any(a.detected for a in alerts)
 
 
 def test_alert_states_its_test():
     base = {("slot-a", "money"): obs(180, 0.95, 1)}
     curr = {("slot-a", "money"): obs(180, 0.55, 2)}
-    alert = next(a for a in detect_drift(base, curr, look=5, total_looks=13, seed=1) if a.detected)
+    alerts = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)
+    alert = next(a for a in alerts if a.detected)
     assert "O'Brien-Fleming" in alert.statement
     assert "Benjamini-Hochberg" in alert.statement
     assert "look 5 of 13" in alert.statement
@@ -41,14 +50,14 @@ def test_alert_states_its_test():
 def test_alert_carries_both_intervals():
     base = {("slot-a", "money"): obs(180, 0.95, 1)}
     curr = {("slot-a", "money"): obs(180, 0.55, 2)}
-    alert = detect_drift(base, curr, look=5, total_looks=13, seed=1)[0]
+    alert = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)[0]
     assert alert.baseline.n == 180 and alert.current.n == 180  # noqa: PLR2004
 
 
 def test_a_null_result_reports_undetectable_not_absent():
     base = {("slot-a", "money"): obs(180, 0.90, 1)}
     curr = {("slot-a", "money"): obs(180, 0.90, 2)}
-    alert = detect_drift(base, curr, look=5, total_looks=13, seed=1)[0]
+    alert = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)[0]
     assert not alert.detected
     assert "percentage points" in alert.statement
     assert "not that none exists" in alert.statement, (
@@ -59,7 +68,7 @@ def test_a_null_result_reports_undetectable_not_absent():
 def test_multiplicity_correction_is_applied_across_all_comparisons():
     base = {(f"slot-{i}", "money"): obs(180, 0.90, i) for i in range(12)}
     curr = {(f"slot-{i}", "money"): obs(180, 0.90, 100 + i) for i in range(12)}
-    alerts = detect_drift(base, curr, look=5, total_looks=13, seed=1)
+    alerts = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)
     assert len(alerts) == 12  # noqa: PLR2004
     assert sum(a.detected for a in alerts) == 0, (
         "12 null comparisons should not produce a detection"
@@ -68,7 +77,25 @@ def test_multiplicity_correction_is_applied_across_all_comparisons():
 
 def test_missing_baseline_key_raises_rather_than_silently_skipping():
     with pytest.raises(KeyError):
-        detect_drift({}, {("slot-a", "money"): obs(10, 0.9, 1)}, look=1, total_looks=13, seed=1)
+        detect_drift({}, [{("slot-a", "money"): obs(10, 0.9, 1)}], look=1, total_looks=13, seed=1)
+
+
+def test_current_must_cover_every_look_so_far():
+    """Finding 2, stats review 2026-09-27: C_OBF_13_LOOKS is calibrated for a cumulative z,
+    corr(Z_j, Z_k) = sqrt(t_j/t_k). Fed only this look's run, the looks are independent and
+    the family-wise type-I error is ~0.12, not 0.05. The signature makes that mistake loud."""
+    base = {("slot-a", "money"): obs(180, 0.90, 1)}
+    curr = {("slot-a", "money"): obs(180, 0.90, 2)}
+    with pytest.raises(ValueError, match="cumulative"):
+        detect_drift(base, [curr], look=5, total_looks=13, seed=1)
+
+
+def test_observations_from_every_look_are_pooled():
+    base = {("slot-a", "money"): obs(180, 0.90, 1)}
+    look_1 = {("slot-a", "money"): obs_with_ids([f"i{i}" for i in range(90)], 0.90, 2)}
+    look_2 = {("slot-a", "money"): obs_with_ids([f"i{i}" for i in range(90, 180)], 0.90, 3)}
+    alert = detect_drift(base, [look_1, look_2], look=2, total_looks=13, seed=1)[0]
+    assert alert.current.n == 180  # noqa: PLR2004
 
 
 def test_constant_score_side_does_not_crash():
@@ -79,7 +106,7 @@ def test_constant_score_side_does_not_crash():
     # silently.
     base = {("slot-a", "money"): [(f"i{i}", True) for i in range(50)]}
     curr = {("slot-a", "money"): obs(50, 0.90, 2)}
-    alerts = detect_drift(base, curr, look=5, total_looks=13, seed=1)
+    alerts = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)
     assert len(alerts) == 1
     alert = alerts[0]
     assert alert.baseline.point == 1.0
@@ -93,7 +120,7 @@ def test_no_id_overlap_falls_back_to_current_interval_proxy():
     # n_items = current interval's n, discordance_rate = max(1 - current.point, 0.01).
     base = {("slot-a", "money"): obs_with_ids([f"b{i}" for i in range(10)], 0.90, 1)}
     curr = {("slot-a", "money"): obs_with_ids([f"c{i}" for i in range(10)], 0.90, 2)}
-    alert = detect_drift(base, curr, look=5, total_looks=13, seed=1)[0]
+    alert = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)[0]
     assert not alert.detected
     expected_rate = max(1 - alert.current.point, 0.01)
     assert describe_mde(alert.current.n, expected_rate) in alert.statement
@@ -113,7 +140,8 @@ def test_per_key_attribution_is_positional_not_label_based():
         ("slot-b", "money"): obs(180, 0.90, 4),
     }
     alerts = {
-        (a.slot, a.field_type): a for a in detect_drift(base, curr, look=5, total_looks=13, seed=1)
+        (a.slot, a.field_type): a
+        for a in detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1)
     }
     assert alerts[("slot-a", "money")].detected
     assert not alerts[("slot-b", "money")].detected
@@ -123,7 +151,7 @@ def test_cohort_restriction_excludes_rotated_items_and_says_so():
     base = {("slot-a", "money"): obs(100, 0.90, 1)}
     curr = {("slot-a", "money"): obs(100, 0.90, 2)}
     cohort = {f"i{i}" for i in range(80)}
-    alert = detect_drift(base, curr, look=5, total_looks=13, seed=1, cohort=cohort)[0]
+    alert = detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1, cohort=cohort)[0]
     assert alert.baseline.n == 80 and alert.current.n == 80  # noqa: PLR2004
     assert "present in both releases" in alert.statement
 
@@ -132,4 +160,4 @@ def test_comparing_across_a_rotation_without_a_cohort_is_refused():
     base = {("slot-a", "money"): obs(100, 0.90, 1)}
     curr = {("slot-a", "money"): obs(100, 0.90, 2)}
     with pytest.raises(ValueError, match="cohort"):
-        detect_drift(base, curr, look=5, total_looks=13, seed=1, cross_release=True)
+        detect_drift(base, at_look(curr), look=5, total_looks=13, seed=1, cross_release=True)

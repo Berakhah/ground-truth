@@ -641,7 +641,7 @@ Coverage floor 75%. Coverage is a floor, not a goal.
 | Week 23 slips | week 23 | Blind re-label round 2 slips with it; intra-rater agreement is not reportable in this phase. Say so rather than shortening the gap |
 | Client pressure to widen the harness to their other task types | week 22+ | The non-goal guard tests fail the change. Escalate rather than accommodate — this is the platform trap wearing a cheque |
 | **Every model scores ~1.00 and no pair is distinguishable** | week 23 | Not a sample-size result — a ceiling effect from a corpus whose document is a key→value dump using the requested JSON keys (§20 A8). Verify the corpus is a real extraction task **before** attributing a flat leaderboard to n |
-| **A slot scores 180/180 and publishes `[1.000, 1.000]`** | week 24 | The bootstrap's degenerate branch, not a real zero-width interval (§20 A6). Exact binomial interval; correct lower bound at 180/180 is 0.9835 |
+| **A slot scores 180/180 and publishes `[1.000, 1.000]`** | week 24 | The bootstrap's degenerate branch, not a real zero-width interval (§20 A6). Exact binomial interval; correct lower bound at 180/180 is ~~0.9835~~ 0.9797 (two-sided 95%; the one-sided figure was superseded by stats review 2026-09-27, see CHANGELOG) |
 
 ---
 
