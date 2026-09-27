@@ -62,11 +62,21 @@ against `required_terms()` and fails the build if a term is used without a defin
   where its measured agreement with human labels (Krippendorff's alpha) meets or exceeds the
   pre-registered rejection threshold (`REJECTION_THRESHOLD = 0.667`,
   `ground_truth/graders/judge/agreement.py`); below that threshold the field type is excluded
-  from headline scoring and reported as not measured, not silently kept.
+  from headline scoring and reported as not measured, not silently kept. Where judge and human
+  gave every unit the same single verdict, alpha is 0/0 -- undefined, not perfect: it is
+  published as null beside a statement giving that reason, and the field type is treated as
+  below the threshold. A bootstrap resample that lands on the same 0/0 is excluded from the
+  alpha interval, and the interval's `method` (published as `alpha_method`) records how many
+  were. Excluding those draws drops the most-agreeing resamples, so the interval is conditional
+  on alpha being defined and sits low; the published statement says so. If no resample is
+  defined, the interval is not estimable and the field type is treated as below the threshold.
 - **interval** -- a bootstrap confidence interval carrying five fields together: `point`,
   `low`, `high`, `n`, and `method` (`ground_truth.stats.bootstrap.Interval`). Every accuracy
   figure this project publishes is one of these; there is no code path that emits a bare point
-  estimate.
+  estimate. Every interval is two-sided 95%. Where the data has no variance to resample --
+  0/n or n/n correct, or zero judge-human disagreements -- the interval is the exact two-sided
+  Clopper-Pearson bound instead (`method` `clopper-pearson-exact`, or
+  `clopper-pearson-exact-on-disagreement` for alpha): at 180/180 correct, `[0.9797, 1.000]`.
 - **list price** -- the provider's published list price for the paid tier, retrieved from a
   dated, cited source URL (`SlotSpec.pricing_url`, `SlotSpec.retrieved_at`). It is never
   measured spend: this benchmark runs on free tiers, where measured cost is zero and would be
@@ -205,7 +215,7 @@ against the code that implements it.
   rejected -- falsely flags a null (no real regression) trajectory **21.19% of the time**
   against a nominal 5%, measured over 20,000 simulated 13-look quarters
   (`test_fixed_threshold_inflates_alpha`). This is the measured reason the regression watch
-  uses O'Brien-Fleming alpha spending instead of a fixed per-look threshold: naive repeated
+  uses a calibrated O'Brien-Fleming boundary instead of a fixed per-look threshold: naive repeated
   significance testing at 13 looks a quarter would report a "regression" about 1 look in 5
   purely from noise.
 - **Calibrated O'Brien-Fleming boundary constant: `C_OBF_13_LOOKS = 2.1023`.** For this

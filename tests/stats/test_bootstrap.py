@@ -1,8 +1,14 @@
 import random
 
 import pytest
+from scipy.stats import beta
 
-from ground_truth.stats.bootstrap import Interval, cluster_bootstrap_ci, naive_bootstrap_ci
+from ground_truth.stats.bootstrap import (
+    Interval,
+    cluster_bootstrap_ci,
+    naive_bootstrap_ci,
+    zero_count_upper_bound,
+)
 
 
 def replicated(n_items: int, replicates: int, p: float, seed: int):
@@ -54,13 +60,16 @@ def test_perfect_score_still_carries_uncertainty():
     ci = cluster_bootstrap_ci([(f"i{i}", True) for i in range(180)], seed=1, n_resamples=200)
     assert ci.point == 1.0
     assert ci.method == "clopper-pearson-exact"
-    assert ci.low == pytest.approx(0.9835, abs=1e-3), "one-sided Clopper-Pearson at n=180"
+    # Two-sided 95% (0.025 per tail), matching every other interval this package publishes --
+    # the one-sided bound (0.9835) was 95% on a different footing (stats review 2026-09-27,
+    # finding 3). Cross-checked: scipy.stats.beta.ppf(0.025, 180, 1) = 0.979715.
+    assert ci.low == pytest.approx(0.979715, abs=1e-6), "two-sided Clopper-Pearson at n=180"
     assert ci.high == 1.0
 
 
 def test_zero_score_still_carries_uncertainty():
     ci = cluster_bootstrap_ci([(f"i{i}", False) for i in range(180)], seed=1, n_resamples=200)
-    assert ci.point == 0.0 and ci.low == 0.0 and ci.high == pytest.approx(0.0165, abs=1e-3)
+    assert ci.point == 0.0 and ci.low == 0.0 and ci.high == pytest.approx(0.020285, abs=1e-6)
 
 
 def constant_replicated_score(n_items: int, k: int, replicates: int = 5):
@@ -109,3 +118,17 @@ def test_bootstrap_ci_covers_known_parameter():
             covered += 1
     rate = covered / trials
     assert 0.93 <= rate <= 0.97, f"nominal 95% interval covered {rate:.3f} of the time"  # noqa: PLR2004
+
+
+@pytest.mark.parametrize("n", [1, 15, 60, 180, 500])
+def test_zero_count_upper_bound_matches_exact_beta_quantile(n):
+    """The one shared two-sided Clopper-Pearson bound for 0 events in n trials. Both
+    `_interval` (accuracy at 0/n and n/n) and `agreement._zero_disagreement_interval` (Do at
+    0 disagreements) use it, so a change to the tail convention cannot reach only one of them
+    (stats code review 2026-09-27, finding 9). Exact reference: Beta(1, n) upper quantile."""
+    assert zero_count_upper_bound(n, 0.95) == pytest.approx(beta.ppf(0.975, 1, n), abs=1e-12)
+
+
+def test_zero_count_upper_bound_rejects_an_empty_sample():
+    with pytest.raises(ValueError):
+        zero_count_upper_bound(0, 0.95)

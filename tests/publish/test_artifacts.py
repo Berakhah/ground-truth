@@ -14,6 +14,7 @@ from ground_truth.publish.artifacts import (
     emit_all,
     emit_private_verdicts_by_hash,
     emit_public_verdicts,
+    write_json,
 )
 from ground_truth.store.db import connect, migrate
 
@@ -167,7 +168,8 @@ def test_judge_agreement_decided_at_is_utc_normalised(con, tmp_path):
     holds independent of the host, not just "happens to pass" on a UTC CI runner."""
     con.execute("SET TimeZone='America/New_York'")
     con.execute(
-        "INSERT INTO judge_decisions VALUES "
+        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES "
         "('money','v1',0.9,0.8,0.95,40,0.8,'accepted','2026-09-04 15:34:56.789+03')"
     )
     out_dir = tmp_path / "out"
@@ -177,6 +179,98 @@ def test_judge_agreement_decided_at_is_utc_normalised(con, tmp_path):
     ][0]["decided_at"]
     assert decided_at == "2026-09-04 12:34:56.789", decided_at
     assert not decided_at.endswith(("+03", "-04")), "must not carry a session-timezone offset"
+
+
+def test_undefined_judge_alpha_publishes_as_null_not_nan(con, tmp_path):
+    """`assess` stores NaN for an alpha that is 0/0 (every unit one verdict); `json.dumps`
+    would write that as the bare token NaN, which is not JSON and breaks every consumer."""
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES "
+        "('money','v1','NaN'::DOUBLE,'NaN'::DOUBLE,'NaN'::DOUBLE,60,0.667,'rejected',"
+        "'2026-09-27 08:00:00+00')"
+    )
+    out_dir = tmp_path / "out"
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    text = (out_dir / "judge_agreement.json").read_text(encoding="utf-8")
+    decision = json.loads(text, parse_constant=_reject_non_json_constant)["decisions"][0]
+    assert (decision["alpha"], decision["alpha_low"], decision["alpha_high"]) == (None, None, None)
+    assert decision["status"] == "rejected"
+
+
+def test_judge_decisions_publish_the_stored_statement_and_interval_method(con, tmp_path):
+    """The publisher publishes what `assess` wrote -- its statement and the interval's method,
+    which carries the count of excluded 0/0 resamples methodology.md promises -- instead of
+    rebuilding a reason from a NaN (stats code review 2026-09-27 #2, findings 4 and 6)."""
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at, statement, alpha_method) VALUES "
+        "('dates','v1',0.8,0.7,0.9,60,0.667,'accepted','2026-09-27 08:00:00+00',"
+        "'what assess said','unit-bootstrap-percentile, 5 of 400 undefined resamples excluded')"
+    )
+    out_dir = tmp_path / "out"
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    decision = json.loads((out_dir / "judge_agreement.json").read_text(encoding="utf-8"))[
+        "decisions"
+    ][0]
+    assert decision["statement"] == "what assess said"
+    assert decision["alpha_method"].endswith("5 of 400 undefined resamples excluded")
+
+
+def test_undefined_alpha_without_a_stored_statement_does_not_invent_a_reason(con, tmp_path):
+    """A row written before the statement column existed has a NaN alpha and no stored reason.
+    The publisher must not guess one ("every unit got the same verdict") from the NaN alone:
+    any future path to a NaN would be published with that false reason (finding 6)."""
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES "
+        "('money','v1','NaN'::DOUBLE,'NaN'::DOUBLE,'NaN'::DOUBLE,60,0.667,'rejected',"
+        "'2026-09-27 08:00:00+00')"
+    )
+    out_dir = tmp_path / "out"
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    decision = json.loads((out_dir / "judge_agreement.json").read_text(encoding="utf-8"))[
+        "decisions"
+    ][0]
+    assert "same verdict" not in decision["statement"]
+    assert (
+        "undefined" in decision["statement"] and "reason was not recorded" in decision["statement"]
+    )
+    assert "n=60" in decision["statement"]
+
+
+def test_a_failed_publish_leaves_the_output_directory_untouched(con, tmp_path, monkeypatch):
+    """`write_json` refuses NaN mid-way through `emit_all`; before, the files already written
+    stayed behind, mixing new and stale artifacts that the reproducibility check then reads
+    (stats code review 2026-09-27 #2, finding 9)."""
+    from ground_truth.publish import artifacts  # noqa: PLC0415
+
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    (out_dir / "leaderboard.json").write_text("previous release", encoding="utf-8")
+    original = artifacts.write_json
+
+    def fail_on_regression(path: Path, body: dict[str, object]) -> None:
+        if path.name == "regression.json":
+            raise ValueError("Out of range float values are not JSON compliant")
+        original(path, body)
+
+    monkeypatch.setattr(artifacts, "write_json", fail_on_regression)
+    with pytest.raises(ValueError):
+        emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert sorted(p.name for p in out_dir.iterdir()) == ["leaderboard.json"]
+    assert (out_dir / "leaderboard.json").read_text(encoding="utf-8") == "previous release"
+    leftovers = [p.name for p in tmp_path.iterdir() if "staging" in p.name]
+    assert leftovers == [], "no staging directory left behind"
+
+
+def test_write_json_refuses_to_emit_nan(tmp_path):
+    with pytest.raises(ValueError):
+        write_json(tmp_path / "x.json", {"alpha": float("nan")})
+
+
+def _reject_non_json_constant(token: str) -> None:
+    raise AssertionError(f"published JSON contains the non-JSON token {token}")
 
 
 def test_cli_entrypoint_writes_artifacts_to_out_dir(tmp_path):

@@ -20,7 +20,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import shutil
 import sys
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -77,7 +80,45 @@ def _write_jsonl(path: Path, lines: list[str]) -> None:
 
 
 def write_json(path: Path, body: dict[str, object]) -> None:
-    path.write_text(json.dumps(body, sort_keys=True, indent=2), encoding="utf-8")
+    # allow_nan=False: the default writes NaN as a bare `NaN` token, which is not JSON. A
+    # non-finite value must be mapped to null by `finite_or_none` at the call site, where the
+    # reason it is undefined is known, or this raises rather than publish a broken file.
+    path.write_text(json.dumps(body, sort_keys=True, indent=2, allow_nan=False), encoding="utf-8")
+
+
+def finite_or_none(value: object) -> object:
+    """Map a non-finite float (an undefined judge alpha -- `agreement._undefined_alpha_report`)
+    to None, so it publishes as JSON null next to the statement that says why."""
+    return None if isinstance(value, float) and not math.isfinite(value) else value
+
+
+def _judge_decision(row: tuple[object, ...]) -> dict[str, object]:
+    """One `judge_decisions` row as published, with the statement and interval method `assess`
+    stored. The publisher never writes its own reason: an earlier version rebuilt "every unit
+    got the same verdict" from a NaN alpha, which any future path to a NaN would have published
+    as a false reason (stats code review 2026-09-27 #2, finding 6)."""
+    decision: dict[str, object] = {
+        "field_type": row[0],
+        "rubric_version": row[1],
+        "alpha": finite_or_none(row[2]),
+        "alpha_low": finite_or_none(row[3]),
+        "alpha_high": finite_or_none(row[4]),
+        "n_units": row[5],
+        "threshold": row[6],
+        "status": row[7],
+        "decided_at": row[8],
+        "statement": row[9],
+        "alpha_method": row[10],
+    }
+    if decision["statement"] is None and decision["alpha"] is None:
+        # Recorded before `statement` was stored: the value is undefined and the reason is not
+        # known, so say exactly that rather than guess one.
+        decision["statement"] = (
+            f"Krippendorff's alpha is undefined, n={row[5]}; the reason was not recorded with "
+            f"this decision. Treated as below the threshold of {row[6]}; this field type is not "
+            "used for headline scoring and is reported as not measured."
+        )
+    return decision
 
 
 def emit_public_verdicts(con: duckdb.DuckDBPyConnection, path: Path) -> int:
@@ -158,7 +199,38 @@ def emit_all(
     analysis_seed: int,
     models_yaml: Path = _DEFAULT_MODELS_YAML,
 ) -> list[Path]:
-    out_dir.mkdir(parents=True, exist_ok=True)
+    """Write every artifact into a staging directory beside `out_dir`, then move them in.
+
+    `write_json` refuses a non-finite value, and before staging that refusal landed mid-way
+    through the writes: the files already written stayed in `out_dir` beside the previous
+    release's, a mixed publish the reproducibility check then reads (stats code review
+    2026-09-27 #2, finding 9). Now a failure leaves `out_dir` exactly as it was.
+    """
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{out_dir.name}-staging-", dir=out_dir.parent))
+    try:
+        staged = _emit_into(
+            con, staging, as_of=as_of, analysis_seed=analysis_seed, models_yaml=models_yaml
+        )
+        out_dir.mkdir(exist_ok=True)
+        paths = []
+        for path in staged:
+            target = out_dir / path.relative_to(staging)
+            path.replace(target)
+            paths.append(target)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return paths
+
+
+def _emit_into(
+    con: duckdb.DuckDBPyConnection,
+    out_dir: Path,
+    *,
+    as_of: datetime,
+    analysis_seed: int,
+    models_yaml: Path,
+) -> list[Path]:
     paths: list[Path] = []
 
     # Headline numbers are computed against the private split, never the public one (the
@@ -207,17 +279,7 @@ def emit_all(
 
     judge_path = out_dir / "judge_agreement.json"
     decisions = [
-        {
-            "field_type": row[0],
-            "rubric_version": row[1],
-            "alpha": row[2],
-            "alpha_low": row[3],
-            "alpha_high": row[4],
-            "n_units": row[5],
-            "threshold": row[6],
-            "status": row[7],
-            "decided_at": row[8],
-        }
+        _judge_decision(row)
         for row in con.execute(
             # decided_at is TIMESTAMPTZ; cast in SQL rather than let duckdb hand back a
             # native tz-aware datetime, which this driver version cannot do without the
@@ -229,8 +291,8 @@ def emit_all(
             # make this file byte-different on two machines for the same stored instant
             # (review finding, task-40).
             "SELECT field_type, rubric_version, alpha, alpha_low, alpha_high, n_units, "
-            "threshold, status, CAST(decided_at AT TIME ZONE 'UTC' AS VARCHAR) "
-            "FROM judge_decisions ORDER BY field_type"
+            "threshold, status, CAST(decided_at AT TIME ZONE 'UTC' AS VARCHAR), statement, "
+            "alpha_method FROM judge_decisions ORDER BY field_type"
         ).fetchall()
     ]
     write_json(judge_path, {"decisions": decisions})

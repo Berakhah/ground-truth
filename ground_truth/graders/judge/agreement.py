@@ -10,6 +10,7 @@ threshold cannot be nudged after seeing the agreement data).
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -65,6 +66,10 @@ def assess(  # noqa: PLR0913 -- one keyword added to a plan-frozen positional si
     if not units:
         raise ValueError("no overlapping units")
 
+    verdicts = {judge_verdicts[u] for u in units} | {human_verdicts[u] for u in units}
+    if len(verdicts) == 1:
+        return _undefined_alpha_report(field_type, units, verdicts.pop(), samples)
+
     alpha = krippendorff_alpha(
         {
             "judge": {u: judge_verdicts[u] for u in units},
@@ -86,20 +91,33 @@ def assess(  # noqa: PLR0913 -- one keyword added to a plan-frozen positional si
     length = length_effect(samples)
 
     n_units = len(units)
-    status = JudgeStatus.ACCEPTED if alpha >= REJECTION_THRESHOLD else JudgeStatus.REJECTED
     low, high = alpha_ci.low, alpha_ci.high
-    if status is JudgeStatus.ACCEPTED:
+    estimable = math.isfinite(low) and math.isfinite(high)
+    # An interval that could not be estimated (every resample 0/0) is a judge we cannot defend,
+    # whatever its point estimate (CLAUDE.md rule 3).
+    accepted = estimable and alpha >= REJECTION_THRESHOLD
+    status = JudgeStatus.ACCEPTED if accepted else JudgeStatus.REJECTED
+    head = f"Judge-human agreement on {field_type}: Krippendorff's alpha = {alpha:.3f} "
+    if not estimable:
+        head += f"(interval could not be estimated: {alpha_ci.method}), n={n_units}."
+    elif "undefined resamples excluded" in alpha_ci.method:
+        # Excluding 0/0 draws drops the most-agreeing resamples, so the interval is conditional
+        # and sits low; said here because this sentence is what gets published.
+        head += (
+            f"[{low:.3f}, {high:.3f}], n={n_units} ({alpha_ci.method.split(', ', 1)[1]}; the "
+            f"interval is conditional on alpha being defined)."
+        )
+    else:
+        head += f"[{low:.3f}, {high:.3f}], n={n_units}."
+    if accepted:
         statement = (
-            f"Judge-human agreement on {field_type}: Krippendorff's alpha = {alpha:.3f} "
-            f"[{low:.3f}, {high:.3f}], n={n_units}. Above the pre-registered threshold of "
-            f"{REJECTION_THRESHOLD}; used for headline scoring."
+            f"{head} Above the pre-registered threshold of {REJECTION_THRESHOLD}; used for "
+            f"headline scoring."
         )
     else:
         statement = (
-            f"Judge-human agreement on {field_type}: Krippendorff's alpha = {alpha:.3f} "
-            f"[{low:.3f}, {high:.3f}], n={n_units}. Below the pre-registered threshold of "
-            f"{REJECTION_THRESHOLD}; this field type is not used for headline scoring and is "
-            f"reported as not measured."
+            f"{head} Below the pre-registered threshold of {REJECTION_THRESHOLD}; this field "
+            f"type is not used for headline scoring and is reported as not measured."
         )
 
     return AgreementReport(
@@ -112,6 +130,40 @@ def assess(  # noqa: PLR0913 -- one keyword added to a plan-frozen positional si
         order=order,
         length=length,
         statement=statement,
+    )
+
+
+def _undefined_alpha_report(
+    field_type: str, units: list[str], verdict: str, samples: list[Sample]
+) -> AgreementReport:
+    """Both raters gave every unit the same single verdict: expected disagreement is zero and
+    alpha is 0/0. A judge that always answers `verdict` is indistinguishable from a perfect one
+    on this sample, so it cannot clear the threshold (CLAUDE.md rule 3: a judge we cannot
+    defend falls back). Raising instead would leave no `judge_decisions` row, which
+    `matrix.build` reads as "no decision" -- and then scores the judge.
+
+    NaN, not 1.0: publishing 1.0 as this sample's alpha would be a claim the data cannot
+    support. `alpha_bootstrap_ci` follows the same convention for its resamples, excluding a
+    0/0 draw rather than scoring it as perfect agreement.
+    """
+    n_units = len(units)
+    nan = float("nan")
+    return AgreementReport(
+        field_type=field_type,
+        alpha=nan,
+        alpha_ci=Interval(point=nan, low=nan, high=nan, n=n_units, method="undefined"),
+        status=JudgeStatus.REJECTED,
+        n_units=n_units,
+        confusion={(verdict, verdict): n_units},
+        order=order_effect(samples),
+        length=length_effect(samples),
+        statement=(
+            f"Judge-human agreement on {field_type}: Krippendorff's alpha is undefined, n={n_units}"
+            f" -- judge and human gave every unit the same verdict ({verdict}), so this sample "
+            f"cannot distinguish the judge from one that always answers {verdict}. Treated as "
+            f"below the pre-registered threshold of {REJECTION_THRESHOLD}; this field type is "
+            f"not used for headline scoring and is reported as not measured."
+        ),
     )
 
 
@@ -137,7 +189,9 @@ def record_decision(
     published record is the changelog.
     """
     con.execute(
-        "INSERT OR REPLACE INTO judge_decisions VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT OR REPLACE INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at, statement, alpha_method) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         [
             report.field_type,
             rubric_version,
@@ -148,5 +202,7 @@ def record_decision(
             REJECTION_THRESHOLD,
             report.status.value.lower(),
             datetime.now(UTC),
+            report.statement,
+            report.alpha_ci.method,
         ],
     )

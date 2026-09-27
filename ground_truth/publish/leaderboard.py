@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ground_truth.publish.artifacts import leaderboard_row_to_dict, write_json
+from ground_truth.publish.artifacts import finite_or_none, leaderboard_row_to_dict, write_json
 
 if TYPE_CHECKING:
     from ground_truth.graders.judge.agreement import AgreementReport
@@ -60,8 +60,8 @@ def required_terms() -> set[str]:
 def _agreement_to_dict(report: AgreementReport) -> dict[str, object]:
     return {
         "field_type": report.field_type,
-        "alpha": report.alpha,
-        "alpha_ci": report.alpha_ci.model_dump(),
+        "alpha": finite_or_none(report.alpha),
+        "alpha_ci": {k: finite_or_none(v) for k, v in report.alpha_ci.model_dump().items()},
         "status": report.status.value,
         "n_units": report.n_units,
         "statement": report.statement,
@@ -123,6 +123,4 @@ def assert_methodology_defines_every_term(path: Path) -> None:
     }
     missing = {term for term in _REQUIRED_TERMS if term.lower() not in defined}
     if missing:
-        raise AssertionError(
-            f"docs/methodology.md is missing a definition for: {sorted(missing)}"
-        )
+        raise AssertionError(f"docs/methodology.md is missing a definition for: {sorted(missing)}")

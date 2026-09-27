@@ -136,7 +136,9 @@ def _populate_two_field_types(
     )
     if rejected_status is not None:
         con.execute(
-            "INSERT INTO judge_decisions VALUES ('money', 'v1', 0.5, 0.3, 0.7, 60, 0.667, ?,"
+            "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+            "alpha_high, n_units, threshold, status, decided_at) "
+            "VALUES ('money', 'v1', 0.5, 0.3, 0.7, 60, 0.667, ?,"
             " now())",
             [rejected_status],
         )

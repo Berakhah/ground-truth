@@ -14,7 +14,7 @@ from itertools import permutations
 
 import numpy as np
 
-from ground_truth.stats.bootstrap import Interval
+from ground_truth.stats.bootstrap import Interval, zero_count_upper_bound
 
 CONFIDENCE: float = 0.95
 BOOTSTRAP_RESAMPLES: int = 10_000  # docs/analysis-plan.md, "Confidence intervals"
@@ -113,16 +113,16 @@ def _zero_disagreement_interval(pairs: list[tuple[str, str]], confidence: float)
     package already guards against for accuracy, and it must not reappear on alpha.
 
     For two raters who both rated every unit, `Do` is the per-unit disagreement proportion, so
-    0 disagreements out of n carries the exact one-sided Clopper-Pearson upper bound
-    `Do_high = 1 - (1-confidence)**(1/n)` (from P(X=0 | p) = (1-p)**n = 1-confidence -- the
-    identical formula `bootstrap._interval` uses for its own constant-data branch). `De` is a
+    0 disagreements out of n carries the exact two-sided Clopper-Pearson upper bound
+    `Do_high = 1 - ((1-confidence)/2)**(1/n)` -- `bootstrap.zero_count_upper_bound`, the one
+    implementation shared with the accuracy intervals' constant-data branch. `De` is a
     function of the observed marginals and is held at its observed value, which is what makes
     this a bound on alpha rather than a bootstrap; `alpha_low = 1 - Do_high/De`, floored at
     -1.0, alpha's lower limit.
     """
     n = len(pairs)
     _, de = _disagreement(_ratings(pairs))
-    do_high = 1.0 - (1.0 - confidence) ** (1.0 / n)
+    do_high = zero_count_upper_bound(n, confidence)
     return Interval(
         point=1.0,
         low=max(-1.0, 1.0 - do_high / de),
@@ -163,25 +163,35 @@ def alpha_bootstrap_ci(
         return _zero_disagreement_interval(pairs, confidence)
 
     rng = np.random.default_rng(seed)
-    resampled = np.empty(n_resamples, dtype=float)
-    for i in range(n_resamples):
+    defined: list[float] = []
+    for _ in range(n_resamples):
         draw = [pairs[k] for k in rng.integers(0, n, size=n)]
         try:
-            resampled[i] = krippendorff_alpha(_ratings(draw))
+            defined.append(krippendorff_alpha(_ratings(draw)))
         except ValueError:
-            # This resample happened to draw only agreeing units of a single category, so both
-            # observed and expected disagreement are zero and alpha is 0/0. `cohens_kappa`
-            # already publishes that degenerate case as perfect agreement (its `pe == 1.0`
-            # branch); matching it keeps the resample in the distribution, where dropping it
-            # would bias the interval upward by discarding only its extreme.
-            resampled[i] = 1.0
+            # This resample drew only agreeing units of a single category, so alpha is 0/0.
+            # Excluded, not scored: the full-sample 0/0 publishes as undefined and REJECTED
+            # (`graders.judge.agreement._undefined_alpha_report`), and scoring the resample
+            # 1.0 instead put a spike at perfect agreement that pulled the upper percentile to
+            # 1.000 on imbalanced samples (stats code review 2026-09-27, finding 7). The
+            # interval is therefore conditional on alpha being defined, and says so.
+            continue
+    n_undefined = n_resamples - len(defined)
 
-    tail = (1.0 - confidence) / 2.0 * 100.0
-    low, high = np.percentile(resampled, [tail, 100.0 - tail])
+    method = "unit-bootstrap-percentile"
+    if n_undefined:
+        method += f", {n_undefined} of {n_resamples} undefined resamples excluded"
+    if defined:
+        tail = (1.0 - confidence) / 2.0 * 100.0
+        low, high = (float(v) for v in np.percentile(np.asarray(defined), [tail, 100.0 - tail]))
+    else:
+        # Every resample was 0/0, so there is no distribution to take percentiles of. NaN
+        # bounds, not a crash: `assess` rejects a judge whose interval cannot be estimated.
+        low = high = float("nan")
     return Interval(
         point=krippendorff_alpha(_ratings(pairs)),
-        low=float(low),
-        high=float(high),
+        low=low,
+        high=high,
         n=n,
-        method="unit-bootstrap-percentile",
+        method=method,
     )

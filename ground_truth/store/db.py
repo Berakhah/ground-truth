@@ -94,6 +94,14 @@ _ALTER_ITEMS = (
 # missing count as zero -- zero would be a fabricated cost, not an absent one).
 _ALTER_OUTPUTS = ("ALTER TABLE outputs ADD COLUMN IF NOT EXISTS token_count INTEGER",)
 
+# Nullable for the same reason: decisions recorded before these existed have no stored prose.
+# The publisher reads the statement `assess` wrote rather than rebuilding one from the numbers,
+# and `alpha_method` carries the count of excluded 0/0 resamples the methodology promises.
+_ALTER_JUDGE_DECISIONS = (
+    "ALTER TABLE judge_decisions ADD COLUMN IF NOT EXISTS statement TEXT",
+    "ALTER TABLE judge_decisions ADD COLUMN IF NOT EXISTS alpha_method TEXT",
+)
+
 
 def connect(path: Path) -> duckdb.DuckDBPyConnection:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,4 +113,6 @@ def migrate(con: duckdb.DuckDBPyConnection) -> None:
     for stmt in _ALTER_ITEMS:
         con.execute(stmt)
     for stmt in _ALTER_OUTPUTS:
+        con.execute(stmt)
+    for stmt in _ALTER_JUDGE_DECISIONS:
         con.execute(stmt)

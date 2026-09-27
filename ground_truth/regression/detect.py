@@ -12,6 +12,7 @@ drift, per `describe_mde`'s own closing line.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from scipy.stats import norm
@@ -71,9 +72,19 @@ def _filter_to_cohort(obs: list[tuple[str, bool]], cohort: set[str]) -> list[tup
     return [o for o in obs if o[0] in cohort]
 
 
+def _pool(
+    looks: Sequence[dict[tuple[str, str], list[tuple[str, bool]]]],
+) -> dict[tuple[str, str], list[tuple[str, bool]]]:
+    pooled: dict[tuple[str, str], list[tuple[str, bool]]] = {}
+    for observations in looks:
+        for key, obs in observations.items():
+            pooled.setdefault(key, []).extend(obs)
+    return pooled
+
+
 def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     baseline: dict[tuple[str, str], list[tuple[str, bool]]],
-    current: dict[tuple[str, str], list[tuple[str, bool]]],
+    current_by_look: Sequence[dict[tuple[str, str], list[tuple[str, bool]]]],
     *,
     look: int,
     total_looks: int,
@@ -81,6 +92,29 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     cohort: set[str] | None = None,
     cross_release: bool = False,
 ) -> list[Alert]:
+    """Compare `baseline` against everything observed so far this quarter.
+
+    **Input must be cumulative.** `current_by_look[k]` holds the observations from look k+1,
+    and the list must cover every look from 1 to `look` -- they are pooled here, so the z at
+    look k is computed on all data accumulated through look k. `C_OBF_13_LOOKS` was calibrated
+    for exactly that process, corr(Z_j, Z_k) = sqrt(t_j/t_k); fed only the current look's run,
+    the 13 looks are independent and the family-wise type-I error is ~0.12, not 0.05 (stats
+    review 2026-09-27, finding 2). A list of the wrong length raises rather than guessing which
+    looks it holds. A look that produced nothing for a key contributes an empty dict entry.
+
+    Pooling re-runs of the *same* anchor items adds replicates to existing item clusters rather
+    than new clusters, so information grows more slowly than t = k/13 and successive z's are
+    more correlated than sqrt(t_j/t_k). That direction makes the boundary conservative (fewer
+    false alarms, lower power), never anti-conservative.
+    """
+    if len(current_by_look) != look:
+        raise ValueError(
+            f"detect_drift needs cumulative input: one observation dict per look from 1 to "
+            f"{look}, got {len(current_by_look)}. The O'Brien-Fleming constant is calibrated for "
+            "a z on data accumulated across looks; this look's run alone inflates type-I error."
+        )
+    current = _pool(current_by_look)
+
     if cross_release and cohort is None:
         raise ValueError(
             "cross_release=True requires an explicit cohort: comparing across a private-split "

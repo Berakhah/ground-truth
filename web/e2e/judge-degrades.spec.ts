@@ -35,10 +35,35 @@ test('a real, narrower emit_all-shaped payload degrades instead of crashing', as
   await expect(page.getByTestId('agreement-table')).toContainText(/accepted/i);
   await expect(page.getByTestId('agreement-table')).toContainText(/rejected/i);
   const alphaValues = page.getByTestId('alpha-value');
-  await expect(alphaValues).toHaveCount(2);
+  await expect(alphaValues).toHaveCount(4);
   await expect(alphaValues.first()).toContainText(/\[.*,.*\]/);
   await expect(alphaValues.first()).toContainText(/n=\d+/);
 
   // Threshold notice still resolves from decisions[0].threshold, not left blank.
   await expect(page.getByTestId('threshold-notice')).toContainText('0.667');
+});
+
+test('an undefined alpha (published as null) renders in words, with its reason', async ({ page }) => {
+  // emit_all publishes a 0/0 alpha as JSON null plus a statement (stats code review
+  // 2026-09-27, finding 5). IntervalBar used to call null.toFixed and take the build down.
+  const response = await page.goto('/judge/degraded-example');
+  expect(response?.ok()).toBe(true);
+  const row = page.getByTestId('agreement-row').filter({ hasText: 'currency_code' });
+  await expect(row.getByTestId('alpha-value')).toContainText(/undefined/i);
+  await expect(row.getByTestId('alpha-value')).toContainText('n=60');
+  await expect(row).toContainText(/same verdict/i);
+  await expect(row).toContainText(/rejected/i);
+});
+
+test('a defined alpha whose interval could not be estimated says so, not "Undefined"', async ({ page }) => {
+  // Every bootstrap resample was 0/0, so alpha_low/alpha_high publish as null while alpha itself
+  // is defined (stats code review 2026-09-27 #2, finding 5). Calling alpha "Undefined" there
+  // would misstate a number that was measured.
+  const response = await page.goto('/judge/degraded-example');
+  expect(response?.ok()).toBe(true);
+  const row = page.getByTestId('agreement-row').filter({ hasText: 'invoice_number' });
+  await expect(row.getByTestId('alpha-value')).toContainText('0.000');
+  await expect(row.getByTestId('alpha-value')).toContainText(/interval not estimable/i);
+  await expect(row.getByTestId('alpha-value')).toContainText('n=10');
+  await expect(row.getByTestId('alpha-value')).not.toContainText(/undefined/i);
 });
