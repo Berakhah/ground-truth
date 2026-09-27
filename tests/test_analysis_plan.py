@@ -30,13 +30,20 @@ def test_plan_states_the_judge_threshold():
     )
 
 
-def test_plan_states_the_calibrated_obf_constant():
-    """audit B3: the naive z_{alpha/2}=1.96 boundary understates true alpha as 0.0721
-    against the nominal 0.05. The pre-registered plan must commit to the calibrated
-    constant before any sweep, not just the code in Phase 2."""
-    assert "2.1023" in PLAN.read_text(encoding="utf-8"), (
-        "the calibrated OBF constant must be pre-registered"
+def test_plan_states_the_per_look_boundary():
+    """The plan commits to the regression watch's boundary before any sweep, not just the code."""
+    assert "2.8831" in PLAN.read_text(encoding="utf-8"), (
+        "the per-look Šidák boundary must be pre-registered"
     )
+
+
+def test_plan_v2_records_what_it_replaced_and_that_v1_governed_no_look():
+    """A post-freeze procedure change needs a new plan_version, never a silent edit of v1 --
+    and the record must show the change came before any data it could have been fitted to."""
+    text = " ".join(PLAN.read_text(encoding="utf-8").split())  # prose wraps across lines
+    assert "plan_version: v2" in text
+    assert "v1 governed zero looks" in text
+    assert "Superseded: v1" in text and "C = 2.1023" in text, "v1's text is kept for the record"
 
 
 def test_plan_names_the_sampling_unit():

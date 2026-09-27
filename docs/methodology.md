@@ -84,15 +84,21 @@ against `required_terms()` and fails the build if a term is used without a defin
 - **not distinguishable** -- the stated conclusion when two slots' accuracy `Interval`s
   overlap (`Interval.overlaps`). The sample cannot tell the two models apart at this size, and
   the leaderboard says so in words rather than suggesting a ranking the data cannot support.
-- **minimum detectable effect** -- the smallest true difference a given sample size and
-  discordance rate could reliably detect (`ground_truth.stats.mde.describe_mde`). Published
-  alongside results so a reader knows what the sample can and cannot see, not only what it did
-  see.
-- **look** -- one evaluation of the regression watch's accumulated data against its
-  pre-registered sequential-testing calendar (up to 13 per quarter). Each look spends part of
-  a shared alpha budget under an O'Brien-Fleming boundary (`ground_truth/stats/sequential.py`),
-  which is what keeps repeated looks from inflating the false-positive rate the way naive
-  repeated significance testing would.
+- **minimum detectable effect** -- the smallest true difference a given sample could reliably
+  detect (80% power), published alongside results so a reader knows what the sample can and
+  cannot see, not only what it did see. It is always computed for the test actually run: a
+  paired comparison of two models uses the paired formula
+  (`ground_truth.stats.mde.describe_mde`, from the discordance rate); the regression watch,
+  which tests the difference of two independent intervals, uses those intervals' standard
+  errors (`describe_mde_two_sample`). *Changed 2026-09-28: the regression watch previously
+  quoted the paired formula, which overstated what a null look could see.*
+- **look** -- one scheduled sweep of the regression watch, tested on its own data against the
+  quarter's fixed baseline (up to 13 per quarter, pre-registered). Each look is tested at the
+  Šidák per-look level, `|z| > 2.8831`, so the 13 looks together keep the chance of any false
+  alarm in a quarter at or below 5% (`ground_truth/stats/sequential.py`); naive repeated
+  testing at `|z| > 1.96` would raise one in about a third of quarters with no real change.
+  *Changed 2026-09-28 (analysis plan v2): previously each look tested data pooled since the
+  start of the quarter against an O'Brien-Fleming boundary, which diluted a mid-quarter change.*
 - **rubric** -- the versioned, published document defining what counts as correct per field
   type (exact match, numeric tolerance, normalised match, acceptable variants). Authored and
   published before labelling starts, never reverse-engineered from already-labelled items;
@@ -205,28 +211,34 @@ model drift.
 
 ### What is real: the statistics, verified by simulation
 
-The two figures below come from pure Monte Carlo simulation of the sequential-testing code
-itself (`tests/stats/test_sequential.py`, seed fixed, 20,000-trial null). They do not depend
+The figures below come from pure Monte Carlo simulation of the regression watch's per-look test
+(`tests/stats/test_sequential.py`, seeds fixed, 400,000 simulated null quarters each; each
+figure is asserted to four decimal places, so it regenerates exactly). They do not depend
 on any provider call, sweep, or golden item -- they are a property of the math, verified
 against the code that implements it.
 
-- **Naive fixed-threshold type-I error: `0.2119`.** A regression watch that simply compares
-  `|z| > 1.96` at every one of 13 correlated weekly looks -- the naive approach this project
-  rejected -- falsely flags a null (no real regression) trajectory **21.19% of the time**
-  against a nominal 5%, measured over 20,000 simulated 13-look quarters
-  (`test_fixed_threshold_inflates_alpha`). This is the measured reason the regression watch
-  uses a calibrated O'Brien-Fleming boundary instead of a fixed per-look threshold: naive repeated
-  significance testing at 13 looks a quarter would report a "regression" about 1 look in 5
-  purely from noise.
-- **Calibrated O'Brien-Fleming boundary constant: `C_OBF_13_LOOKS = 2.1023`.** For this
-  project's pre-registered 13-look-per-quarter calendar, `C = 2.1023` is the constant
-  (`ground_truth/stats/sequential.py`) that keeps the *cumulative* type-I error across all 13
-  correlated looks at the nominal 0.05 (`test_calibrated_constant_controls_alpha`, verified
-  over the same 20,000-trial null simulation, rate constrained to `[0.043, 0.057]`). It
-  replaces the naive `z_{alpha/2} = 1.96` boundary, whose own miscalibration is documented
-  separately in `docs/analysis-plan.md` (substituting 1.96 for `C` inflates the *O'Brien-Fleming
-  shaped* boundary's true error to 0.0721 -- a different, smaller failure mode than the fully
-  naive fixed-threshold test above, which has no spending function at all).
+- **Naive fixed-threshold type-I error: `0.334`.** A regression watch that simply compares
+  `|z| > 1.96` at every one of 13 weekly looks, each against the same look-sized baseline,
+  falsely flags a null (no real regression) quarter **33.4% of the time** against a nominal 5%,
+  measured over 400,000 simulated 13-look quarters (`test_fixed_threshold_inflates_alpha`).
+  This is the measured reason each look is tested at a corrected per-look boundary rather than
+  1.96.
+- **Per-look boundary: `|z| > 2.8831`** (Šidák, `alpha_look = 1 - 0.95^(1/13) = 0.003938`).
+  Šidák's inequality bounds the chance of any false alarm across the 13 looks at 5% for any
+  correlation between them. The committed null simulation measures it at **0.0501** (exactly 0.05 in theory; Monte Carlo error about ±0.0003) with a
+  noiseless baseline and **0.0381** with a baseline as noisy as one look
+  (`test_family_wise_error_stays_within_alpha_under_a_shared_baseline`); the shared baseline
+  makes the bound conservative, never permissive. Benjamini-Hochberg is then applied across
+  model x field-type cells to the Šidák-adjusted p-values.
+- **What a single look cannot see.** Each look is tested on one sweep, so a small drift that
+  persists across many looks is harder to detect than it would be with pooled data. Every null
+  result states its minimum detectable effect for one look's sample at the per-look alpha.
+
+*Changed 2026-09-28 (analysis plan v2). The two figures previously published here described the
+retired design, which tested data pooled across looks against an O'Brien-Fleming boundary:
+~~naive fixed-threshold type-I error `0.2119`~~ (pooled looks) and ~~calibrated boundary
+constant `C_OBF_13_LOOKS = 2.1023`~~. Neither governed any look; see `docs/analysis-plan.md`,
+"Revision history".*
 
 ### What is pending: requires the real sweep
 
