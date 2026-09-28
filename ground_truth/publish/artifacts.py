@@ -223,19 +223,23 @@ def emit_all(
     return [out_dir / path.relative_to(staging) for path in staged]
 
 
+# Written into the output directory by another emitter (`triage.export_example`) and committed
+# there. Named, not "whatever is already in the folder": carrying over everything let a stray
+# file -- a real triage output, the class of leak the 2026-08-29 audit caught -- survive every
+# publish (re-review 2026-09-28).
+_WRITTEN_ELSEWHERE = ("triage_example.json",)
+
+
 def _carry_over_unwritten(out_dir: Path, staging: Path) -> None:
-    """Copy what `out_dir` holds but this publish does not write -- `triage_example.json` is
-    committed there by `triage.export_example` -- so swapping the folder does not delete it."""
-    if not out_dir.exists():
-        return
-    for entry in out_dir.iterdir():
-        target = staging / entry.name
-        if target.exists():
-            continue
-        if entry.is_dir():
-            shutil.copytree(entry, target)
-        else:
-            shutil.copy2(entry, target)
+    """Copy the files another emitter writes into `out_dir`, so the swap does not delete them.
+
+    Two publishers writing `out_dir` at the same moment still race, as they did before the
+    swap: a file written after this copy is replaced along with the folder.
+    """
+    for name in _WRITTEN_ELSEWHERE:
+        source = out_dir / name
+        if source.is_file() and not (staging / name).exists():
+            shutil.copy2(source, staging / name)
 
 
 def _swap_in(staging: Path, out_dir: Path) -> None:
@@ -250,9 +254,19 @@ def _swap_in(staging: Path, out_dir: Path) -> None:
     os.replace(out_dir, backup)
     try:
         os.replace(staging, out_dir)
-    except BaseException:
-        os.replace(backup, out_dir)
+    except BaseException as swap_error:
+        try:
+            os.replace(backup, out_dir)
+        except OSError as rollback_error:
+            # The lock that failed the swap can fail the rollback too. `out_dir` is then gone,
+            # so say where the previous release is instead of stranding it under a hidden name.
+            raise RuntimeError(
+                f"publish failed and {out_dir} could not be restored; the previous release is "
+                f"intact at {backup} -- rename it back to {out_dir.name} ({swap_error!r})"
+            ) from rollback_error
         raise
+    # Best effort: the swap has succeeded. A leftover is gitignored (`.gitignore`), so a
+    # stale copy of the previous release cannot be committed beside the real one.
     shutil.rmtree(backup, ignore_errors=True)
 
 

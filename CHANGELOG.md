@@ -71,12 +71,16 @@ overwritten in place.
   change detected". `detect_drift` checks for empty cells after the cohort filter and on both
   the baseline and current sides, naming every empty cell in one error. `emit_all` now swaps
   the whole output folder in (rename aside, rename in, roll back on failure) instead of
-  moving files one at a time, and carries over files it does not write
-  (`triage_example.json`). The judge's "conditional on alpha being defined" caveat is decided
+  moving files one at a time; it carries over only `triage_example.json` (written there by
+  `triage.export_example`), so any other stray file is dropped rather than republished, and a
+  failed rollback names the folder holding the previous release. The judge's "conditional on alpha being defined" caveat is decided
   from a counted `n_undefined_excluded`, not by searching the interval's `method` string.
   Methodology figure: naive fixed-threshold error ~~"about a third of quarters"~~ -> 0.334
-  with a look-sized baseline to 0.487 with a noiseless one, assumption stated for each. No
-  published artifact changes: every p-value in the committed placeholders is above the floor.
+  with a look-sized baseline to 0.487 with a noiseless one, assumption stated for each.
+  Published shape: `leaderboard.json`'s `judge_agreement[].alpha_ci` gains
+  `n_undefined_excluded` and `n_resamples`, on every row including undefined alpha. No
+  committed artifact's contents change: none carries `alpha_ci`, and every p-value in the
+  committed placeholders is above the floor.
 
 ### Added
 

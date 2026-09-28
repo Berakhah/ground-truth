@@ -120,6 +120,14 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
         z = (current_interval.point - baseline_interval.point) / math.sqrt(
             _se(current_interval) ** 2 + _se(baseline_interval) ** 2
         )
+        if math.isnan(z):
+            # Named here, where the cell is known; `evaluate_look` would refuse it anonymously
+            # and abort every cell at this look (re-review 2026-09-28).
+            raise ValueError(
+                f"z is undefined for {key[0]}/{key[1]} at look {look}: baseline interval "
+                f"[{baseline_interval.low}, {baseline_interval.high}], current interval "
+                f"[{current_interval.low}, {current_interval.high}]"
+            )
         tested.append((baseline_interval, current_interval, z))
         seq = evaluate_look(z, look, total_looks)
         sequential.append(seq)
