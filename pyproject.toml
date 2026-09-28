@@ -20,7 +20,7 @@ dev = ["pytest>=8.3", "pytest-cov>=5.0", "hypothesis>=6.112", "mypy>=1.11", "ruf
        # 00 SS7 / security baseline (Task 52 item 8): any test that ever makes a real call
        # to a model provider must record it once as a vcrpy cassette (tests/cassettes/) and
        # replay it thereafter -- CI must never depend on live network access or spend quota.
-       "vcrpy>=6.0"]
+       "vcrpy>=8.3.0"]
 
 [tool.ruff]
 line-length = 100
