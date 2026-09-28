@@ -154,7 +154,15 @@ def _undefined_alpha_report(
     return AgreementReport(
         field_type=field_type,
         alpha=nan,
-        alpha_ci=AlphaInterval(point=nan, low=nan, high=nan, n=n_units, method="undefined"),
+        alpha_ci=AlphaInterval(
+            point=nan,
+            low=nan,
+            high=nan,
+            n=n_units,
+            method="undefined",
+            n_undefined_excluded=0,  # no bootstrap was run
+            n_resamples=0,
+        ),
         status=JudgeStatus.REJECTED,
         n_units=n_units,
         confusion={(verdict, verdict): n_units},

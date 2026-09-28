@@ -48,6 +48,58 @@ def _filter_to_cohort(obs: list[tuple[str, bool]], cohort: set[str]) -> list[tup
     return [o for o in obs if o[0] in cohort]
 
 
+def _refuse_empty_cells(
+    tested_obs: dict[tuple[str, str], tuple[list[tuple[str, bool]], list[tuple[str, bool]]]],
+    look: int,
+    *,
+    cohort_applied: bool,
+) -> None:
+    # Checked on what is actually tested -- after the cohort filter, on both sides -- and for
+    # every cell before any is tested, so one error names them all. Checking `current` before
+    # filtering missed a cell the filter emptied and an empty baseline, both of which crashed
+    # the whole look inside the bootstrap, unnamed (code review 2026-09-28 #3).
+    empty = [
+        f"{side} of {slot}/{field}"
+        for (slot, field), sides in sorted(tested_obs.items())
+        for side, side_obs in zip(("baseline", "current"), sides, strict=True)
+        if not side_obs
+    ]
+    if empty:
+        raise ValueError(
+            f"no observations to test at look {look} for the {', '.join(empty)}"
+            + (" after restricting to the cohort" if cohort_applied else "")
+            + ": leave a cell that ran nothing out of `current` -- it is not tested at this "
+            "look, rather than crashing it"
+        )
+
+
+def _z_scores(
+    intervals: dict[tuple[str, str], tuple[Interval, Interval]], look: int
+) -> dict[tuple[str, str], float]:
+    z_by_key: dict[tuple[str, str], float] = {}
+    names: list[str] = []
+    undefined: list[str] = []
+    for key, (baseline_interval, current_interval) in intervals.items():
+        se = math.sqrt(_se(current_interval) ** 2 + _se(baseline_interval) ** 2)
+        z = (current_interval.point - baseline_interval.point) / se if se > 0 else math.nan
+        # A NaN or infinite bound, or a zero-width pair, leaves z undefined -- and an infinite
+        # se would give z = 0, a null result the data never supported. Named per cell, all at
+        # once, before any is tested (re-review 2026-09-28).
+        if not (math.isfinite(se) and math.isfinite(z)):
+            names.append(f"{key[0]}/{key[1]}")
+            undefined.append(
+                f"{key[0]}/{key[1]} (baseline [{baseline_interval.low}, "
+                f"{baseline_interval.high}], current [{current_interval.low}, "
+                f"{current_interval.high}])"
+            )
+        z_by_key[key] = z
+    if undefined:
+        raise ValueError(
+            f"z is undefined at look {look} for {', '.join(names)}: " + "; ".join(undefined)
+        )
+    return z_by_key
+
+
 def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     baseline: dict[tuple[str, str], list[tuple[str, bool]]],
     current: dict[tuple[str, str], list[tuple[str, bool]]],
@@ -96,38 +148,15 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
             baseline_obs = _filter_to_cohort(baseline_obs, cohort)
             current_obs = _filter_to_cohort(current_obs, cohort)
         tested_obs[key] = (baseline_obs, current_obs)
-    # Checked on what is actually tested -- after the cohort filter, on both sides -- and for
-    # every cell before any is tested, so one error names them all. Checking `current` before
-    # filtering missed a cell the filter emptied and an empty baseline, both of which crashed
-    # the whole look inside the bootstrap, unnamed (code review 2026-09-28 #3).
-    empty = [
-        f"{side} of {slot}/{field}"
-        for (slot, field), sides in sorted(tested_obs.items())
-        for side, side_obs in zip(("baseline", "current"), sides, strict=True)
-        if not side_obs
-    ]
-    if empty:
-        raise ValueError(
-            f"no observations to test at look {look} for the {', '.join(empty)}"
-            + (" after restricting to the cohort" if cohort is not None else "")
-            + ": leave a cell that ran nothing out of `current` -- it is not tested at this "
-            "look, rather than crashing it"
-        )
+    _refuse_empty_cells(tested_obs, look, cohort_applied=cohort is not None)
+    intervals = {
+        key: (cluster_bootstrap_ci(b, seed=seed), cluster_bootstrap_ci(c, seed=seed))
+        for key, (b, c) in tested_obs.items()
+    }
+    z_by_key = _z_scores(intervals, look)
     for key in keys:
-        baseline_obs, current_obs = tested_obs[key]
-        baseline_interval = cluster_bootstrap_ci(baseline_obs, seed=seed)
-        current_interval = cluster_bootstrap_ci(current_obs, seed=seed)
-        z = (current_interval.point - baseline_interval.point) / math.sqrt(
-            _se(current_interval) ** 2 + _se(baseline_interval) ** 2
-        )
-        if math.isnan(z):
-            # Named here, where the cell is known; `evaluate_look` would refuse it anonymously
-            # and abort every cell at this look (re-review 2026-09-28).
-            raise ValueError(
-                f"z is undefined for {key[0]}/{key[1]} at look {look}: baseline interval "
-                f"[{baseline_interval.low}, {baseline_interval.high}], current interval "
-                f"[{current_interval.low}, {current_interval.high}]"
-            )
+        baseline_interval, current_interval = intervals[key]
+        z = z_by_key[key]
         tested.append((baseline_interval, current_interval, z))
         seq = evaluate_look(z, look, total_looks)
         sequential.append(seq)

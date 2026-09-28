@@ -71,9 +71,12 @@ overwritten in place.
   change detected". `detect_drift` checks for empty cells after the cohort filter and on both
   the baseline and current sides, naming every empty cell in one error. `emit_all` now swaps
   the whole output folder in (rename aside, rename in, roll back on failure) instead of
-  moving files one at a time; it carries over only `triage_example.json` (written there by
-  `triage.export_example`), so any other stray file is dropped rather than republished, and a
-  failed rollback names the folder holding the previous release. The judge's "conditional on alpha being defined" caveat is decided
+  moving files one at a time. It carries over `triage_example.json` (written there by
+  `triage.export_example`) and refuses, changing nothing, if the folder holds any other entry
+  it does not write -- a stray file is neither republished nor deleted. A failed rollback
+  keeps the original exception and notes the folder holding the previous release. A cell
+  whose z cannot be computed (NaN or infinite bound, zero-width pair) is refused by name,
+  every such cell in one error, instead of aborting anonymously or publishing z = 0. The judge's "conditional on alpha being defined" caveat is decided
   from a counted `n_undefined_excluded`, not by searching the interval's `method` string.
   Methodology figure: naive fixed-threshold error ~~"about a third of quarters"~~ -> 0.334
   with a look-sized baseline to 0.487 with a noiseless one, assumption stated for each.

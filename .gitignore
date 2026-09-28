@@ -14,10 +14,10 @@ golden/corpus/private/
 # Real triage output is CLIENT_CONFIDENTIAL (00 R4) -- see
 # ground_truth/publish/artifacts.py's emit_all docstring. Never published to artifacts/.
 deliverables/
-# emit_all's staging folder and the previous release it swaps out; normally deleted, but a
+# emit_all's staging folder and the previous release it swaps out, for any --out name; normally deleted, but a
 # Windows file lock can leave one behind.
-.artifacts-staging-*/
-.artifacts-previous-*/
+.*-staging-*/
+.*-previous-*/
 node_modules/
 web/.next/
 web/out/
