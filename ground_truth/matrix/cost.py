@@ -48,9 +48,9 @@ def cost_per_1k_items(spec: SlotSpec, mean_tokens: int) -> CostClaim:
     if mean_tokens <= 0:
         raise ValueError("token count must be positive; a zero cost would be a fabrication")
     blended_price_per_1m = (spec.list_price_in_per_1m + spec.list_price_out_per_1m) / 2
-    value = (
-        Decimal(mean_tokens) * Decimal(1000) / _PER_MILLION * blended_price_per_1m
-    ).quantize(Decimal("0.0001"))
+    value = (Decimal(mean_tokens) * Decimal(1000) / _PER_MILLION * blended_price_per_1m).quantize(
+        Decimal("0.0001")
+    )
     return CostClaim(
         value=value,
         unit="USD per 1,000 items",

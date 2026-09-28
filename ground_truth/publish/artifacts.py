@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import shutil
 import sys
 import tempfile
@@ -199,12 +200,15 @@ def emit_all(
     analysis_seed: int,
     models_yaml: Path = _DEFAULT_MODELS_YAML,
 ) -> list[Path]:
-    """Write every artifact into a staging directory beside `out_dir`, then move them in.
+    """Write every artifact into a staging directory beside `out_dir`, then swap it in whole.
 
     `write_json` refuses a non-finite value, and before staging that refusal landed mid-way
     through the writes: the files already written stayed in `out_dir` beside the previous
     release's, a mixed publish the reproducibility check then reads (stats code review
-    2026-09-27 #2, finding 9). Now a failure leaves `out_dir` exactly as it was.
+    2026-09-27 #2, finding 9). Moving staged files in one at a time kept the same failure one
+    step later -- a move failing partway, as it does on Windows when a dev server or antivirus
+    holds a file open, left the folder mixed (code review 2026-09-28 #4). Now a failure at any
+    point leaves `out_dir` exactly as it was.
     """
     out_dir.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{out_dir.name}-staging-", dir=out_dir.parent))
@@ -212,15 +216,44 @@ def emit_all(
         staged = _emit_into(
             con, staging, as_of=as_of, analysis_seed=analysis_seed, models_yaml=models_yaml
         )
-        out_dir.mkdir(exist_ok=True)
-        paths = []
-        for path in staged:
-            target = out_dir / path.relative_to(staging)
-            path.replace(target)
-            paths.append(target)
+        _carry_over_unwritten(out_dir, staging)
+        _swap_in(staging, out_dir)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-    return paths
+    return [out_dir / path.relative_to(staging) for path in staged]
+
+
+def _carry_over_unwritten(out_dir: Path, staging: Path) -> None:
+    """Copy what `out_dir` holds but this publish does not write -- `triage_example.json` is
+    committed there by `triage.export_example` -- so swapping the folder does not delete it."""
+    if not out_dir.exists():
+        return
+    for entry in out_dir.iterdir():
+        target = staging / entry.name
+        if target.exists():
+            continue
+        if entry.is_dir():
+            shutil.copytree(entry, target)
+        else:
+            shutil.copy2(entry, target)
+
+
+def _swap_in(staging: Path, out_dir: Path) -> None:
+    """Two renames with a rollback. Renaming `out_dir` aside is the step a held-open file makes
+    fail on Windows, and it fails before anything has changed. `os.replace` cannot move a
+    folder onto a non-empty one on Windows, hence aside-then-in rather than one replace."""
+    if not out_dir.exists():
+        os.replace(staging, out_dir)
+        return
+    backup = Path(tempfile.mkdtemp(prefix=f".{out_dir.name}-previous-", dir=out_dir.parent))
+    backup.rmdir()  # a unique free name; os.replace needs the target absent on Windows
+    os.replace(out_dir, backup)
+    try:
+        os.replace(staging, out_dir)
+    except BaseException:
+        os.replace(backup, out_dir)
+        raise
+    shutil.rmtree(backup, ignore_errors=True)
 
 
 def _emit_into(

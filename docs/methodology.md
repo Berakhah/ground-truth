@@ -96,7 +96,9 @@ against `required_terms()` and fails the build if a term is used without a defin
   quarter's fixed baseline (up to 13 per quarter, pre-registered). Each look is tested at the
   Šidák per-look level, `|z| > 2.8831`, so the 13 looks together keep the chance of any false
   alarm in a quarter at or below 5% (`ground_truth/stats/sequential.py`); naive repeated
-  testing at `|z| > 1.96` would raise one in about a third of quarters with no real change.
+  testing at `|z| > 1.96` would raise one in 0.334 of quarters with no real change against a
+  look-sized baseline (the registered design) and 0.487 against a noiseless baseline -- the
+  rate depends on how noisy the baseline is, so both ends are stated.
   *Changed 2026-09-28 (analysis plan v2): previously each look tested data pooled since the
   start of the quarter against an O'Brien-Fleming boundary, which diluted a mid-quarter change.*
 - **rubric** -- the versioned, published document defining what counts as correct per field
@@ -217,10 +219,14 @@ figure is asserted to four decimal places, so it regenerates exactly). They do n
 on any provider call, sweep, or golden item -- they are a property of the math, verified
 against the code that implements it.
 
-- **Naive fixed-threshold type-I error: `0.334`.** A regression watch that simply compares
-  `|z| > 1.96` at every one of 13 weekly looks, each against the same look-sized baseline,
-  falsely flags a null (no real regression) quarter **33.4% of the time** against a nominal 5%,
-  measured over 400,000 simulated 13-look quarters (`test_fixed_threshold_inflates_alpha`).
+- **Naive fixed-threshold type-I error: `0.334` to `0.487`.** A regression watch that simply
+  compares `|z| > 1.96` at every one of 13 weekly looks falsely flags a null (no real
+  regression) quarter **33.4% of the time** when every look is compared against the same
+  look-sized baseline (the registered design, correlation 0.5 between looks), and **48.7%** against a
+  noiseless baseline (independent looks; `1 - 0.95^13 = 0.4866` in theory), against a nominal
+  5%. Both measured over 400,000 simulated 13-look quarters, Monte Carlo error about ±0.0008
+  (`test_fixed_threshold_inflates_alpha`). The rate depends on the baseline's own noise, which
+  is why it is a range and not one number.
   This is the measured reason each look is tested at a corrected per-look boundary rather than
   1.96.
 - **Per-look boundary: `|z| > 2.8831`** (Šidák, `alpha_look = 1 - 0.95^(1/13) = 0.003938`).
@@ -230,6 +236,12 @@ against the code that implements it.
   (`test_family_wise_error_stays_within_alpha_under_a_shared_baseline`); the shared baseline
   makes the bound conservative, never permissive. Benjamini-Hochberg is then applied across
   model x field-type cells to the Šidák-adjusted p-values.
+- **p-values below `1e-10` publish as `p < 1e-10`**, in all three of an alert's p-value fields
+  (per-look, Šidák-adjusted, Benjamini-Hochberg). A large enough drift underflows the normal
+  tail to exactly zero in floating point, and "p = 0" is a certainty no test gives. Past that
+  point the p-value is clamped to the smallest positive number the computer can hold; both
+  corrections only raise a p-value, so every field is then an upper bound far below the floor.
+  *Added 2026-09-28.*
 - **What a single look cannot see.** Each look is tested on one sweep, so a small drift that
   persists across many looks is harder to detect than it would be with pooled data. Every null
   result states its minimum detectable effect for one look's sample at the per-look alpha.

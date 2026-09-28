@@ -276,3 +276,20 @@ def test_all_undefined_resamples_return_an_undefined_interval_not_a_crash():
     ci = alpha_bootstrap_ci(pairs, seed=3, n_resamples=2)
     assert math.isnan(ci.low) and math.isnan(ci.high)
     assert "2 of 2 undefined resamples excluded" in ci.method
+
+
+def test_excluded_resamples_are_counted_as_a_number_not_only_in_the_method_string():
+    """Code review 2026-09-28 #6: the judge caveat was chosen by searching `method` for a
+    phrase, so rewording the string would drop it silently. The count is a field."""
+    pairs = [("EQUIVALENT", "EQUIVALENT")] * 58 + [("EQUIVALENT", "NOT_EQUIVALENT")] * 2
+    ci = alpha_bootstrap_ci(pairs, seed=1, n_resamples=2000)
+    assert ci.n_resamples == 2000  # noqa: PLR2004
+    assert 0 < ci.n_undefined_excluded < 2000  # noqa: PLR2004
+    assert f"{ci.n_undefined_excluded} of 2000 undefined resamples excluded" in ci.method
+
+
+def test_no_excluded_resamples_counts_zero():
+    pairs = [("EQ", "EQ")] * 30 + [("NE", "NE")] * 25 + [("EQ", "NE")] * 5
+    assert alpha_bootstrap_ci(pairs, seed=1, n_resamples=400).n_undefined_excluded == 0
+    unanimous = [("EQ", "EQ")] * 6 + [("NE", "NE")] * 4
+    assert alpha_bootstrap_ci(unanimous, seed=1).n_undefined_excluded == 0

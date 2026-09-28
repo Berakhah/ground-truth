@@ -4,8 +4,10 @@ from pathlib import Path
 
 import pytest
 
+import ground_truth.graders.judge.agreement as mod
 from ground_truth.graders.judge.aggregate import Sample
 from ground_truth.graders.judge.agreement import REJECTION_THRESHOLD, JudgeStatus, assess
+from ground_truth.stats.agreement import AlphaInterval
 
 PLAN = Path(__file__).resolve().parents[3] / "docs" / "analysis-plan.md"
 
@@ -218,3 +220,25 @@ def test_record_decision_stores_the_statement_and_interval_method(tmp_path):
     stored = con.execute("SELECT statement, alpha_method FROM judge_decisions").fetchone()
     con.close()
     assert stored == (report.statement, report.alpha_ci.method)
+
+
+def test_caveat_follows_the_excluded_count_not_the_method_wording(monkeypatch):
+    """Code review 2026-09-28 #6: reword `method` and the caveat must survive, because it is
+    decided by the number of excluded resamples, not by a phrase in a display string."""
+
+    def reworded(pairs, *, seed, n_resamples):
+        return AlphaInterval(
+            point=0.7,
+            low=0.5,
+            high=0.8,
+            n=len(pairs),
+            method="reworded percentile bootstrap",
+            n_undefined_excluded=37,
+            n_resamples=1000,
+        )
+
+    monkeypatch.setattr(mod, "alpha_bootstrap_ci", reworded)
+    j, h = disagreeing(40)
+    report = assess("line_item_description", j, h, samples(), seed=1)
+    assert "37 of 1000 undefined resamples excluded" in report.statement
+    assert "conditional on alpha being defined" in report.statement

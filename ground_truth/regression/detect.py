@@ -18,7 +18,7 @@ from scipy.stats import norm
 from ground_truth.stats.bootstrap import Interval, cluster_bootstrap_ci
 from ground_truth.stats.correction import Comparison, benjamini_hochberg
 from ground_truth.stats.mde import describe_mde_two_sample
-from ground_truth.stats.sequential import SequentialResult, evaluate_look
+from ground_truth.stats.sequential import SequentialResult, check_look, evaluate_look, format_p
 
 Z_95 = norm.ppf(0.975)  # ~1.959964, matching cluster_bootstrap_ci's fixed 95% confidence level
 
@@ -72,13 +72,7 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
             "(slot, field_type) -- not a per-look history to pool (analysis plan v2)"
         )
     # Checked before anything else so a bad look raises even when no cell has data.
-    evaluate_look(0.0, look, total_looks)
-    empty = [f"{slot}/{field}" for (slot, field), obs in sorted(current.items()) if not obs]
-    if empty:
-        raise ValueError(
-            f"no observations at look {look} for {', '.join(empty)}: leave a cell that ran "
-            "nothing out of `current` -- it is not tested at this look, rather than crashing it"
-        )
+    check_look(look, total_looks)
     if cross_release and cohort is None:
         raise ValueError(
             "cross_release=True requires an explicit cohort: comparing across a private-split "
@@ -93,6 +87,7 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
     sequential: list[SequentialResult] = []
     comparisons: list[Comparison] = []
     n_rotated_by_key: dict[tuple[str, str], int] = {}
+    tested_obs: dict[tuple[str, str], tuple[list[tuple[str, bool]], list[tuple[str, bool]]]] = {}
     for key in keys:
         baseline_obs = baseline[key]  # raise KeyError on a miss -- never skip a comparison
         current_obs = current[key]
@@ -100,6 +95,26 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
             n_rotated_by_key[key] = len({i for i, _ in baseline_obs} - cohort)
             baseline_obs = _filter_to_cohort(baseline_obs, cohort)
             current_obs = _filter_to_cohort(current_obs, cohort)
+        tested_obs[key] = (baseline_obs, current_obs)
+    # Checked on what is actually tested -- after the cohort filter, on both sides -- and for
+    # every cell before any is tested, so one error names them all. Checking `current` before
+    # filtering missed a cell the filter emptied and an empty baseline, both of which crashed
+    # the whole look inside the bootstrap, unnamed (code review 2026-09-28 #3).
+    empty = [
+        f"{side} of {slot}/{field}"
+        for (slot, field), sides in sorted(tested_obs.items())
+        for side, side_obs in zip(("baseline", "current"), sides, strict=True)
+        if not side_obs
+    ]
+    if empty:
+        raise ValueError(
+            f"no observations to test at look {look} for the {', '.join(empty)}"
+            + (" after restricting to the cohort" if cohort is not None else "")
+            + ": leave a cell that ran nothing out of `current` -- it is not tested at this "
+            "look, rather than crashing it"
+        )
+    for key in keys:
+        baseline_obs, current_obs = tested_obs[key]
         baseline_interval = cluster_bootstrap_ci(baseline_obs, seed=seed)
         current_interval = cluster_bootstrap_ci(current_obs, seed=seed)
         z = (current_interval.point - baseline_interval.point) / math.sqrt(
@@ -124,7 +139,7 @@ def detect_drift(  # noqa: PLR0913 -- each param is a distinct, required input
         slot, field_type = key
         detected = cc.significant
         bh = (
-            f"Benjamini-Hochberg adjusted p = {cc.adjusted_p:.2g} across {n_comparisons} "
+            f"Benjamini-Hochberg adjusted {format_p(cc.adjusted_p)} across {n_comparisons} "
             "comparisons"
         )
         prefix = (

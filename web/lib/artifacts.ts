@@ -88,9 +88,10 @@ export function loadPublicVerdicts(): PublicVerdict[] {
 }
 
 // Shape matches the REAL writer of this exact file -- ground_truth.publish.artifacts.emit_all
-// (its `decisions` list comprehension, verbatim dump of the `judge_decisions` table) -- not
+// (one `_judge_decision` dict per `judge_decisions` row, flat alpha/alpha_low/alpha_high with
+// non-finite values mapped to null) -- not
 // ground_truth.publish.leaderboard._agreement_to_dict, which has a similar-looking but
-// different shape (nested alpha_ci, a `statement` field) and is only ever embedded inside
+// different shape (nested alpha_ci, uppercase status) and is only ever embedded inside
 // leaderboard.json's `judge_agreement` array, never written to this standalone file. Corrected
 // post-review (task-46-report.md): the first draft was modeled on the wrong emitter.
 export interface AgreementDecision {

@@ -62,6 +62,21 @@ overwritten in place.
   not estimable (null bounds) and the judge is REJECTED; previously this raised `IndexError`.
   `emit_all` now writes into a staging directory and moves the files in only on success, so a
   failed publish no longer leaves new and stale artifacts mixed in the output directory.
+- **2026-09-28 -- third review of the stats-audit fixes** (code review 2026-09-28, findings
+  1-6 and 9). The earlier underflow fix held only for moderate drift: `norm.sf` is itself
+  exactly 0 past |z| ~ 37.5, and a collapse from 180/180 to 3/180 published "p = 0" in all
+  three p-value fields. The p-value is now clamped to the smallest positive float and any p
+  below `1e-10` publishes as `p < 1e-10` (stated on the methodology page). A p-value that
+  cannot be computed now raises instead of being Šidák-adjusted to 1.0 and reported as "No
+  change detected". `detect_drift` checks for empty cells after the cohort filter and on both
+  the baseline and current sides, naming every empty cell in one error. `emit_all` now swaps
+  the whole output folder in (rename aside, rename in, roll back on failure) instead of
+  moving files one at a time, and carries over files it does not write
+  (`triage_example.json`). The judge's "conditional on alpha being defined" caveat is decided
+  from a counted `n_undefined_excluded`, not by searching the interval's `method` string.
+  Methodology figure: naive fixed-threshold error ~~"about a third of quarters"~~ -> 0.334
+  with a look-sized baseline to 0.487 with a noiseless one, assumption stated for each. No
+  published artifact changes: every p-value in the committed placeholders is above the floor.
 
 ### Added
 

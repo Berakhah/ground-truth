@@ -100,12 +100,15 @@ def assess(  # noqa: PLR0913 -- one keyword added to a plan-frozen positional si
     head = f"Judge-human agreement on {field_type}: Krippendorff's alpha = {alpha:.3f} "
     if not estimable:
         head += f"(interval could not be estimated: {alpha_ci.method}), n={n_units}."
-    elif "undefined resamples excluded" in alpha_ci.method:
+    elif alpha_ci.n_undefined_excluded:
         # Excluding 0/0 draws drops the most-agreeing resamples, so the interval is conditional
-        # and sits low; said here because this sentence is what gets published.
+        # and sits low; said here because this sentence is what gets published. Decided and
+        # worded from the count, not from `method`, so rewording that string cannot drop it
+        # (code review 2026-09-28 #6).
         head += (
-            f"[{low:.3f}, {high:.3f}], n={n_units} ({alpha_ci.method.split(', ', 1)[1]}; the "
-            f"interval is conditional on alpha being defined)."
+            f"[{low:.3f}, {high:.3f}], n={n_units} ({alpha_ci.n_undefined_excluded} of "
+            f"{alpha_ci.n_resamples} undefined resamples excluded; the interval is conditional "
+            f"on alpha being defined)."
         )
     else:
         head += f"[{low:.3f}, {high:.3f}], n={n_units}."
