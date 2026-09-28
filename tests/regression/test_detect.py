@@ -274,9 +274,27 @@ def test_a_cell_with_an_empty_baseline_is_refused_by_name():
 def test_every_empty_cell_is_named_in_one_error():
     base = {("slot-a", "money"): [], ("slot-b", "date"): obs(50, 0.9, 2)}
     curr = {("slot-a", "money"): obs(50, 0.9, 3), ("slot-b", "date"): []}
-    with pytest.raises(
-        ValueError,
-        match=r"baseline.*slot-a/money.*current.*slot-b/date|"
-        r"slot-a/money.*slot-b/date",
-    ):
+    with pytest.raises(ValueError, match="baseline of slot-a/money, current of slot-b/date"):
+        detect_drift(base, curr, look=2, total_looks=13, seed=1)
+
+
+def test_a_cell_whose_z_is_undefined_is_refused_by_name(monkeypatch):
+    """Re-review 2026-09-28: a NaN interval bound (scipy's BCa on near-degenerate data) gives a
+    NaN z, which `evaluate_look` refuses -- but without saying which cell, so one bad cell
+    aborted the look anonymously, the failure #3 fixed for empty cells."""
+    import ground_truth.regression.detect as mod  # noqa: PLC0415
+
+    real = mod.cluster_bootstrap_ci
+    calls = iter(range(100))
+
+    def nan_for_the_second_cell(observations, *, seed):  # type: ignore[no-untyped-def]
+        interval = real(observations, seed=seed)
+        if next(calls) in {2, 3}:
+            return interval.model_copy(update={"low": float("nan")})
+        return interval
+
+    monkeypatch.setattr(mod, "cluster_bootstrap_ci", nan_for_the_second_cell)
+    base = {("slot-a", "money"): obs(50, 0.9, 1), ("slot-b", "date"): obs(50, 0.9, 2)}
+    curr = {("slot-a", "money"): obs(50, 0.9, 3), ("slot-b", "date"): obs(50, 0.9, 4)}
+    with pytest.raises(ValueError, match="slot-b/date"):
         detect_drift(base, curr, look=2, total_looks=13, seed=1)

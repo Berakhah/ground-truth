@@ -26,11 +26,11 @@ from ground_truth.graders.judge.aggregate import (
 )
 from ground_truth.stats.agreement import (
     BOOTSTRAP_RESAMPLES,
+    AlphaInterval,
     alpha_bootstrap_ci,
     confusion_matrix,
     krippendorff_alpha,
 )
-from ground_truth.stats.bootstrap import Interval
 
 REJECTION_THRESHOLD: float = 0.667
 
@@ -44,7 +44,7 @@ class JudgeStatus(StrEnum):
 class AgreementReport:
     field_type: str
     alpha: float
-    alpha_ci: Interval
+    alpha_ci: AlphaInterval
     status: JudgeStatus
     n_units: int
     confusion: dict[tuple[str, str], int]
@@ -154,7 +154,7 @@ def _undefined_alpha_report(
     return AgreementReport(
         field_type=field_type,
         alpha=nan,
-        alpha_ci=Interval(point=nan, low=nan, high=nan, n=n_units, method="undefined"),
+        alpha_ci=AlphaInterval(point=nan, low=nan, high=nan, n=n_units, method="undefined"),
         status=JudgeStatus.REJECTED,
         n_units=n_units,
         confusion={(verdict, verdict): n_units},

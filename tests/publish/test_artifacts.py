@@ -273,49 +273,81 @@ def _previous_release(out_dir: Path) -> dict[str, bytes]:
     return {p.name: p.read_bytes() for p in out_dir.iterdir()}
 
 
+def _fail_replacing(monkeypatch, out_dir: Path, *, rollback_too: bool) -> None:
+    """Make moving the staged release onto `out_dir` fail -- a file held open on Windows --
+    and, with `rollback_too`, moving the previous release back as well."""
+    import os  # noqa: PLC0415
+
+    real_replace = os.replace
+
+    def replace(src, dst):  # type: ignore[no-untyped-def]
+        src, dst = Path(src), Path(dst)
+        from_staging = any("-staging-" in part for part in src.parts)
+        if dst == out_dir and (from_staging or rollback_too):
+            raise PermissionError(f"file in use by another process: {src.name}")
+        real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", replace)
+
+
+def _leftovers(tmp_path: Path) -> list[str]:
+    return [p.name for p in tmp_path.iterdir() if p.name.startswith(".out")]
+
+
 def test_a_failure_moving_the_new_release_in_leaves_the_output_directory_as_it_was(
     con, tmp_path, monkeypatch
 ):
     """Code review 2026-09-28 #4: staged files were moved in one at a time, so a move failing
     partway (on Windows, a dev server or antivirus holding one file open) left old and new
-    files mixed. The failure is injected once the new release has started moving in."""
-    import os  # noqa: PLC0415
-
+    files mixed."""
     out_dir = tmp_path / "out"
     before = _previous_release(out_dir)
-    real_replace = os.replace
-    moved_in: list[str] = []
-
-    def replace(src, dst):  # type: ignore[no-untyped-def]
-        src, dst = Path(src), Path(dst)
-        from_staging = any("-staging-" in part for part in src.parts)
-        into_out = out_dir in (dst, dst.parent)
-        if from_staging and into_out:
-            if dst == out_dir or moved_in:
-                raise PermissionError("file in use by another process")
-            moved_in.append(dst.name)
-        real_replace(src, dst)
-
-    monkeypatch.setattr(os, "replace", replace)
+    _fail_replacing(monkeypatch, out_dir, rollback_too=False)
     with pytest.raises(PermissionError):
         emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
     assert {p.name: p.read_bytes() for p in out_dir.iterdir()} == before
-    assert [p.name for p in tmp_path.iterdir() if p.name.startswith(".out")] == [], (
-        "no staging or backup left behind"
-    )
+    assert _leftovers(tmp_path) == [], "no staging or backup left behind"
 
 
-def test_files_the_publish_does_not_write_survive_it(con, tmp_path):
-    """Guard for #4's fix: replacing the whole folder must carry over what emit_all does not
-    write, or every publish would delete the committed triage example."""
+def test_a_failed_rollback_says_where_the_previous_release_is(con, tmp_path, monkeypatch):
+    """Re-review 2026-09-28: if the lock that failed the swap also fails the rollback,
+    `out_dir` is gone. The error must name the backup holding the previous release and keep
+    the original failure, not strand it under a hidden name."""
+    out_dir = tmp_path / "out"
+    before = _previous_release(out_dir)
+    _fail_replacing(monkeypatch, out_dir, rollback_too=True)
+    with pytest.raises(RuntimeError, match="previous release") as excinfo:
+        emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    backups = [p for p in tmp_path.iterdir() if p.name.startswith(".out-previous-")]
+    assert len(backups) == 1 and str(backups[0]) in str(excinfo.value)
+    assert {p.name: p.read_bytes() for p in backups[0].iterdir()} == before
+    assert isinstance(excinfo.value.__cause__, PermissionError)
+    assert "staging" in str(excinfo.value.__cause__.__context__ or excinfo.value.__cause__)
+
+
+def test_only_files_written_elsewhere_by_name_survive_a_publish(con, tmp_path):
+    """Re-review 2026-09-28: carrying over *everything* in `out_dir` let a stray file -- a real
+    triage output, the 2026-08-29 incident's class of leak -- survive every publish. Only the
+    named file another emitter commits there is carried over."""
     out_dir = tmp_path / "out"
     _previous_release(out_dir)
+    (out_dir / "client_triage.html").write_text("CLIENT_CONFIDENTIAL", encoding="utf-8")
     emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
     assert (out_dir / "triage_example.json").read_text(encoding="utf-8") == "triage"
+    assert not (out_dir / "client_triage.html").exists()
     assert (out_dir / "leaderboard.json").read_text(encoding="utf-8") != "previous leaderboard"
-    assert [p.name for p in tmp_path.iterdir() if p.name.startswith(".out")] == [], (
-        "no staging or backup left behind"
+    assert _leftovers(tmp_path) == [], "no staging or backup left behind"
+
+
+@pytest.mark.parametrize("name", [".artifacts-previous-abc123", ".artifacts-staging-abc123"])
+def test_a_publish_backup_left_behind_is_never_committed(name):
+    """Deleting the backup can fail on Windows after a successful swap; a leftover copy of the
+    previous release must not be picked up by `git add`."""
+    repo = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        ["git", "check-ignore", "-q", f"{name}/leaderboard.json"], cwd=repo, check=False
     )
+    assert result.returncode == 0, f"{name}/ is not gitignored"
 
 
 def test_write_json_refuses_to_emit_nan(tmp_path):
