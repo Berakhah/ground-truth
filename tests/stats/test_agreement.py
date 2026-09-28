@@ -293,3 +293,14 @@ def test_no_excluded_resamples_counts_zero():
     assert alpha_bootstrap_ci(pairs, seed=1, n_resamples=400).n_undefined_excluded == 0
     unanimous = [("EQ", "EQ")] * 6 + [("NE", "NE")] * 4
     assert alpha_bootstrap_ci(unanimous, seed=1).n_undefined_excluded == 0
+
+
+def test_alpha_interval_counts_must_be_stated_not_defaulted():
+    """Re-review 2026-09-28: defaults of 0 let a constructor that forgot the counts publish
+    "0 excluded" and silently drop the conditional-interval caveat."""
+    from pydantic import ValidationError  # noqa: PLC0415
+
+    from ground_truth.stats.agreement import AlphaInterval  # noqa: PLC0415
+
+    with pytest.raises(ValidationError):
+        AlphaInterval(point=0.5, low=0.4, high=0.6, n=10, method="m")  # type: ignore[call-arg]

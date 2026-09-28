@@ -311,39 +311,54 @@ def test_a_failure_moving_the_new_release_in_leaves_the_output_directory_as_it_w
 
 def test_a_failed_rollback_says_where_the_previous_release_is(con, tmp_path, monkeypatch):
     """Re-review 2026-09-28: if the lock that failed the swap also fails the rollback,
-    `out_dir` is gone. The error must name the backup holding the previous release and keep
-    the original failure, not strand it under a hidden name."""
+    `out_dir` is gone. The error must name the backup holding the previous release -- and
+    stay the original exception type, so a caller retrying on PermissionError still can."""
     out_dir = tmp_path / "out"
     before = _previous_release(out_dir)
     _fail_replacing(monkeypatch, out_dir, rollback_too=True)
-    with pytest.raises(RuntimeError, match="previous release") as excinfo:
+    with pytest.raises(PermissionError, match="staging") as excinfo:
         emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
     backups = [p for p in tmp_path.iterdir() if p.name.startswith(".out-previous-")]
-    assert len(backups) == 1 and str(backups[0]) in str(excinfo.value)
+    assert len(backups) == 1
+    notes = " ".join(getattr(excinfo.value, "__notes__", []))
+    assert "previous release" in notes and str(backups[0]) in notes
     assert {p.name: p.read_bytes() for p in backups[0].iterdir()} == before
-    assert isinstance(excinfo.value.__cause__, PermissionError)
-    assert "staging" in str(excinfo.value.__cause__.__context__ or excinfo.value.__cause__)
 
 
-def test_only_files_written_elsewhere_by_name_survive_a_publish(con, tmp_path):
-    """Re-review 2026-09-28: carrying over *everything* in `out_dir` let a stray file -- a real
-    triage output, the 2026-08-29 incident's class of leak -- survive every publish. Only the
-    named file another emitter commits there is carried over."""
+def test_the_file_another_emitter_writes_there_survives_a_publish(con, tmp_path):
     out_dir = tmp_path / "out"
     _previous_release(out_dir)
-    (out_dir / "client_triage.html").write_text("CLIENT_CONFIDENTIAL", encoding="utf-8")
     emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
     assert (out_dir / "triage_example.json").read_text(encoding="utf-8") == "triage"
-    assert not (out_dir / "client_triage.html").exists()
     assert (out_dir / "leaderboard.json").read_text(encoding="utf-8") != "previous leaderboard"
     assert _leftovers(tmp_path) == [], "no staging or backup left behind"
 
 
-@pytest.mark.parametrize("name", [".artifacts-previous-abc123", ".artifacts-staging-abc123"])
+@pytest.mark.parametrize("stray", ["client_triage.html", "results.duckdb"])
+def test_publishing_over_unrecognised_files_refuses_and_touches_nothing(con, tmp_path, stray):
+    """Re-review 2026-09-28: the swap replaces the whole folder, so an unrecognised file was
+    either republished (a stray triage output -- the 2026-08-29 leak class) or, once only named
+    files were carried over, silently deleted (`--out data` would take results.duckdb with it).
+    Refusing, and naming the files, is the only outcome that neither leaks nor loses data."""
+    out_dir = tmp_path / "out"
+    before = _previous_release(out_dir)
+    (out_dir / stray).write_text("not emit_all's", encoding="utf-8")
+    before[stray] = (out_dir / stray).read_bytes()
+    with pytest.raises(ValueError, match=stray):
+        emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert {p.name: p.read_bytes() for p in out_dir.iterdir()} == before
+    assert _leftovers(tmp_path) == [], "no staging or backup left behind"
+
+
+@pytest.mark.parametrize(
+    "name", [".artifacts-previous-abc123", ".artifacts-staging-abc123", ".data-previous-x1"]
+)
 def test_a_publish_backup_left_behind_is_never_committed(name):
     """Deleting the backup can fail on Windows after a successful swap; a leftover copy of the
-    previous release must not be picked up by `git add`."""
+    previous release must not be picked up by `git add`, whatever `--out` was named."""
     repo = Path(__file__).resolve().parents[2]
+    if not (repo / ".git").exists():
+        pytest.skip("not a git checkout (release tarball); nothing can be committed")
     result = subprocess.run(
         ["git", "check-ignore", "-q", f"{name}/leaderboard.json"], cwd=repo, check=False
     )
