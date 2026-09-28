@@ -8,7 +8,7 @@ from scipy.stats import norm
 from ground_truth.regression.detect import detect_drift
 from ground_truth.stats.correction import Comparison, benjamini_hochberg
 from ground_truth.stats.mde import mde_two_sample
-from ground_truth.stats.sequential import per_look_alpha, sidak_adjust
+from ground_truth.stats.sequential import P_DISPLAY_FLOOR, format_p, per_look_alpha, sidak_adjust
 
 
 def obs(n: int, p: float, seed: int) -> list[tuple[str, bool]]:
@@ -237,4 +237,46 @@ def test_a_large_drift_never_prints_a_p_value_of_zero():
     alert = detect_drift(base, curr, look=5, total_looks=13, seed=1)[0]
     assert alert.detected and alert.adjusted_p > 0
     assert "p = 0.0000" not in alert.statement and "p = 0," not in alert.statement
-    assert f"Benjamini-Hochberg adjusted p = {alert.adjusted_p:.2g}" in alert.statement
+    assert f"Benjamini-Hochberg adjusted {format_p(alert.adjusted_p)}" in alert.statement
+
+
+def test_a_collapse_publishes_p_below_the_floor_in_all_three_fields():
+    """Code review 2026-09-28 #1, the reproduced case: 180/180 -> 3/180 drove |z| past the range
+    where `norm.sf` underflows, and all three p-value fields printed "p = 0"."""
+    base = {("slot-a", "money"): [(f"i{i}", True) for i in range(180)]}
+    curr = {("slot-a", "money"): [(f"i{i}", i < 3) for i in range(180)]}  # noqa: PLR2004
+    alert = detect_drift(base, curr, look=5, total_looks=13, seed=1)[0]
+    assert alert.detected and alert.adjusted_p > 0
+    assert alert.statement.count(f"p < {P_DISPLAY_FLOOR:g}") == 3  # noqa: PLR2004
+    assert "p = 0" not in alert.statement
+
+
+def test_a_cell_emptied_by_the_cohort_filter_is_refused_by_name():
+    """Code review 2026-09-28 #3: the empty-cell check ran before the cohort filter, so a cell
+    whose current items all rotated out crashed the look inside the bootstrap, unnamed."""
+    base = {("slot-a", "money"): obs(50, 0.9, 1), ("slot-b", "date"): obs(50, 0.9, 2)}
+    curr = {
+        ("slot-a", "money"): obs_with_ids([f"new{i}" for i in range(50)], 0.9, 3),
+        ("slot-b", "date"): obs(50, 0.9, 4),
+    }
+    cohort = {f"i{i}" for i in range(50)}
+    with pytest.raises(ValueError, match="slot-a/money"):
+        detect_drift(base, curr, look=2, total_looks=13, seed=1, cohort=cohort, cross_release=True)
+
+
+def test_a_cell_with_an_empty_baseline_is_refused_by_name():
+    base = {("slot-a", "money"): [], ("slot-b", "date"): obs(50, 0.9, 2)}
+    curr = {("slot-a", "money"): obs(50, 0.9, 3), ("slot-b", "date"): obs(50, 0.9, 4)}
+    with pytest.raises(ValueError, match="slot-a/money"):
+        detect_drift(base, curr, look=2, total_looks=13, seed=1)
+
+
+def test_every_empty_cell_is_named_in_one_error():
+    base = {("slot-a", "money"): [], ("slot-b", "date"): obs(50, 0.9, 2)}
+    curr = {("slot-a", "money"): obs(50, 0.9, 3), ("slot-b", "date"): []}
+    with pytest.raises(
+        ValueError,
+        match=r"baseline.*slot-a/money.*current.*slot-b/date|"
+        r"slot-a/money.*slot-b/date",
+    ):
+        detect_drift(base, curr, look=2, total_looks=13, seed=1)

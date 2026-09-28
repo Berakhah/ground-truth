@@ -104,7 +104,19 @@ def _ratings(pairs: list[tuple[str, str]]) -> dict[str, dict[str, str]]:
     }
 
 
-def _zero_disagreement_interval(pairs: list[tuple[str, str]], confidence: float) -> Interval:
+class AlphaInterval(Interval):
+    """Alpha's interval, carrying how many bootstrap resamples were 0/0 and excluded.
+
+    A number, not only a phrase in `method`. The published caveat that the interval is
+    conditional on alpha being defined is decided from it, so rewording the display string
+    cannot silently drop the caveat (code review 2026-09-28 #6).
+    """
+
+    n_undefined_excluded: int = 0
+    n_resamples: int = 0
+
+
+def _zero_disagreement_interval(pairs: list[tuple[str, str]], confidence: float) -> AlphaInterval:
     """Exact bound for the case a resampling bootstrap cannot speak to.
 
     With zero observed disagreements every resample yields alpha = 1.0, so a percentile
@@ -123,7 +135,7 @@ def _zero_disagreement_interval(pairs: list[tuple[str, str]], confidence: float)
     n = len(pairs)
     _, de = _disagreement(_ratings(pairs))
     do_high = zero_count_upper_bound(n, confidence)
-    return Interval(
+    return AlphaInterval(
         point=1.0,
         low=max(-1.0, 1.0 - do_high / de),
         high=1.0,
@@ -138,7 +150,7 @@ def alpha_bootstrap_ci(
     seed: int,
     confidence: float = CONFIDENCE,
     n_resamples: int = BOOTSTRAP_RESAMPLES,
-) -> Interval:
+) -> AlphaInterval:
     """Percentile bootstrap of *alpha itself*, resampling whole `(judge, human)` units.
 
     `graders.judge.agreement` used to build its published interval with `cluster_bootstrap_ci`
@@ -188,10 +200,12 @@ def alpha_bootstrap_ci(
         # Every resample was 0/0, so there is no distribution to take percentiles of. NaN
         # bounds, not a crash: `assess` rejects a judge whose interval cannot be estimated.
         low = high = float("nan")
-    return Interval(
+    return AlphaInterval(
         point=krippendorff_alpha(_ratings(pairs)),
         low=low,
         high=high,
         n=n,
         method=method,
+        n_undefined_excluded=n_undefined,
+        n_resamples=n_resamples,
     )

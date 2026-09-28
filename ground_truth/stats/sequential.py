@@ -27,8 +27,23 @@ FAMILY_ALPHA = 0.05
 # always uses the closed form; a test keeps this constant, the closed form and the plan in step.
 PER_LOOK_BOUNDARY_13_LOOKS = 2.8831
 
+# Below this a p-value publishes as "p < 1e-10", in every alert field. Past about |z| = 37.5 the
+# survival function underflows to exactly 0, so the p-value is clamped to the smallest positive
+# float. Šidák and Benjamini-Hochberg only move a p-value up and are monotone, so every field
+# computed from a clamped p is an upper bound on the true one. It is far below the floor, so
+# "p < floor" is a true statement about it (code review 2026-09-28 #1).
+P_DISPLAY_FLOOR = 1e-10
 
-def _check(look: int, total_looks: int, alpha: float) -> None:
+
+def format_p(p_value: float) -> str:
+    """`p = <2 significant figures>`, or `p < 1e-10` below the display floor -- never "p = 0"."""
+    if p_value < P_DISPLAY_FLOOR:
+        return f"p < {P_DISPLAY_FLOOR:g}"
+    return f"p = {p_value:.2g}"
+
+
+def check_look(look: int, total_looks: int, alpha: float = FAMILY_ALPHA) -> None:
+    """Raise unless `look` is a look of the pre-registered calendar."""
     # The plan registers exactly this calendar. `per_look_boundary` would happily compute any
     # other, which is what makes the guard necessary: a different calendar is an unregistered
     # change of method, not a parameter (code review 2026-09-27 #3).
@@ -58,6 +73,10 @@ def sidak_adjust(p_value: float, total_looks: int) -> float:
     adjusted p is what goes into Benjamini-Hochberg across cells (plan v2, "How the corrections
     stack").
     """
+    # NaN fails every comparison, so without this it fell through to 1.0 below and a p-value
+    # that could not be computed published as "No change detected" (code review 2026-09-28 #2).
+    if not 0.0 <= p_value <= 1.0:
+        raise ValueError(f"cannot Šidák-adjust a p-value outside [0, 1]: {p_value}")
     # -expm1(K * log1p(-p)) is 1 - (1 - p)^K without cancellation, so a tiny p stays tiny
     # instead of rounding to 0 (and a p of 1 stays exactly 1).
     return -math.expm1(total_looks * math.log1p(-p_value)) if p_value < 1.0 else 1.0
@@ -87,16 +106,19 @@ def evaluate_look(
     that is a publication rule enforced in the string that produces the alert rather than a
     style guide someone has to remember.
     """
-    _check(look, total_looks, alpha)
+    check_look(look, total_looks, alpha)
+    if math.isnan(z):
+        raise ValueError("cannot test a look whose z is NaN; its p-value is undefined")
     boundary = per_look_boundary(total_looks, alpha=alpha)
     # The survival function, not 1 - cdf: the latter is exactly 0 above |z| ~ 8.3 and would
-    # publish "p = 0" for a large drift (code review 2026-09-27 #3).
-    p_value = 2.0 * float(norm.sf(abs(z)))
+    # publish "p = 0" for a large drift (code review 2026-09-27 #3). `sf` itself underflows
+    # above |z| ~ 37.5, hence the clamp; see P_DISPLAY_FLOOR.
+    p_value = max(2.0 * float(norm.sf(abs(z))), math.ulp(0.0))
     adjusted_p = sidak_adjust(p_value, total_looks)
     reject = abs(z) > boundary
     test = (
-        f"the Šidák per-look boundary of {boundary:.3f} (per-look p = {p_value:.2g}, "
-        f"Šidák-adjusted p = {adjusted_p:.2g}; family-wise type-I error of {alpha:g} across the "
+        f"the Šidák per-look boundary of {boundary:.3f} (per-look {format_p(p_value)}, "
+        f"Šidák-adjusted {format_p(adjusted_p)}; family-wise type-I error of {alpha:g} across the "
         f"{total_looks}-look calendar)"
     )
     if reject:

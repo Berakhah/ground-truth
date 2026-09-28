@@ -19,23 +19,36 @@ AS_OF = datetime(2026, 10, 15, tzinfo=UTC)
 
 
 def spec(slot):
-    return SlotSpec(slot=slot, family="fam", provider="prov", model_ref="ref",
-                    trains_on_data=False, commercial_use=True, exposes_fingerprint=False,
-                    list_price_in_per_1m=Decimal("0.10"), list_price_out_per_1m=Decimal("0.40"),
-                    pricing_url="https://example.invalid/p", retrieved_at=AS_OF.date())
+    return SlotSpec(
+        slot=slot,
+        family="fam",
+        provider="prov",
+        model_ref="ref",
+        trains_on_data=False,
+        commercial_use=True,
+        exposes_fingerprint=False,
+        list_price_in_per_1m=Decimal("0.10"),
+        list_price_out_per_1m=Decimal("0.40"),
+        pricing_url="https://example.invalid/p",
+        retrieved_at=AS_OF.date(),
+    )
 
 
 def row(slot, low, point, high):
     return LeaderboardRow(
-        slot=slot, accuracy=Interval(point=point, low=low, high=high, n=180, method="cluster-BCa"),
+        slot=slot,
+        accuracy=Interval(point=point, low=low, high=high, n=180, method="cluster-BCa"),
         cost=cost_per_1k_items(spec(slot), 2000),
-        latency=summarise_latency([100, 200, 300]), per_field={})
+        latency=summarise_latency([100, 200, 300]),
+        per_field={},
+    )
 
 
 def payload():
     rows = [row("slot-a", 0.89, 0.92, 0.95), row("slot-b", 0.90, 0.93, 0.96)]
-    return leaderboard_payload(rows, distinguishability_statements(rows), [], [],
-                               as_of=AS_OF, version="2026.10.15")
+    return leaderboard_payload(
+        rows, distinguishability_statements(rows), [], [], as_of=AS_OF, version="2026.10.15"
+    )
 
 
 def test_every_row_carries_its_n_and_interval():

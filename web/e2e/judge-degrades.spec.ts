@@ -4,8 +4,8 @@ import { expect, test } from '@playwright/test';
 // placeholder was originally modeled on the wrong emitter (leaderboard.py's
 // _agreement_to_dict -- nested alpha_ci, uppercase status, a statement field), when the
 // function that actually writes this exact file, artifacts.py's emit_all, produces a flatter,
-// narrower shape with no order_effect/length_effect/confusion_matrix and no per-decision
-// statement. /judge/degraded-example is a second static route rendering the same
+// narrower shape with no order_effect/length_effect/confusion_matrix (it does now carry each
+// decision's stored statement). /judge/degraded-example is a second static route rendering the same
 // JudgeAgreementView against a payload shaped like that real, narrower output -- proving the
 // page degrades to an honest "not yet measured" state instead of crashing on `undefined`.
 
