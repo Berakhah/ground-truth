@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from ground_truth.artifact_names import REGRESSION
 from ground_truth.publish.artifacts import emit_all
 from ground_truth.store.db import connect
 from tests.conftest import require_or_skip
@@ -38,6 +39,11 @@ def con():
 def test_published_numbers_regenerate(con, tmp_path):
     mismatched = []
     for path in emit_all(con, tmp_path, as_of=AS_OF, analysis_seed=1):
+        if path.name == REGRESSION:
+            # Not regenerated from results.duckdb: the regression sweep writes it and it is
+            # committed by hand; emit_all carries it over, and writes only a stub into an
+            # empty folder like this one (artifact_names.REGRESSION).
+            continue
         published = PUBLISHED / path.name
         assert published.exists(), f"{path.name} was regenerated but is not published"
         if not filecmp.cmp(path, published, shallow=False):

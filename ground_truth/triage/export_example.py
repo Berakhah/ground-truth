@@ -16,6 +16,7 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+from ground_truth.artifact_names import TRIAGE_EXAMPLE
 from ground_truth.stats.bootstrap import Interval
 from ground_truth.triage.expected_value import evaluate
 from ground_truth.triage.ingest import load_intents
@@ -23,7 +24,7 @@ from ground_truth.triage.sensitivity import find_flip_point
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 INTAKE_CSV = REPO_ROOT / "docs" / "triage-example.csv"
-OUTPUT_JSON = REPO_ROOT / "artifacts" / "triage_example.json"
+OUTPUT_JSON = REPO_ROOT / "artifacts" / TRIAGE_EXAMPLE
 
 # Synthetic, clearly-placeholder accuracy: the same literals as leaderboard.json's demo-slot-a
 # row, reused here for consistency rather than inventing a second unmeasured number. No

@@ -31,12 +31,12 @@ from pathlib import Path
 
 import duckdb
 
+from ground_truth.artifact_names import REGRESSION, TRIAGE_EXAMPLE
 from ground_truth.golden.manifest import write_manifest_from_db
 from ground_truth.golden.schema import Split
 from ground_truth.matrix.build import LeaderboardRow, build_leaderboard
 from ground_truth.providers import load_slots
 from ground_truth.store.db import connect
-from ground_truth.triage.export_example import OUTPUT_JSON as TRIAGE_EXAMPLE_JSON
 
 _REPO = Path(__file__).resolve().parents[2]
 _DEFAULT_MODELS_YAML = _REPO / "models.yaml"
@@ -211,26 +211,46 @@ def emit_all(
     holds a file open, left the folder mixed (code review 2026-09-28 #4). Now a failure at any
     point leaves `out_dir` exactly as it was.
     """
+    # Before the analysis: the emitted names are static, so a refusal needs only a listing.
+    _refuse_unrecognised(out_dir)
     out_dir.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{out_dir.name}-staging-", dir=out_dir.parent))
     try:
         staged = _emit_into(
             con, staging, as_of=as_of, analysis_seed=analysis_seed, models_yaml=models_yaml
         )
-        _refuse_unrecognised(out_dir, {path.name for path in staged})
-        _carry_over_unwritten(out_dir, staging)
+        _carry_over(out_dir, staging)
         _swap_in(staging, out_dir)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
     return [out_dir / path.relative_to(staging) for path in staged]
 
 
-# Written into the output directory by another emitter (`triage.export_example`) and committed
-# there, so carried across the swap. Every other entry must be one this publish writes.
-_WRITTEN_ELSEWHERE = (TRIAGE_EXAMPLE_JSON.name,)
+# Every name `_emit_into` writes; a test keeps this in step with what it actually writes.
+EMITTED = (
+    "leaderboard.json",
+    "verdicts_public.jsonl",
+    "verdicts_private_by_hash.jsonl",
+    "manifest_private.json",
+    "calibration.json",
+    "judge_agreement.json",
+    REGRESSION,
+)
+
+# Carried across the swap when present as a file. The triage example and a committed
+# regression-watch result are written by other emitters (a committed regression.json replaces
+# `_emit_into`'s empty stub -- overwriting it wiped real findings, re-review 2026-09-28, since
+# 5ada687); the rest is folder metadata that must neither block a publish nor be lost.
+_CARRIED = (TRIAGE_EXAMPLE, REGRESSION, ".gitkeep", ".DS_Store", "Thumbs.db", "desktop.ini")
 
 
-def _refuse_unrecognised(out_dir: Path, emitted: set[str]) -> None:
+def _carried(entry: Path) -> bool:
+    # One predicate for the refusal and the copy: a directory under a carried name passed the
+    # check, was not copied, and the swap deleted it.
+    return entry.name in _CARRIED and entry.is_file()
+
+
+def _refuse_unrecognised(out_dir: Path) -> None:
     """Raise, before anything changes, if `out_dir` holds entries this publish neither writes
     nor carries over. The swap replaces the whole folder, so such an entry would otherwise be
     republished (a stray triage output: the 2026-08-29 leak class) or deleted (`--out data`
@@ -241,26 +261,28 @@ def _refuse_unrecognised(out_dir: Path, emitted: set[str]) -> None:
     unrecognised = sorted(
         entry.name
         for entry in out_dir.iterdir()
-        if entry.name not in emitted and entry.name not in _WRITTEN_ELSEWHERE
+        if entry.name not in EMITTED and not _carried(entry)
     )
     if unrecognised:
         raise ValueError(
             f"refusing to publish into {out_dir}: it holds {', '.join(unrecognised)}, which "
-            "this publish neither writes nor keeps. Move them out (or choose another --out); "
-            "nothing was changed."
+            "this publish neither writes nor keeps. Move them out (or choose another --out); an "
+            "artifact that is no longer emitted must be deleted in the same change that retires "
+            "it. Nothing was changed."
         )
 
 
-def _carry_over_unwritten(out_dir: Path, staging: Path) -> None:
-    """Copy the files another emitter writes into `out_dir`, so the swap does not delete them.
+def _carry_over(out_dir: Path, staging: Path) -> None:
+    """Copy the carried files from `out_dir` into staging, replacing any stub written there.
 
     Two publishers writing `out_dir` at the same moment still race, as they did before the
     swap: a file written after this copy is replaced along with the folder.
     """
-    for name in _WRITTEN_ELSEWHERE:
-        source = out_dir / name
-        if source.is_file() and not (staging / name).exists():
-            shutil.copy2(source, staging / name)
+    if not out_dir.exists():
+        return
+    for entry in out_dir.iterdir():
+        if _carried(entry):
+            shutil.copy2(entry, staging / entry.name)
 
 
 def _swap_in(staging: Path, out_dir: Path) -> None:
@@ -276,6 +298,11 @@ def _swap_in(staging: Path, out_dir: Path) -> None:
     try:
         os.replace(staging, out_dir)
     except BaseException as swap_error:
+        if not staging.exists():
+            # The rename completed and the error (an interrupt) arrived after it: `out_dir`
+            # holds the new release, and "restoring" the backup would overwrite it.
+            shutil.rmtree(backup, ignore_errors=True)
+            raise
         try:
             os.replace(backup, out_dir)
         except OSError:

@@ -102,7 +102,7 @@ def test_emit_all_refuses_placeholder_pricing_for_a_real_slot(con, tmp_path):
     seed(con, "priv1", "private", "999.99", "hash-priv")
     con.execute("UPDATE outputs SET token_count = 500 WHERE item_id = 'priv1'")
     with pytest.raises(PlaceholderPricingError):
-        emit_all(con, tmp_path, as_of=datetime(2026, 9, 7, tzinfo=UTC), analysis_seed=1)
+        emit_all(con, tmp_path / "out", as_of=datetime(2026, 9, 7, tzinfo=UTC), analysis_seed=1)
 
 
 def test_private_verdict_type_carries_no_item_id_and_no_output():
@@ -351,18 +351,111 @@ def test_publishing_over_unrecognised_files_refuses_and_touches_nothing(con, tmp
 
 
 @pytest.mark.parametrize(
-    "name", [".artifacts-previous-abc123", ".artifacts-staging-abc123", ".data-previous-x1"]
+    ("path", "ignored"),
+    [
+        (".artifacts-previous-abc12345/leaderboard.json", True),
+        (".artifacts-staging-k9_x2m7q/leaderboard.json", True),
+        (".data-previous-a1b2c3d4/results.duckdb", True),
+        ("tests/fixtures/.config-previous-v1/settings.json", False),
+    ],
 )
-def test_a_publish_backup_left_behind_is_never_committed(name):
+def test_a_publish_backup_left_behind_is_never_committed(path, ignored):
     """Deleting the backup can fail on Windows after a successful swap; a leftover copy of the
-    previous release must not be picked up by `git add`, whatever `--out` was named."""
+    previous release must not be picked up by `git add`, whatever `--out` was named -- and the
+    pattern matches only mkdtemp's 8-character suffix, not any hidden `-previous-` folder."""
     repo = Path(__file__).resolve().parents[2]
     if not (repo / ".git").exists():
         pytest.skip("not a git checkout (release tarball); nothing can be committed")
-    result = subprocess.run(
-        ["git", "check-ignore", "-q", f"{name}/leaderboard.json"], cwd=repo, check=False
-    )
-    assert result.returncode == 0, f"{name}/ is not gitignored"
+    result = subprocess.run(["git", "check-ignore", "-q", path], cwd=repo, check=False)
+    assert (result.returncode == 0) is ignored, path
+
+
+def test_a_committed_regression_watch_result_survives_a_publish(con, tmp_path):
+    """Re-review 2026-09-28 (predates this branch, since 5ada687): regression.json is written
+    by the local regression sweep and committed by hand; emit_all overwrote it with an empty
+    stub, so a publish wiped real findings from the site."""
+    out_dir = tmp_path / "out"
+    _previous_release(out_dir)
+    (out_dir / "regression.json").write_text('{"alerts": ["real"]}', encoding="utf-8")
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert (out_dir / "regression.json").read_text(encoding="utf-8") == '{"alerts": ["real"]}'
+
+
+def test_a_regression_stub_is_written_only_when_no_result_is_committed(con, tmp_path):
+    out_dir = tmp_path / "out"
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert json.loads((out_dir / "regression.json").read_text(encoding="utf-8"))["alerts"] == []
+
+
+@pytest.mark.parametrize("name", [".gitkeep", ".DS_Store"])
+def test_folder_metadata_neither_blocks_a_publish_nor_is_lost(con, tmp_path, name):
+    out_dir = tmp_path / "out"
+    _previous_release(out_dir)
+    (out_dir / name).write_text("", encoding="utf-8")
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert (out_dir / name).exists()
+
+
+def test_a_non_file_under_a_carried_name_is_refused_not_deleted(con, tmp_path):
+    """The refusal and the carry-over apply one predicate: a directory named like a carried
+    file passed the check, was not copied, and the swap deleted it."""
+    out_dir = tmp_path / "out"
+    _previous_release(out_dir)
+    (out_dir / "triage_example.json").unlink()
+    (out_dir / "triage_example.json").mkdir()
+    (out_dir / "triage_example.json" / "inner.txt").write_text("keep", encoding="utf-8")
+    with pytest.raises(ValueError, match="triage_example.json"):
+        emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert (out_dir / "triage_example.json" / "inner.txt").read_text(encoding="utf-8") == "keep"
+
+
+def test_unrecognised_files_are_refused_before_the_analysis_runs(con, tmp_path, monkeypatch):
+    """The emitted names are static, so a stray file fails fast instead of after the whole
+    private-split analysis has run."""
+    from ground_truth.publish import artifacts  # noqa: PLC0415
+
+    def analysis_must_not_run(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("the analysis ran before the folder was checked")
+
+    monkeypatch.setattr(artifacts, "_emit_into", analysis_must_not_run)
+    out_dir = tmp_path / "out"
+    _previous_release(out_dir)
+    (out_dir / "stray.txt").write_text("x", encoding="utf-8")
+    with pytest.raises(ValueError, match="stray.txt"):
+        emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+
+
+def test_the_declared_emitted_names_are_exactly_what_a_publish_writes(con, tmp_path):
+    from ground_truth.publish import artifacts  # noqa: PLC0415
+
+    out_dir = tmp_path / "out"
+    written = emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert {p.name for p in written} == set(artifacts.EMITTED)
+
+
+def test_an_interrupt_after_the_swap_succeeded_leaves_the_new_release_and_no_false_note(
+    con, tmp_path, monkeypatch
+):
+    """Re-review 2026-09-28: an interrupt landing just after the rename into place was handled
+    as a failed swap; the rollback then failed and the note told the operator to overwrite a
+    good new release with the backup."""
+    import os  # noqa: PLC0415
+
+    out_dir = tmp_path / "out"
+    _previous_release(out_dir)
+    real_replace = os.replace
+
+    def replace_then_interrupt(src, dst):  # type: ignore[no-untyped-def]
+        real_replace(src, dst)
+        if Path(dst) == out_dir and "-staging-" in Path(src).name:
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(os, "replace", replace_then_interrupt)
+    with pytest.raises(KeyboardInterrupt) as excinfo:
+        emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert not getattr(excinfo.value, "__notes__", [])
+    assert (out_dir / "leaderboard.json").read_text(encoding="utf-8") != "previous leaderboard"
+    assert (out_dir / "triage_example.json").read_text(encoding="utf-8") == "triage"
 
 
 def test_write_json_refuses_to_emit_nan(tmp_path):
