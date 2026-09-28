@@ -112,8 +112,9 @@ class AlphaInterval(Interval):
     cannot silently drop the caveat (code review 2026-09-28 #6).
     """
 
-    n_undefined_excluded: int = 0
-    n_resamples: int = 0
+    # Required, not defaulted: a constructor that forgot them would publish "0 excluded".
+    n_undefined_excluded: int
+    n_resamples: int
 
 
 def _zero_disagreement_interval(pairs: list[tuple[str, str]], confidence: float) -> AlphaInterval:
@@ -141,6 +142,8 @@ def _zero_disagreement_interval(pairs: list[tuple[str, str]], confidence: float)
         high=1.0,
         n=n,
         method="clopper-pearson-exact-on-disagreement",
+        n_undefined_excluded=0,  # no bootstrap was run
+        n_resamples=0,
     )
 
 

@@ -36,6 +36,7 @@ from ground_truth.golden.schema import Split
 from ground_truth.matrix.build import LeaderboardRow, build_leaderboard
 from ground_truth.providers import load_slots
 from ground_truth.store.db import connect
+from ground_truth.triage.export_example import OUTPUT_JSON as TRIAGE_EXAMPLE_JSON
 
 _REPO = Path(__file__).resolve().parents[2]
 _DEFAULT_MODELS_YAML = _REPO / "models.yaml"
@@ -216,6 +217,7 @@ def emit_all(
         staged = _emit_into(
             con, staging, as_of=as_of, analysis_seed=analysis_seed, models_yaml=models_yaml
         )
+        _refuse_unrecognised(out_dir, {path.name for path in staged})
         _carry_over_unwritten(out_dir, staging)
         _swap_in(staging, out_dir)
     finally:
@@ -224,10 +226,29 @@ def emit_all(
 
 
 # Written into the output directory by another emitter (`triage.export_example`) and committed
-# there. Named, not "whatever is already in the folder": carrying over everything let a stray
-# file -- a real triage output, the class of leak the 2026-08-29 audit caught -- survive every
-# publish (re-review 2026-09-28).
-_WRITTEN_ELSEWHERE = ("triage_example.json",)
+# there, so carried across the swap. Every other entry must be one this publish writes.
+_WRITTEN_ELSEWHERE = (TRIAGE_EXAMPLE_JSON.name,)
+
+
+def _refuse_unrecognised(out_dir: Path, emitted: set[str]) -> None:
+    """Raise, before anything changes, if `out_dir` holds entries this publish neither writes
+    nor carries over. The swap replaces the whole folder, so such an entry would otherwise be
+    republished (a stray triage output: the 2026-08-29 leak class) or deleted (`--out data`
+    would take results.duckdb with it). Refusing neither leaks nor loses anything
+    (re-review 2026-09-28)."""
+    if not out_dir.exists():
+        return
+    unrecognised = sorted(
+        entry.name
+        for entry in out_dir.iterdir()
+        if entry.name not in emitted and entry.name not in _WRITTEN_ELSEWHERE
+    )
+    if unrecognised:
+        raise ValueError(
+            f"refusing to publish into {out_dir}: it holds {', '.join(unrecognised)}, which "
+            "this publish neither writes nor keeps. Move them out (or choose another --out); "
+            "nothing was changed."
+        )
 
 
 def _carry_over_unwritten(out_dir: Path, staging: Path) -> None:
@@ -257,13 +278,14 @@ def _swap_in(staging: Path, out_dir: Path) -> None:
     except BaseException as swap_error:
         try:
             os.replace(backup, out_dir)
-        except OSError as rollback_error:
+        except OSError:
             # The lock that failed the swap can fail the rollback too. `out_dir` is then gone,
             # so say where the previous release is instead of stranding it under a hidden name.
-            raise RuntimeError(
-                f"publish failed and {out_dir} could not be restored; the previous release is "
-                f"intact at {backup} -- rename it back to {out_dir.name} ({swap_error!r})"
-            ) from rollback_error
+            # A note, not a new exception: the caller still sees the original type.
+            swap_error.add_note(
+                f"{out_dir} could not be restored; the previous release is intact at {backup} "
+                f"-- rename it back to {out_dir.name}"
+            )
         raise
     # Best effort: the swap has succeeded. A leftover is gitignored (`.gitignore`), so a
     # stale copy of the previous release cannot be committed beside the real one.
