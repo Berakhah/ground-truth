@@ -8,8 +8,10 @@ from scipy.stats import norm
 from ground_truth.stats.sequential import (
     FAMILY_ALPHA,
     LOOKS_PER_QUARTER,
+    P_DISPLAY_FLOOR,
     PER_LOOK_BOUNDARY_13_LOOKS,
     evaluate_look,
+    format_p,
     per_look_alpha,
     per_look_boundary,
     sidak_adjust,
@@ -135,16 +137,21 @@ def test_family_wise_error_through_evaluate_look_itself():
 
 
 @pytest.mark.slow
-def test_fixed_threshold_inflates_alpha():
+@pytest.mark.parametrize(("rho", "published"), [(0.0, 0.4867), (0.5, 0.3343)])
+def test_fixed_threshold_inflates_alpha(rho, published):
     """What the per-look design would do without the Šidák correction: |z| > 1.96 at each of 13
-    looks against a shared, look-sized baseline falsely flags a third of null quarters (0.3343
-    at this seed). THIS is the figure on the methodology page for the v2 design; v1's 0.2119
-    was for pooled looks and describes a procedure no longer in use."""
+    looks. The rate depends on the baseline's noise, so the methodology page gives both ends
+    with their assumption (code review 2026-09-28 #5): 0.487 against a noiseless baseline
+    (independent looks; exactly 1 - (1 - 0.05)^13 = 0.4866 in theory) and 0.334 against a
+    look-sized one (rho = 0.5, the registered design). v1's 0.2119 was for pooled looks and
+    describes a procedure no longer in use."""
     rng = np.random.default_rng(0)
-    z = _shared_baseline_null_z(rng, 400_000, 0.5)
+    z = _shared_baseline_null_z(rng, 400_000, rho)
     rate = float((np.abs(z) > 1.96).any(axis=1).mean())  # noqa: PLR2004
-    assert round(rate, 4) == 0.3343, "the methodology page publishes this figure as 0.334"  # noqa: PLR2004
-    assert 0.32 <= rate <= 0.35, f"naive per-look threshold rejects {rate:.4f} of null quarters"  # noqa: PLR2004
+    assert round(rate, 4) == published, "the methodology page publishes this figure"
+    if rho == 0.0:
+        exact = 1 - (1 - 2 * float(norm.sf(1.96))) ** LOOKS_PER_QUARTER
+        assert rate == pytest.approx(exact, abs=0.004), "Monte Carlo sd ~0.0008"
 
 
 def test_extreme_z_keeps_a_nonzero_p_value():
@@ -180,3 +187,46 @@ def test_published_simulation_figures_appear_in_the_plan_and_methodology():
     for figure in ("0.0501", "0.0381"):
         assert figure in plan and figure in methodology, figure
     assert "0.334" in methodology
+    # Code review 2026-09-28 #5: "about a third" held only for a noisy baseline; each place the
+    # naive rate is quoted gives both ends and the assumption behind each.
+    flat = " ".join(methodology.split())
+    assert "about a third of quarters" not in flat
+    assert flat.count("0.487") >= 2 and flat.count("0.334") >= 2, flat.count("0.487")  # noqa: PLR2004
+    assert "noiseless baseline" in flat and "look-sized baseline" in flat
+
+
+def test_a_collapse_beyond_float_range_never_publishes_p_zero():
+    """Code review 2026-09-28 #1: `norm.sf` fixed moderate drift but underflows to exactly 0
+    above |z| ~ 37.5, which a collapse against a near-perfect baseline reaches (180/180 -> 3/180
+    gives |z| ~ 88). The p-value is clamped to the smallest positive float and every p below
+    the display floor publishes as a bound, never as a number it cannot be."""
+    result = evaluate_look(100.0, look=1, total_looks=13)
+    assert result.p_value > 0 and result.adjusted_p > 0
+    assert result.statement.count(f"p < {P_DISPLAY_FLOOR:g}") == 2  # noqa: PLR2004
+    assert "p = 0" not in result.statement
+
+
+def test_format_p_prints_significant_figures_above_the_floor_and_a_bound_below_it():
+    assert format_p(0.0123) == "p = 0.012"
+    assert format_p(P_DISPLAY_FLOOR) == f"p = {P_DISPLAY_FLOOR:g}"
+    assert format_p(P_DISPLAY_FLOOR / 3) == f"p < {P_DISPLAY_FLOOR:g}"
+    assert format_p(0.0) == f"p < {P_DISPLAY_FLOOR:g}"
+
+
+@pytest.mark.parametrize("bad", [float("nan"), -0.1, 1.5])
+def test_sidak_adjust_refuses_a_p_value_it_cannot_adjust(bad):
+    """Code review 2026-09-28 #2: NaN failed `p < 1.0` and came back as 1.0, which BH then
+    reported as "No change detected" -- a missing p-value published as a null result."""
+    with pytest.raises(ValueError, match="p-value"):
+        sidak_adjust(bad, 13)
+
+
+def test_a_non_finite_z_is_refused_rather_than_reported():
+    with pytest.raises(ValueError, match="z"):
+        evaluate_look(float("nan"), look=1, total_looks=13)
+
+
+def test_methodology_states_the_p_value_display_floor():
+    """An alert reading "p < 1e-10" is a published convention, so the page defines it."""
+    flat = " ".join((PLAN.parent / "methodology.md").read_text(encoding="utf-8").split())
+    assert f"p < {P_DISPLAY_FLOOR:g}" in flat

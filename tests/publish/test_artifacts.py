@@ -264,6 +264,60 @@ def test_a_failed_publish_leaves_the_output_directory_untouched(con, tmp_path, m
     assert leftovers == [], "no staging directory left behind"
 
 
+def _previous_release(out_dir: Path) -> dict[str, bytes]:
+    out_dir.mkdir()
+    (out_dir / "leaderboard.json").write_text("previous leaderboard", encoding="utf-8")
+    (out_dir / "calibration.json").write_text("previous calibration", encoding="utf-8")
+    # Committed beside the emitted files but written by `triage.export_example`, not emit_all.
+    (out_dir / "triage_example.json").write_text("triage", encoding="utf-8")
+    return {p.name: p.read_bytes() for p in out_dir.iterdir()}
+
+
+def test_a_failure_moving_the_new_release_in_leaves_the_output_directory_as_it_was(
+    con, tmp_path, monkeypatch
+):
+    """Code review 2026-09-28 #4: staged files were moved in one at a time, so a move failing
+    partway (on Windows, a dev server or antivirus holding one file open) left old and new
+    files mixed. The failure is injected once the new release has started moving in."""
+    import os  # noqa: PLC0415
+
+    out_dir = tmp_path / "out"
+    before = _previous_release(out_dir)
+    real_replace = os.replace
+    moved_in: list[str] = []
+
+    def replace(src, dst):  # type: ignore[no-untyped-def]
+        src, dst = Path(src), Path(dst)
+        from_staging = any("-staging-" in part for part in src.parts)
+        into_out = out_dir in (dst, dst.parent)
+        if from_staging and into_out:
+            if dst == out_dir or moved_in:
+                raise PermissionError("file in use by another process")
+            moved_in.append(dst.name)
+        real_replace(src, dst)
+
+    monkeypatch.setattr(os, "replace", replace)
+    with pytest.raises(PermissionError):
+        emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert {p.name: p.read_bytes() for p in out_dir.iterdir()} == before
+    assert [p.name for p in tmp_path.iterdir() if p.name.startswith(".out")] == [], (
+        "no staging or backup left behind"
+    )
+
+
+def test_files_the_publish_does_not_write_survive_it(con, tmp_path):
+    """Guard for #4's fix: replacing the whole folder must carry over what emit_all does not
+    write, or every publish would delete the committed triage example."""
+    out_dir = tmp_path / "out"
+    _previous_release(out_dir)
+    emit_all(con, out_dir, as_of=datetime(2026, 9, 27, tzinfo=UTC), analysis_seed=1)
+    assert (out_dir / "triage_example.json").read_text(encoding="utf-8") == "triage"
+    assert (out_dir / "leaderboard.json").read_text(encoding="utf-8") != "previous leaderboard"
+    assert [p.name for p in tmp_path.iterdir() if p.name.startswith(".out")] == [], (
+        "no staging or backup left behind"
+    )
+
+
 def test_write_json_refuses_to_emit_nan(tmp_path):
     with pytest.raises(ValueError):
         write_json(tmp_path / "x.json", {"alpha": float("nan")})
