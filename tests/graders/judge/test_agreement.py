@@ -242,3 +242,16 @@ def test_caveat_follows_the_excluded_count_not_the_method_wording(monkeypatch):
     report = assess("line_item_description", j, h, samples(), seed=1)
     assert "37 of 1000 undefined resamples excluded" in report.statement
     assert "conditional on alpha being defined" in report.statement
+
+
+def test_alpha_interval_has_one_published_shape_whether_or_not_alpha_is_defined():
+    """Re-review 2026-09-28: the undefined-alpha path built a plain `Interval`, so
+    leaderboard.json's `alpha_ci` objects had two different key sets."""
+    from ground_truth.publish.leaderboard import _agreement_to_dict  # noqa: PLC0415
+
+    defined = assess("line_item_description", *disagreeing(40), samples(), seed=1)
+    unanimous = {str(i): "EQUIVALENT" for i in range(20)}
+    undefined = assess("line_item_description", unanimous, dict(unanimous), samples(), seed=1)
+    shapes = [set(_agreement_to_dict(r)["alpha_ci"]) for r in (defined, undefined)]  # type: ignore[arg-type]
+    assert shapes[0] == shapes[1]
+    assert {"n_undefined_excluded", "n_resamples"} <= shapes[0]
