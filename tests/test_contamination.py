@@ -1,11 +1,13 @@
 # tests/test_contamination.py
 import json
+import shutil
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
+from ground_truth.artifact_names import REGRESSION, TRIAGE_EXAMPLE
 from ground_truth.publish.artifacts import emit_all
 from ground_truth.store.db import connect
 from tests.conftest import require_or_skip, require_sweep_data
@@ -20,7 +22,15 @@ def emitted(tmp_path):
     require_or_skip(DB.exists(), "run the sweep first")
     con = connect(DB)
     require_sweep_data(con, "run the sweep first")
-    paths = emit_all(con, tmp_path, as_of=AS_OF, analysis_seed=1)
+    # Publish over the committed carried files, as the release job does, and scan everything
+    # left in the folder -- not only what emit_all regenerates (re-review 2026-09-28).
+    out = tmp_path / "out"
+    out.mkdir()
+    for name in (TRIAGE_EXAMPLE, REGRESSION):
+        if (REPO / "artifacts" / name).is_file():
+            shutil.copy2(REPO / "artifacts" / name, out / name)
+    emit_all(con, out, as_of=AS_OF, analysis_seed=1)
+    paths = sorted(p for p in out.iterdir() if p.is_file())
     yield con, paths
     con.close()
 
@@ -146,3 +156,58 @@ def test_private_seed_not_tracked_by_git():
         ["git", "ls-files", ".env"], cwd=REPO, capture_output=True, text=True, check=True
     )
     assert out.stdout.strip() == ""
+
+
+PRIVATE_CORPUS = REPO / "golden" / "corpus" / "private"
+PUBLIC_CORPUS = REPO / "golden" / "corpus" / "public"
+MIN_DISTINCTIVE_LINE = 20
+
+
+def _private_fingerprints() -> tuple[set[str], set[str]]:
+    """Private item ids (the corpus file names) and the private-document lines that appear in
+    no public document -- shared boilerplate would match everywhere and teach people to ignore
+    the test (audit M10's lesson for labels)."""
+    public_lines = {
+        line.strip()
+        for p in PUBLIC_CORPUS.glob("*.txt")
+        for line in p.read_text(encoding="utf-8").splitlines()
+    }
+    ids = {p.stem for p in PRIVATE_CORPUS.glob("*.txt")}
+    lines = {
+        line.strip()
+        for p in PRIVATE_CORPUS.glob("*.txt")
+        for line in p.read_text(encoding="utf-8").splitlines()
+        if len(line.strip()) >= MIN_DISTINCTIVE_LINE and line.strip() not in public_lines
+    }
+    return ids, lines
+
+
+def _leaks(files: list[Path], ids: set[str], lines: set[str]) -> list[str]:
+    found = []
+    for path in files:
+        blob = path.read_text(encoding="utf-8")
+        found += [f"{path.name}: id {i}" for i in sorted(ids) if i in blob]
+        found += [f"{path.name}: line {line!r}" for line in sorted(lines) if line in blob]
+    return found
+
+
+def test_the_committed_artifact_scan_catches_a_planted_leak(tmp_path):
+    """The control can fail: a file carrying a private id or a private-only line is caught."""
+    planted = tmp_path / "regression.json"
+    planted.write_text('{"note": "abc0123456789def INV-PRIVATE-ONLY 00042 total due"}', "utf-8")
+    found = _leaks([planted], {"abc0123456789def"}, {"INV-PRIVATE-ONLY 00042 total due"})
+    assert len(found) == 2  # noqa: PLR2004
+
+
+def test_committed_artifacts_carry_no_private_item_content():
+    """Re-review 2026-09-28 (security): a hand-committed regression.json and the triage
+    example are carried into every publish and bundled into the site, but the DB-backed gates
+    above scan only what emit_all regenerates. This scans every committed file in artifacts/
+    against the private corpus directly, so it runs wherever the corpus exists -- no sweep
+    database needed. The corpus is gitignored, so a fresh checkout (CI) skips."""
+    if not any(PRIVATE_CORPUS.glob("*.txt")):
+        pytest.skip("private corpus not present (gitignored); run golden.build")
+    ids, lines = _private_fingerprints()
+    assert ids and lines, "the fingerprint set is empty, so the scan would pass vacuously"
+    committed = sorted(p for p in (REPO / "artifacts").iterdir() if p.is_file())
+    assert _leaks(committed, ids, lines) == []
