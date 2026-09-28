@@ -16,8 +16,9 @@ golden/corpus/private/
 deliverables/
 # emit_all's staging folder and the previous release it swaps out, for any --out name; normally deleted, but a
 # Windows file lock can leave one behind.
-.*-staging-*/
-.*-previous-*/
+# mkdtemp's 8-character suffix, so no other hidden folder is caught.
+.*-staging-????????/
+.*-previous-????????/
 node_modules/
 web/.next/
 web/out/

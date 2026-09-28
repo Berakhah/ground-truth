@@ -77,25 +77,26 @@ def _z_scores(
     intervals: dict[tuple[str, str], tuple[Interval, Interval]], look: int
 ) -> dict[tuple[str, str], float]:
     z_by_key: dict[tuple[str, str], float] = {}
-    names: list[str] = []
-    undefined: list[str] = []
+    undefined: list[tuple[str, str]] = []
     for key, (baseline_interval, current_interval) in intervals.items():
         se = math.sqrt(_se(current_interval) ** 2 + _se(baseline_interval) ** 2)
-        z = (current_interval.point - baseline_interval.point) / se if se > 0 else math.nan
         # A NaN or infinite bound, or a zero-width pair, leaves z undefined -- and an infinite
         # se would give z = 0, a null result the data never supported. Named per cell, all at
         # once, before any is tested (re-review 2026-09-28).
-        if not (math.isfinite(se) and math.isfinite(z)):
-            names.append(f"{key[0]}/{key[1]}")
+        if not (se > 0 and math.isfinite(se)):
             undefined.append(
-                f"{key[0]}/{key[1]} (baseline [{baseline_interval.low}, "
-                f"{baseline_interval.high}], current [{current_interval.low}, "
-                f"{current_interval.high}])"
+                (
+                    f"{key[0]}/{key[1]}",
+                    f"baseline [{baseline_interval.low}, {baseline_interval.high}], current "
+                    f"[{current_interval.low}, {current_interval.high}]",
+                )
             )
-        z_by_key[key] = z
+            continue
+        z_by_key[key] = (current_interval.point - baseline_interval.point) / se
     if undefined:
         raise ValueError(
-            f"z is undefined at look {look} for {', '.join(names)}: " + "; ".join(undefined)
+            f"z is undefined at look {look} for {', '.join(name for name, _ in undefined)}: "
+            + "; ".join(f"{name} ({detail})" for name, detail in undefined)
         )
     return z_by_key
 
