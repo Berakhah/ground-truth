@@ -70,3 +70,45 @@ Cerebras) — sign up on the account that will run the sweep, confirm
 explicit answer on free-tier commercial-use terms rather than inferring one.
 See `providers-desk-research.md`'s "What only you can fill in" section for
 the full list of account-gated fields.
+
+## Lineup decisions (2026-09-29)
+
+Decided by the human partner on 2026-09-29, from the desk research above. **Still not
+the field audit:** no row enters `models.yaml` until the account-gated fields are
+confirmed on a live account and every price is re-fetched and dated. As of this date
+`.env` holds no provider key, so nothing below has been contacted.
+
+**Why training providers are allowed at all.** Every golden item is synthetic (300 of
+300: 180 private, 120 public; `items.source = 'synthetic'`). The Google and Mistral
+disqualifications above are for *confidential* data, and `policy.assert_slot_may_see`
+still enforces them: the moment a `CLIENT_CONFIDENTIAL` item is swept, a
+`trains_on_data: true` slot is refused before dispatch. Nothing here relaxes that gate.
+
+Models under test, one family each:
+
+| slot | provider · model | family | trains_on_data (to confirm) | list price source |
+|---|---|---|---|---|
+| A | groq · `openai/gpt-oss-120b` | gpt-oss | false, provisional | console after signup — no citable public page |
+| B | groq · `qwen/qwen3.8-27b` | qwen | false, provisional | console after signup |
+| C | cloudflare-workers-ai · `@cf/meta/llama-3.1-8b-instruct-fp8` | llama | false | vendor page, cited |
+| D | cloudflare-workers-ai · DeepSeek V4 Pro | deepseek | false | vendor page, cited |
+| E | mistral · `mistral-small-2603` | mistral | false **only once the console opt-out is on and confirmed**; true otherwise | vendor page, cited |
+| F | google-ai-studio · Gemini 2.5 Flash-Lite | google | **true** (free tier), recorded as such | vendor page, cited |
+
+Judges (LINE_ITEM_DESCRIPTION only, the one `grader: judge` field in `docs/rubric.md`): a
+pool of four from Cerebras / SambaNova, one per family: gemma (declared family `google`,
+the same string as slot F, because `assert_judge_family_differs` compares strings and
+Gemma is Google's lineage), llama-3.3-70b (`llama`), gpt-oss-120b (`gpt-oss`), qwen
+(`qwen`). Each slot conflicts with at most one judge, so every slot keeps three eligible
+judges for the n>=3 majority vote.
+
+**Judge load: run 1 only.** The judge scores LINE_ITEM_DESCRIPTION on the first of the
+five runs per item, not all five (roughly one fifth of the calls; SambaNova allows about
+20 requests a day). The run-to-run variance of that field is therefore reported as not
+measured, and the methodology page must say so. This is a design change still to be
+implemented, test first, before the sweep.
+
+**Still open, account-gated:** reachable, observed `exposes_fingerprint`, console-only
+rate limits (Google, Mistral, Cloudflare neurons-per-call), Groq/Cerebras/SambaNova list
+prices from the console, free-tier commercial-use terms (Cloudflare, SambaNova, Groq,
+Cerebras), and Mistral's opt-out state.
