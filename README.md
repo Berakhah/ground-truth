@@ -16,7 +16,9 @@ Download the published `artifacts/` directory (see [Published artifacts](#publis
 python scripts/reproduce.py artifacts/
 ```
 
-`reproduce.py` is a standalone, stdlib-only script — it does not import `ground_truth` and needs no repository checkout. It recomputes each leaderboard row's headline accuracy directly from `verdicts_private_by_hash.jsonl` and prints published vs. recomputed side by side. Expect zero differences and exit code 0.
+`reproduce.py` is a standalone, stdlib-only script — it does not import `ground_truth` and needs no repository checkout. It recomputes each leaderboard row's headline accuracy directly from `verdicts_private_by_hash.jsonl` and prints published vs. recomputed side by side. Expect zero differences and exit code 0. It refuses placeholder/demo data rather than "reproducing" it.
+
+`--require-release` additionally checks `release.json`: every file must carry the sha256 it had when the database-backed reproducibility and contamination gates passed on the machine that cut the release. The release workflow runs this, because CI never holds the results database. The attestation records that those gates ran; it does not prove it — the recomputation is what you can check yourself.
 
 The private split's actual items are never published — only their content hashes (`manifest_private.json`), which prove the items existed at a given date without revealing them, and per-item verdicts keyed by that hash (`verdicts_private_by_hash.jsonl`), which are enough for anyone to independently recompute the headline numbers without ever seeing a private item.
 

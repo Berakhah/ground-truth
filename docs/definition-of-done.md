@@ -45,8 +45,12 @@ established in `tests/test_reproducibility.py`'s `_only_placeholder_published` c
 
 ## What "done" will look like
 
-Once a real sweep runs and `ground_truth.publish.artifacts.emit_all` is invoked against real
-data (Task 49 Steps 2–5, deferred alongside this task for the same reason):
+Once a real sweep runs and the release is cut against real data with
+`uv run python -m ground_truth.publish.release --as-of <release date> --analysis-seed 1`
+(Task 49 Steps 2–5, deferred alongside this task for the same reason). That command emits the
+artifacts, runs the DB-backed reproducibility and contamination gates, and writes
+`artifacts/release.json` only if they pass; the tag's CI job then checks that attestation with
+`scripts/reproduce.py --require-release`, since CI never holds the results database:
 
 1. `uv run pytest tests/test_definition_of_done.py -v` reports **11 passed**, not skipped.
 2. This page is updated to record the pass and the date.

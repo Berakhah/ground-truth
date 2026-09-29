@@ -18,9 +18,14 @@ those two failures either impossible by construction or caught before merge.
 - `golden/corpus/private/` is gitignored (`.gitignore`); only a `.gitkeep` placeholder is
   tracked. The private items themselves never enter git history.
 - `tests/test_contamination.py` asserts no private-split content reaches a published artifact.
-  In CI (`.github/workflows/publish.yml`, job `release`), this test is re-run with
-  `GT_REQUIRE_DB=1`, which turns its normal "skip if no local DB" behaviour into a hard failure —
-  a release cannot ship without the gate actually running.
+  It needs `data/results.duckdb`, which holds private-split outputs and never leaves the
+  machine that cuts a release, so it runs there: `python -m ground_truth.publish.release` runs
+  it (and `tests/test_reproducibility.py`) with `GT_REQUIRE_DB=1`, which turns the normal "skip
+  if no local DB" into a hard failure, and writes `artifacts/release.json` — the sha256 of every
+  artifact the gates saw — only if both pass. CI (`.github/workflows/publish.yml`, job
+  `release`) holds no database; it runs `scripts/reproduce.py --require-release`, which refuses
+  any file the gates did not see or that changed since. The attestation records that the gates
+  ran; it does not prove it.
 - Published artifacts carry only content hashes of private items
   (`manifest_private.json`) and per-hash verdicts (`verdicts_private_by_hash.jsonl`), never the
   item text itself — see the README's "Reproduce these numbers" section.
