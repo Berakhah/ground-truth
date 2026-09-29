@@ -1,7 +1,7 @@
 # tests/test_reproducibility.py
 import filecmp
 import json
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -14,7 +14,13 @@ from tests.conftest import require_or_skip
 REPO = Path(__file__).resolve().parents[1]
 DB = REPO / "data" / "results.duckdb"
 PUBLISHED = REPO / "artifacts"
-AS_OF = datetime(2026, 10, 15, tzinfo=UTC)
+
+
+def _published_run() -> tuple[datetime, int]:
+    """The as_of and seed this release was emitted with. They were hardcoded to 2026-10-15 and
+    seed 1, so a release cut on any other date could never regenerate its own bytes."""
+    board = json.loads((PUBLISHED / "leaderboard.json").read_text(encoding="utf-8"))
+    return datetime.fromisoformat(board["as_of"]), int(board["analysis_seed"])
 
 
 def _only_placeholder_published() -> bool:
@@ -37,8 +43,9 @@ def con():
 
 
 def test_published_numbers_regenerate(con, tmp_path):
+    as_of, seed = _published_run()
     mismatched = []
-    for path in emit_all(con, tmp_path, as_of=AS_OF, analysis_seed=1):
+    for path in emit_all(con, tmp_path, as_of=as_of, analysis_seed=seed):
         if path.name == REGRESSION:
             # Not regenerated from results.duckdb: the regression sweep writes it and it is
             # committed by hand; emit_all carries it over, and writes only a stub into an
@@ -52,8 +59,9 @@ def test_published_numbers_regenerate(con, tmp_path):
 
 
 def test_regeneration_is_stable_across_two_runs(con, tmp_path):
-    first = sorted(emit_all(con, tmp_path / "a", as_of=AS_OF, analysis_seed=1))
-    second = sorted(emit_all(con, tmp_path / "b", as_of=AS_OF, analysis_seed=1))
+    as_of, seed = _published_run()
+    first = sorted(emit_all(con, tmp_path / "a", as_of=as_of, analysis_seed=seed))
+    second = sorted(emit_all(con, tmp_path / "b", as_of=as_of, analysis_seed=seed))
     for a, b in zip(first, second, strict=True):
         assert filecmp.cmp(a, b, shallow=False), f"{a.name} is not deterministic"
 
