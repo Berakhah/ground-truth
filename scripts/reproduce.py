@@ -7,7 +7,7 @@ be reproduction -- CLAUDE.md's brand claim is "a number you can reproduce," and 
 reader is a stranger with no repository checkout and no `ground_truth` installed.
 
 Usage:
-    python reproduce.py <artifacts-dir>
+    python reproduce.py <artifacts-dir> [--require-release]
 
 Reads two files from <artifacts-dir>:
   - leaderboard.json               -- published headline accuracy per slot (`rows[].accuracy.point`)
@@ -20,7 +20,16 @@ must not outweigh one with fewer). This is exactly the arithmetic in
 `tests/test_reproducibility.py::test_headline_accuracy_recomputes_from_published_verdicts_alone`.
 
 Exits 0 if every slot's recomputed accuracy matches the published point estimate within
-TOLERANCE, non-zero otherwise.
+TOLERANCE, non-zero otherwise. Placeholder/demo data (any artifact flagged `"placeholder":
+true`) and an empty leaderboard are refused: "reproducing" either proves nothing.
+
+--require-release (the release job's gate, .github/workflows/publish.yml): also requires
+`release.json`, written by `ground_truth.publish.release` only after the DB-backed
+reproducibility and contamination gates passed on the machine that cut the release -- CI never
+holds the results database, which carries private-split outputs. Every file in <artifacts-dir>
+must be listed there with the sha256 the gates saw, and its as_of and analysis_seed must be the
+leaderboard's. An attestation records that the gates ran; it is not proof they did. The proof a
+stranger can check is the recomputation above.
 
 SECURITY (00 security baseline, Task 52): this is the one script strangers are invited to
 download and run against untrusted, attacker-controllable input -- a downloaded `artifacts/`
@@ -32,6 +41,8 @@ all of which can execute arbitrary code from file content alone.
 
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -41,7 +52,7 @@ from pathlib import Path
 # can creep in and a mismatch above float noise means the published number is genuinely wrong.
 TOLERANCE = 1e-9
 
-_EXPECTED_ARGC = 2  # program name + artifacts-dir
+RELEASE = "release.json"  # ground_truth/artifact_names.py; this script imports nothing of ours
 
 
 def recompute_accuracy(verdicts: list[dict[str, object]], slot: str) -> float:
@@ -54,13 +65,70 @@ def recompute_accuracy(verdicts: list[dict[str, object]], slot: str) -> float:
     return sum(sum(c) / len(c) for c in by_hash.values()) / len(by_hash)
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) != _EXPECTED_ARGC:
-        print(f"usage: {argv[0]} <artifacts-dir>", file=sys.stderr)
-        return 2
+def placeholder_files(artifacts_dir: Path) -> list[str]:
+    return sorted(
+        p.name
+        for p in artifacts_dir.glob("*.json")
+        if isinstance(doc := json.loads(p.read_text(encoding="utf-8")), dict)
+        and doc.get("placeholder") is True
+    )
 
-    artifacts_dir = Path(argv[1])
+
+def release_problems(artifacts_dir: Path, leaderboard: dict[str, object]) -> list[str]:
+    """Why these files are not the ones the release gates passed; empty if they are."""
+    path = artifacts_dir / RELEASE
+    if not path.is_file():
+        return [f"no {RELEASE}: these artifacts were not cut through the release gates"]
+    attestation = json.loads(path.read_text(encoding="utf-8"))
+    problems = [
+        f"{RELEASE} has {key}={attestation.get(key)!r}, "
+        f"leaderboard.json has {leaderboard.get(key)!r}"
+        for key in ("as_of", "analysis_seed")
+        if attestation.get(key) != leaderboard.get(key)
+    ]
+    attested: dict[str, str] = attestation.get("files", {})
+    entries = list(artifacts_dir.iterdir())
+    problems += [
+        f"{p.name} is not a file; the release gates see only files"
+        for p in sorted(entries)
+        if not p.is_file()
+    ]
+    present = {p.name for p in entries if p.is_file() and p.name != RELEASE}
+    problems += [f"{name} is attested but missing" for name in sorted(set(attested) - present)]
+    problems += [
+        f"{name} was never seen by the release gates" for name in sorted(present - set(attested))
+    ]
+    problems += [
+        f"{name} changed after the release gates passed"
+        for name in sorted(present & set(attested))
+        if hashlib.sha256((artifacts_dir / name).read_bytes()).hexdigest() != attested[name]
+    ]
+    return problems
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog=Path(argv[0]).name)
+    parser.add_argument("artifacts_dir", type=Path)
+    parser.add_argument("--require-release", action="store_true")
+    args = parser.parse_args(argv[1:])
+
+    artifacts_dir: Path = args.artifacts_dir
+    placeholders = placeholder_files(artifacts_dir)
+    if placeholders:
+        print(f"REFUSED: placeholder/demo data, not a release: {placeholders}")
+        return 1
     leaderboard = json.loads((artifacts_dir / "leaderboard.json").read_text(encoding="utf-8"))
+    if not leaderboard.get("rows"):
+        print("REFUSED: leaderboard.json has no rows; there is nothing to reproduce.")
+        return 1
+    if args.require_release:
+        problems = release_problems(artifacts_dir, leaderboard)
+        if problems:
+            print("REFUSED: not the artifacts the release gates passed:")
+            for problem in problems:
+                print(f"  - {problem}")
+            return 1
+
     verdicts = [
         json.loads(line)
         for line in (artifacts_dir / "verdicts_private_by_hash.jsonl")

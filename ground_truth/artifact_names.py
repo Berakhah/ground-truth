@@ -12,3 +12,7 @@ TRIAGE_EXAMPLE = "triage_example.json"
 # (.github/workflows/regression-watch.yml). `emit_all` writes an empty stub only when none is
 # committed.
 REGRESSION = "regression.json"
+# Written by `publish.release` only after the DB-backed release gates pass: the sha256 of every
+# artifact they saw. `emit_all` drops it (a re-emit is bytes the gates have not seen), and
+# scripts/reproduce.py --require-release checks it in CI, which never holds the database.
+RELEASE = "release.json"

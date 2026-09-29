@@ -31,7 +31,7 @@ from pathlib import Path
 
 import duckdb
 
-from ground_truth.artifact_names import REGRESSION, TRIAGE_EXAMPLE
+from ground_truth.artifact_names import REGRESSION, RELEASE, TRIAGE_EXAMPLE
 from ground_truth.golden.manifest import write_manifest_from_db
 from ground_truth.golden.schema import Split
 from ground_truth.matrix.build import LeaderboardRow, build_leaderboard
@@ -244,6 +244,15 @@ EMITTED = (
 _CARRIED = (TRIAGE_EXAMPLE, REGRESSION, ".gitkeep", ".DS_Store", "Thumbs.db", "desktop.ini")
 
 
+# Accepted in `out_dir` but deliberately not carried, so the swap drops it: the release
+# attestation vouches for the bytes the release gates saw, which a re-emit replaces.
+_DROPPED = (RELEASE,)
+
+
+def _dropped(entry: Path) -> bool:
+    return entry.name in _DROPPED and entry.is_file()
+
+
 def _carried(entry: Path) -> bool:
     # One predicate for the refusal and the copy: a directory under a carried name passed the
     # check, was not copied, and the swap deleted it.
@@ -261,7 +270,7 @@ def _refuse_unrecognised(out_dir: Path) -> None:
     unrecognised = sorted(
         entry.name
         for entry in out_dir.iterdir()
-        if entry.name not in EMITTED and not _carried(entry)
+        if entry.name not in EMITTED and not _dropped(entry) and not _carried(entry)
     )
     if unrecognised:
         raise ValueError(

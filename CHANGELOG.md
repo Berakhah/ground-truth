@@ -12,6 +12,18 @@ overwritten in place.
 
 ### Changed
 
+- **2026-09-29 -- the release job can pass: two-stage release gate.** `publish.yml` regenerated
+  artifacts from `data/results.duckdb` and ran the DB-backed gates in CI, but that database is
+  gitignored (it holds private-split outputs) and never exists on a runner, so no tag could
+  ever pass, even after a real sweep. Now `python -m ground_truth.publish.release` emits the
+  artifacts, runs the reproducibility and contamination gates where the database lives, and
+  writes `artifacts/release.json` (each artifact's sha256, `as_of`, seed) only if they pass.
+  CI runs `scripts/reproduce.py --require-release`, which refuses unattested, changed or
+  missing files. `reproduce.py` also now refuses placeholder data and an empty leaderboard
+  instead of passing vacuously; `emit_all` drops a stale `release.json`; the reproducibility
+  gate reads `as_of` and seed from the published leaderboard instead of a hardcoded
+  2026-10-15. No live sweep has run, so no release has been cut.
+
 - **2026-09-27 -- constant-data intervals are two-sided 95%** (stats review 2026-09-27,
   finding 3). The exact Clopper-Pearson bound used when every observation is identical was
   one-sided, so it was not 95% on the same footing as the BCa intervals beside it. Now one
