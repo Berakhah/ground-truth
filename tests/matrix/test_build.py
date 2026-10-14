@@ -95,21 +95,31 @@ def test_rows_carry_the_cost_caveat():
 # slot's outputs do carry token counts, it computes a real `CostClaim` via
 # `cost_per_1k_items`'s blended rate. Both paths are exercised below.
 #
-# The exclusion-join logic itself -- the actual guarantee this task exists to enforce -- is
-# fully implemented and real (`_slot_accuracy`, which `build_leaderboard` calls first). The
-# tests below prove: (1) that logic excludes a rejected field type's verdicts from the
-# accuracy that would become the headline number, on the real query against a real store,
-# and (2) `build_leaderboard` fails loudly rather than silently shipping a fabricated cost
-# when token counts are missing, and (3) it produces a real cost when they are present.
+# The exclusion join is the guarantee this module exists to enforce: a judge's verdicts reach
+# the headline only when that judge has an accepted decision for that field type. A decision
+# never touches a deterministic verdict -- a rejected judge falls back to deterministic grading
+# where one exists (docs/analysis-plan.md, "Judge rejection threshold"). Earlier versions keyed
+# decisions by field type alone and dropped every verdict of a rejected field type,
+# deterministic ones included; the tests below replace that rule.
+
+JUDGE_A = "judge:judge-a"
 
 
 def _populate_two_field_types(
-    con, *, rejected_status: str | None, token_count: int | None = None
+    con,
+    *,
+    decisions: tuple[tuple[str, str, str], ...] = (),
+    token_count: int | None = None,
 ) -> None:
-    """One item, one slot, one run, two field types (`money`, `date`) each graded once.
-    `rejected_status` controls whether `money` carries a judge_decisions row and what its
-    status is; `date` never gets one, so it always survives the exclusion join.
-    `token_count` defaults to NULL -- the pre-migration / degraded-mode case."""
+    """One item, one slot, one run, one output, three field types:
+
+    - `money` (`total`): an exact verdict (correct) and a `judge:judge-a` verdict (incorrect),
+      so its point estimate says which survived: 1.0 deterministic only, 0.5 both.
+    - `date` (`invoice_date`): an exact verdict only; no decision can ever remove it.
+    - `line_item_description` (`line_1_description`): a `judge:judge-a` verdict only.
+
+    `decisions` is `(field_type, judge_slot, status)` rows for judge_decisions. `token_count`
+    defaults to NULL -- the pre-migration / degraded-mode case."""
     con.execute(
         "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
         "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
@@ -117,6 +127,10 @@ def _populate_two_field_types(
     con.execute("INSERT INTO item_fields VALUES ('i1', 'total', 'money', '1.00', NULL, NULL)")
     con.execute(
         "INSERT INTO item_fields VALUES ('i1', 'invoice_date', 'date', '2026-01-01', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'line_1_description', 'line_item_description', "
+        "'Concrete works', NULL, NULL)"
     )
     con.execute(
         "INSERT INTO runs VALUES ('r1', now(), NULL, 'slot-a', 'ref', 'prov', false, 's1',"
@@ -134,13 +148,22 @@ def _populate_two_field_types(
         "INSERT INTO verdicts VALUES ('v2', 'o1', 'invoice_date', 'exact', '1', 'v1', true,"
         " 'ok', now())"
     )
-    if rejected_status is not None:
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v3', 'o1', 'total', ?, '1', 'v1', false,"
+        " 'judge majority NOT_EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v4', 'o1', 'line_1_description', ?, '1', 'v1', true,"
+        " 'judge majority EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+    for field_type, judge_slot, status in decisions:
         con.execute(
-            "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
-            "alpha_high, n_units, threshold, status, decided_at) "
-            "VALUES ('money', 'v1', 0.5, 0.3, 0.7, 60, 0.667, ?,"
-            " now())",
-            [rejected_status],
+            "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, "
+            "alpha_low, alpha_high, n_units, threshold, status, decided_at) "
+            "VALUES (?, ?, 'v1', 0.5, 0.3, 0.7, 60, 0.667, ?, now())",
+            [field_type, judge_slot, status],
         )
 
 
@@ -152,19 +175,57 @@ def con(tmp_path: Path):
     c.close()
 
 
-def test_rejected_field_type_is_absent_from_headline_accuracy(con):
-    _populate_two_field_types(con, rejected_status="rejected")
-    result = _slot_accuracy(con, split=Split.PUBLIC, seed=1)
-    per_field = result["slot-a"].per_field
-    assert "money" not in per_field, "a rejected judge's verdicts reached the headline number"
+def _per_field(con) -> dict[str, Interval]:
+    return _slot_accuracy(con, split=Split.PUBLIC, seed=1)["slot-a"].per_field
+
+
+def test_a_rejected_judges_verdicts_are_absent_but_deterministic_ones_stay(con):
+    """Replaces `test_rejected_field_type_is_absent_from_headline_accuracy`, which asserted
+    that a rejected decision removed every `money` verdict, the exact one included. The intent
+    it guarded -- a rejected judge's verdicts never reach the headline -- is asserted here on
+    the judge verdict itself; the deterministic verdict is the fallback and must stay."""
+    _populate_two_field_types(con, decisions=(("money", "judge-a", "rejected"),))
+    per_field = _per_field(con)
+    assert "money" in per_field, "a judge decision removed a deterministic verdict"
+    assert per_field["money"].point == 1.0, "a rejected judge's verdict reached the headline"
     assert "date" in per_field, "an undecided field type must not be swept up in the exclusion"
 
 
-def test_accepted_field_type_is_not_excluded(con):
-    _populate_two_field_types(con, rejected_status="accepted")
-    result = _slot_accuracy(con, split=Split.PUBLIC, seed=1)
-    per_field = result["slot-a"].per_field
-    assert "money" in per_field and "date" in per_field
+def test_an_accepted_judges_verdicts_count_beside_deterministic_ones(con):
+    _populate_two_field_types(con, decisions=(("money", "judge-a", "accepted"),))
+    per_field = _per_field(con)
+    assert per_field["money"].point == 0.5  # noqa: PLR2004 -- exact (true) + judge (false)
+    assert "date" in per_field
+
+
+def test_a_judge_verdict_with_no_decision_never_scores(con):
+    """An unassessed judge is a judge we cannot defend (CLAUDE.md rule 3): before this rule an
+    absent decision row meant "keep", so every judge scored until someone assessed it."""
+    _populate_two_field_types(con)
+    per_field = _per_field(con)
+    assert "line_item_description" not in per_field
+    assert per_field["money"].point == 1.0, "an unassessed judge's verdict reached the headline"
+
+
+def test_a_judge_verdict_with_its_judges_acceptance_scores(con):
+    _populate_two_field_types(con, decisions=(("line_item_description", "judge-a", "accepted"),))
+    assert "line_item_description" in _per_field(con)
+
+
+def test_another_judges_acceptance_does_not_admit_this_judge(con):
+    _populate_two_field_types(con, decisions=(("line_item_description", "judge-b", "accepted"),))
+    assert "line_item_description" not in _per_field(con)
+
+
+def test_a_judge_verdict_with_its_judges_rejection_never_scores(con):
+    _populate_two_field_types(con, decisions=(("line_item_description", "judge-a", "rejected"),))
+    assert "line_item_description" not in _per_field(con)
+
+
+def test_one_judges_acceptance_on_one_field_type_does_not_admit_it_on_another(con):
+    _populate_two_field_types(con, decisions=(("line_item_description", "judge-a", "accepted"),))
+    per_field = _per_field(con)
+    assert per_field["money"].point == 1.0, "judge-a was admitted on a field type never assessed"
 
 
 def test_latency_counts_each_output_once_not_once_per_graded_field(con):
@@ -172,7 +233,7 @@ def test_latency_counts_each_output_once_not_once_per_graded_field(con):
     graded fields (money, date) surviving exclusion must still contribute exactly one
     latency observation, not two -- otherwise n and the percentiles are inflated for every
     multi-field item, which is the normal case for this domain, not an edge case."""
-    _populate_two_field_types(con, rejected_status=None)
+    _populate_two_field_types(con)
     result = _slot_accuracy(con, split=Split.PUBLIC, seed=1)
     assert result["slot-a"].latency.n == 1
 
@@ -182,7 +243,7 @@ def test_retired_item_is_excluded_from_current_accuracy(con):
     deleted, so historical verdicts against it stay valid -- but a *current* leaderboard
     build must not mix its stale outputs back into the active cohort's headline number
     (review finding: retired items were never excluded from the accuracy query)."""
-    _populate_two_field_types(con, rejected_status=None)
+    _populate_two_field_types(con)
     con.execute("UPDATE items SET split = 'private' WHERE item_id = 'i1'")
     con.execute("UPDATE items SET retired_at = now() WHERE item_id = 'i1'")
     result = _slot_accuracy(con, split=Split.PRIVATE, seed=1)
@@ -190,7 +251,7 @@ def test_retired_item_is_excluded_from_current_accuracy(con):
 
 
 def test_build_leaderboard_refuses_to_fabricate_cost(con):
-    _populate_two_field_types(con, rejected_status=None, token_count=None)
+    _populate_two_field_types(con, token_count=None)
     with pytest.raises(TokenCountsUnavailable):
         build_leaderboard(con, split=Split.PUBLIC, seed=1, specs={"slot-a": spec("slot-a")})
 
@@ -199,13 +260,13 @@ def test_build_leaderboard_reports_missing_spec_clearly(con):
     """A slot present in the store (with real token counts) but absent from `specs` --
     e.g. renamed or retired in models.yaml -- must fail with a documented error, not a bare
     KeyError (cross-file tracer finding)."""
-    _populate_two_field_types(con, rejected_status=None, token_count=2000)
+    _populate_two_field_types(con, token_count=2000)
     with pytest.raises(SlotSpecMissing):
         build_leaderboard(con, split=Split.PUBLIC, seed=1, specs={})
 
 
 def test_build_leaderboard_computes_real_cost_when_token_counts_present(con):
-    _populate_two_field_types(con, rejected_status=None, token_count=2000)
+    _populate_two_field_types(con, token_count=2000)
     rows = build_leaderboard(con, split=Split.PUBLIC, seed=1, specs={"slot-a": spec("slot-a")})
     assert len(rows) == 1
     row_ = rows[0]
@@ -219,7 +280,7 @@ def test_build_leaderboard_computes_real_cost_when_token_counts_present(con):
 # Every judge_decisions row above is a hand-written fixture, which is exactly how the gap
 # survived review: `assess` computed a status and nothing ever persisted it, so against real
 # data the exclusion join could only take its `jd.status IS NULL` branch and no judge was ever
-# actually excluded. These two tests run the real `assess` -> `record_decision` ->
+# actually excluded. These tests run the real `assess` -> `record_decision` ->
 # `_slot_accuracy` chain, in both directions, so the guarantee holds end to end.
 
 
@@ -229,7 +290,7 @@ def _judge_samples(n: int = 20) -> list[Sample]:
     ]
 
 
-def _decide(con, *, agree: bool):
+def _decide(con, *, agree: bool, judge_slot: str = "judge-a"):
     """Assess a real judge-vs-human disagreement for field type `money`, and persist it."""
     judge = {str(i): "EQUIVALENT" for i in range(60)}
     if agree:
@@ -238,45 +299,58 @@ def _decide(con, *, agree: bool):
     else:
         human = {str(i): "EQUIVALENT" if i % 2 else "NOT_EQUIVALENT" for i in range(60)}
     report = assess("money", judge, human, _judge_samples(), seed=1, n_resamples=200)
-    record_decision(con, report, rubric_version="v1")
+    record_decision(con, report, rubric_version="v1", judge_slot=judge_slot)
     return report
 
 
-def test_a_persisted_rejection_actually_excludes_that_field_type(con):
-    _populate_two_field_types(con, rejected_status=None)
+def test_a_persisted_rejection_actually_excludes_that_judges_verdicts(con):
+    """Rewritten with the per-judge key: the rejection removes judge-a's `money` verdict and
+    leaves the deterministic `money` verdict, the fallback, in place."""
+    _populate_two_field_types(con)
     report = _decide(con, agree=False)
     assert report.status is JudgeStatus.REJECTED
 
-    per_field = _slot_accuracy(con, split=Split.PUBLIC, seed=1)["slot-a"].per_field
-    assert "money" not in per_field, (
+    per_field = _per_field(con)
+    assert per_field["money"].point == 1.0, (
         "assess() rejected this judge and record_decision() stored it, yet its verdicts still "
         "reached the headline number"
     )
     assert "date" in per_field
 
 
-def test_a_persisted_acceptance_leaves_its_field_type_in(con):
+def test_a_persisted_acceptance_lets_that_judges_verdicts_in(con):
     """The other direction, and the guard on the enum/CHECK case mismatch: `JudgeStatus`
-    renders "ACCEPTED"/"REJECTED" but the column's CHECK and build.py's `!= 'rejected'` are
+    renders "ACCEPTED"/"REJECTED" but the column's CHECK and build.py's `= 'accepted'` are
     both lowercase. Writing the enum verbatim raises on insert; writing the wrong case
-    silently never matches the exclusion, which looks identical to this passing test unless
-    the rejection case above is asserted too."""
-    _populate_two_field_types(con, rejected_status=None)
+    silently never matches the admission, which looks identical to the rejection test above
+    unless this direction is asserted too."""
+    _populate_two_field_types(con)
     report = _decide(con, agree=True)
     assert report.status is JudgeStatus.ACCEPTED
 
-    stored = con.execute("SELECT status FROM judge_decisions WHERE field_type = 'money'").fetchone()
+    stored = con.execute(
+        "SELECT status FROM judge_decisions WHERE field_type = 'money' AND judge_slot = 'judge-a'"
+    ).fetchone()
     assert stored == ("accepted",), "judge_decisions.status must be stored lowercase"
 
-    per_field = _slot_accuracy(con, split=Split.PUBLIC, seed=1)["slot-a"].per_field
-    assert "money" in per_field and "date" in per_field
+    per_field = _per_field(con)
+    assert per_field["money"].point == 0.5  # noqa: PLR2004 -- exact (true) + judge-a (false)
+    assert "date" in per_field
 
 
-def test_re_deciding_a_field_type_replaces_rather_than_raising(con):
-    """`field_type` is the primary key: a second assessment (more labels, a re-run) must
-    update the standing decision, not fail on a duplicate key."""
-    _populate_two_field_types(con, rejected_status=None)
+def test_a_persisted_acceptance_for_another_judge_does_not_admit_this_one(con):
+    _populate_two_field_types(con)
+    _decide(con, agree=True, judge_slot="judge-b")
+    assert _per_field(con)["money"].point == 1.0
+
+
+def test_re_deciding_a_judge_replaces_rather_than_raising(con):
+    """`(field_type, judge_slot)` is the primary key: a second assessment (more labels, a
+    re-run) must update the standing decision, not fail on a duplicate key."""
+    _populate_two_field_types(con)
     _decide(con, agree=True)
     _decide(con, agree=False)
-    rows = con.execute("SELECT status FROM judge_decisions WHERE field_type = 'money'").fetchall()
-    assert rows == [("rejected",)]
+    rows = con.execute(
+        "SELECT judge_slot, status FROM judge_decisions WHERE field_type = 'money'"
+    ).fetchall()
+    assert rows == [("judge-a", "rejected")]

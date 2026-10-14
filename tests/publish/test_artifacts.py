@@ -168,9 +168,9 @@ def test_judge_agreement_decided_at_is_utc_normalised(con, tmp_path):
     holds independent of the host, not just "happens to pass" on a UTC CI runner."""
     con.execute("SET TimeZone='America/New_York'")
     con.execute(
-        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
         "alpha_high, n_units, threshold, status, decided_at) VALUES "
-        "('money','v1',0.9,0.8,0.95,40,0.8,'accepted','2026-09-04 15:34:56.789+03')"
+        "('money','judge-a','v1',0.9,0.8,0.95,40,0.8,'accepted','2026-09-04 15:34:56.789+03')"
     )
     out_dir = tmp_path / "out"
     emit_all(con, out_dir, as_of=datetime(2026, 9, 7, tzinfo=UTC), analysis_seed=1)
@@ -185,9 +185,9 @@ def test_undefined_judge_alpha_publishes_as_null_not_nan(con, tmp_path):
     """`assess` stores NaN for an alpha that is 0/0 (every unit one verdict); `json.dumps`
     would write that as the bare token NaN, which is not JSON and breaks every consumer."""
     con.execute(
-        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
         "alpha_high, n_units, threshold, status, decided_at) VALUES "
-        "('money','v1','NaN'::DOUBLE,'NaN'::DOUBLE,'NaN'::DOUBLE,60,0.667,'rejected',"
+        "('money','judge-a','v1','NaN'::DOUBLE,'NaN'::DOUBLE,'NaN'::DOUBLE,60,0.667,'rejected',"
         "'2026-09-27 08:00:00+00')"
     )
     out_dir = tmp_path / "out"
@@ -203,9 +203,9 @@ def test_judge_decisions_publish_the_stored_statement_and_interval_method(con, t
     which carries the count of excluded 0/0 resamples methodology.md promises -- instead of
     rebuilding a reason from a NaN (stats code review 2026-09-27 #2, findings 4 and 6)."""
     con.execute(
-        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
         "alpha_high, n_units, threshold, status, decided_at, statement, alpha_method) VALUES "
-        "('dates','v1',0.8,0.7,0.9,60,0.667,'accepted','2026-09-27 08:00:00+00',"
+        "('dates','judge-a','v1',0.8,0.7,0.9,60,0.667,'accepted','2026-09-27 08:00:00+00',"
         "'what assess said','unit-bootstrap-percentile, 5 of 400 undefined resamples excluded')"
     )
     out_dir = tmp_path / "out"
@@ -222,9 +222,9 @@ def test_undefined_alpha_without_a_stored_statement_does_not_invent_a_reason(con
     The publisher must not guess one ("every unit got the same verdict") from the NaN alone:
     any future path to a NaN would be published with that false reason (finding 6)."""
     con.execute(
-        "INSERT INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
         "alpha_high, n_units, threshold, status, decided_at) VALUES "
-        "('money','v1','NaN'::DOUBLE,'NaN'::DOUBLE,'NaN'::DOUBLE,60,0.667,'rejected',"
+        "('money','judge-a','v1','NaN'::DOUBLE,'NaN'::DOUBLE,'NaN'::DOUBLE,60,0.667,'rejected',"
         "'2026-09-27 08:00:00+00')"
     )
     out_dir = tmp_path / "out"
