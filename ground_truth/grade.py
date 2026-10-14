@@ -20,6 +20,7 @@ from ground_truth.graders.deterministic.exact import grade_exact
 from ground_truth.graders.deterministic.normalised import grade_normalised
 from ground_truth.graders.deterministic.numeric_tolerance import grade_numeric_tolerance
 from ground_truth.graders.deterministic.schema import extract_fields, grade_schema
+from ground_truth.graders.judge.targets import JudgeTarget, judge_verdict, select_judge_targets
 
 _SCHEMA_FIELD = "__schema__"
 _ARITHMETIC_FIELD = "__arithmetic__"
@@ -60,6 +61,8 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
     con: duckdb.DuckDBPyConnection,
     items: list[Item],
     rubric: dict[FieldType, RubricRule],
+    *,
+    judges: dict[str, str] | None = None,
 ) -> int:
     """Grade every row currently in `outputs` and write verdicts, idempotently.
 
@@ -75,13 +78,44 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
     by_item_id = {item.item_id: item for item in items}
     before = _verdict_count(con)
 
-    rows = con.execute("SELECT output_id, item_id, raw_output FROM outputs").fetchall()
-    for output_id, item_id, raw_output in rows:
+    # Judge verdicts exist only when the caller supplies the model-slot -> judge-slot map; with
+    # None, judge fields are skipped exactly as before (degraded mode, existing callers).
+    judge_targets: dict[tuple[str, str], JudgeTarget] = {}
+    if judges is not None:
+        judge_field_names = {
+            f.field_name
+            for item in items
+            for f in item.fields
+            if rubric[f.field_type].grader == "judge"
+        }
+        judge_targets = {
+            (t.output_id, name): t
+            for name in judge_field_names
+            for t in select_judge_targets(con, name)
+        }
+
+    def write_judge(output_id: str, model_slot: str, item: Item, field_name: str) -> None:
+        target = judge_targets.get((output_id, field_name))
+        if target is None or judges is None:
+            return  # not the modal output of its (item, slot), or judging is off
+        verdict = judge_verdict(con, target, judges[model_slot], field_name)
+        if verdict is not None:
+            _write_verdict(con, output_id, field_name, item.rubric_version, verdict)
+
+    rows = con.execute(
+        "SELECT o.output_id, o.item_id, o.raw_output, r.model_slot FROM outputs o "
+        "JOIN runs r ON r.run_id = o.run_id"
+    ).fetchall()
+    for output_id, item_id, raw_output, model_slot in rows:
         item = by_item_id[item_id]
 
         schema_verdict = grade_schema(item, raw_output)
         _write_verdict(con, output_id, _SCHEMA_FIELD, item.rubric_version, schema_verdict)
         if not schema_verdict.correct:
+            # An unparseable target is still the modal target and must score as absent.
+            for field in item.fields:
+                if rubric[field.field_type].grader == "judge":
+                    write_judge(output_id, model_slot, item, field.field_name)
             continue
 
         observed = extract_fields(raw_output)
@@ -95,7 +129,8 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
             elif grader_name == "normalised":
                 verdict = grade_normalised(field, observed.get(field.field_name), rule)
             elif grader_name == "judge":
-                continue  # phase 2 of the judge lands in Plan 2, Task 25
+                write_judge(output_id, model_slot, item, field.field_name)
+                continue
             else:
                 raise ValueError(f"rubric declares unknown grader {grader_name!r}")
             _write_verdict(con, output_id, field.field_name, item.rubric_version, verdict)
