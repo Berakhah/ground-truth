@@ -69,6 +69,7 @@ def sample_judgements(  # noqa: PLR0913, PLR0917 -- contract-shaped signature, s
     *,
     n: int,
     seed: int,
+    start: int = 0,
     resolve_fn: Callable[[str], Handle],
     call_fn: Callable[..., Response],
     context: CallContext,
@@ -87,7 +88,9 @@ def sample_judgements(  # noqa: PLR0913, PLR0917 -- contract-shaped signature, s
             f"judge slot {judge_slot!r} resolved to a deterministic fallback handle. "
             "A fallback cannot judge; report the field type as not measured instead."
         )
-    for i in range(n):
+    # `start` lets a resumed run top a partial target up: indices start..start+n-1 keep the
+    # order seeds of already-stored samples from being repeated.
+    for i in range(start, start + n):
         # audit: never Python's hash() here. str hashing is randomised per process
         # (PYTHONHASHSEED), so the presentation order would be irreproducible across runs and
         # judge_samples.presentation_order could never be regenerated -- which defeats both the
@@ -160,7 +163,8 @@ def run_judging(  # noqa: PLR0913 -- the sampler's contract plus the item set
                 "AND judge_slot = ?",
                 [target.output_id, field_name, judge],
             ).fetchone()
-            if done is not None and done[0] >= n:
+            have = 0 if done is None else int(done[0])
+            if have >= n:
                 continue
             calls += sample_judgements(
                 con,
@@ -169,8 +173,9 @@ def run_judging(  # noqa: PLR0913 -- the sampler's contract plus the item set
                 target.observed,
                 judge,
                 target.model_slot,
-                n=n,
-                seed=0,
+                n=n - have,
+                start=have,
+                seed=0,  # inert: order seeds are hashed from output_id:field_name:index
                 resolve_fn=resolve_fn,
                 call_fn=call_fn,
                 context=context,
