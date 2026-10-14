@@ -3,6 +3,7 @@
   "decisions": [
     {
       "field_type": "money",
+      "judge_slot": "placeholder_judge",
       "rubric_version": "v1",
       "alpha": 0.821,
       "alpha_low": 0.712,
@@ -15,6 +16,7 @@
     },
     {
       "field_type": "invoice_date",
+      "judge_slot": "placeholder_judge",
       "rubric_version": "v1",
       "alpha": 0.744,
       "alpha_low": 0.653,
@@ -27,6 +29,7 @@
     },
     {
       "field_type": "free_text_notes",
+      "judge_slot": "placeholder_judge",
       "rubric_version": "v1",
       "alpha": 0.512,
       "alpha_low": 0.331,
@@ -38,6 +41,7 @@
       "statement": "Judge-human agreement on free_text_notes: Krippendorff's alpha = 0.512 [0.331, 0.634], n=31. Below the pre-registered threshold of 0.667; this field type is not used for headline scoring and is reported as not measured."
     }
   ],
+  "inconclusive": [],
   "order_effect": {
     "statement": "Order effect on money: first-shown rate 0.86 vs second-shown rate 0.83, difference 0.03, n=64. No corrective action taken at this sample size.",
     "order_0_rate": 0.86,
