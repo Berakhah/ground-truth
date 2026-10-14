@@ -103,6 +103,33 @@ def _current_judge_targets(
     }
 
 
+def _judged_field_types_every_slot_holds(
+    con: duckdb.DuckDBPyConnection, slots: set[str], judges: Mapping[str, str | None]
+) -> frozenset[str]:
+    """The field types a judge verdict may count on: every slot ranked in this split has an
+    assigned judge, and that judge holds an accepted decision on the field type.
+
+    With one judge per slot, gating each slot on its own judge alone ranked a slot whose judge
+    was accepted on money + descriptions against one whose judge was not, on money alone --
+    intervals over different field sets, compared in the "not distinguishable" statements
+    without a word about it (final review 2026-10-14, I1). Failing closed for every slot
+    together keeps one field set per leaderboard; the field falls back to deterministic
+    grading where one exists, as for a rejected judge. `slots` is every slot with a verdict in
+    the split, so a slot ranked on deterministic fields alone still takes part.
+    """
+    accepted: dict[str, set[str]] = defaultdict(set)
+    for field_type, judge_slot in con.execute(
+        "SELECT field_type, judge_slot FROM judge_decisions WHERE status = 'accepted'"
+    ).fetchall():
+        accepted[field_type].add(judge_slot)
+    assigned = [judges.get(slot) for slot in slots]
+    return frozenset(
+        field_type
+        for field_type, judge_slots in accepted.items()
+        if all(judge is not None and judge in judge_slots for judge in assigned)
+    )
+
+
 @dataclass(frozen=True)
 class _SlotAccuracy:
     accuracy: Interval
@@ -141,11 +168,14 @@ def _headline_observations(
       would weigh the field twice in the item's cluster mean with two judgements that can
       contradict (review 2026-10-14, I2). A slot with no assigned judge counts no judge
       verdict.
+    - its field type is one every ranked slot's assigned judge holds an accepted decision on
+      (`_judged_field_types_every_slot_holds`).
     """
     rows = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
     current_targets = _current_judge_targets(
         con, {row[9] for row in rows if row[8].startswith(_JUDGE_PREFIX)}
     )
+    shared = _judged_field_types_every_slot_holds(con, {row[1] for row in rows}, judges)
     observations: list[_Observation] = []
     for (
         verdict_id,
@@ -165,6 +195,8 @@ def _headline_observations(
             assigned = judges.get(slot)
             if assigned is None or grader_id != _JUDGE_PREFIX + assigned:
                 continue  # not the slot's currently assigned judge
+            if field_type not in shared:
+                continue  # some ranked slot's judge is not accepted on it: out for every slot
         observations.append(
             _Observation(
                 verdict_id=verdict_id,

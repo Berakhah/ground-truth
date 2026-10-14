@@ -280,6 +280,93 @@ def test_build_leaderboard_counts_the_judge_its_specs_assign(con):
     assert row_.per_field["line_item_description"].point == 0.0
 
 
+# -- every slot is ranked on the same field set (final review 2026-10-14, I1) ----------------
+
+
+def _two_slots(con, *, accepted: tuple[str, ...]) -> None:
+    """One item, two slots, one output each. Each output has an exact `money` verdict and a
+    judge verdict on `line_item_description` from its own slot's judge (slot-a -> judge-a,
+    slot-b -> judge-b). `accepted` lists the judges holding an accepted decision on it."""
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
+    )
+    con.execute("INSERT INTO item_fields VALUES ('i1', 'total', 'money', '1.00', NULL, NULL)")
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'line_1_description', 'line_item_description', "
+        "'Concrete works', NULL, NULL)"
+    )
+    for slot, judge in (("slot-a", "judge-a"), ("slot-b", "judge-b")):
+        con.execute(
+            "INSERT INTO runs VALUES (?, now(), NULL, ?, 'ref', 'prov', false, 's1', 'sha', 'h')",
+            [f"r-{slot}", slot],
+        )
+        con.execute(
+            "INSERT INTO outputs VALUES (?, ?, 'i1', 1, '{}', 'call', 'prov', NULL, 100, 'ph',"
+            " now(), NULL)",
+            [f"o-{slot}", f"r-{slot}"],
+        )
+        con.execute(
+            "INSERT INTO verdicts VALUES (?, ?, 'total', 'exact', '1', 'v1', true, 'ok', now())",
+            [f"v-exact-{slot}", f"o-{slot}"],
+        )
+        con.execute(
+            "INSERT INTO verdicts VALUES (?, ?, 'line_1_description', ?, '1', 'v1', false,"
+            " 'judge majority NOT_EQUIVALENT (3 of 3)', now())",
+            [f"v-judge-{slot}", f"o-{slot}", f"judge:{judge}"],
+        )
+    for judge in accepted:
+        con.execute(
+            "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, "
+            "alpha_low, alpha_high, n_units, threshold, status, decided_at) VALUES "
+            "('line_item_description', ?, 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())",
+            [judge],
+        )
+
+
+TWO_JUDGES = {"slot-a": "judge-a", "slot-b": "judge-b"}
+
+
+def _fields_by_slot(con, judges) -> dict[str, dict[str, float]]:
+    result = _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges=judges)
+    return {
+        slot: {ft: interval.point for ft, interval in acc.per_field.items()}
+        for slot, acc in result.items()
+    }
+
+
+def test_a_judged_field_one_slots_judge_lacks_is_excluded_for_every_slot(con):
+    """Ranking slot-a on money + descriptions against slot-b on money alone would compare
+    intervals measured on different field sets without saying so: fail closed for all."""
+    _two_slots(con, accepted=("judge-a",))
+    assert _fields_by_slot(con, TWO_JUDGES) == {
+        "slot-a": {"money": 1.0},
+        "slot-b": {"money": 1.0},
+    }
+
+
+def test_a_judged_field_every_slots_judge_holds_counts_for_every_slot(con):
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    assert _fields_by_slot(con, TWO_JUDGES) == {
+        "slot-a": {"money": 1.0, "line_item_description": 0.0},
+        "slot-b": {"money": 1.0, "line_item_description": 0.0},
+    }
+
+
+def test_a_slot_with_no_assigned_judge_excludes_the_judged_field_for_every_slot(con):
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    assert _fields_by_slot(con, {"slot-a": "judge-a", "slot-b": None}) == {
+        "slot-a": {"money": 1.0},
+        "slot-b": {"money": 1.0},
+    }
+
+
+def test_the_shared_field_set_rule_also_decides_counts_toward_headline(con):
+    _two_slots(con, accepted=("judge-a",))
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert ids == {"v-exact-slot-a", "v-exact-slot-b"}
+
+
 def test_one_judges_acceptance_on_one_field_type_does_not_admit_it_on_another(con):
     _populate_two_field_types(con, decisions=(("line_item_description", "judge-a", "accepted"),))
     per_field = _per_field(con)
