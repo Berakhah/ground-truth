@@ -14,7 +14,8 @@ overwritten in place.
 
 - **2026-10-14 -- the LLM judge is wired in: analysis plan v3, judge decisions per (field type,
   judge).** `docs/analysis-plan.md` is now `plan_version: v3` (threshold 0.667 unchanged; v2's
-  judge paragraph kept below). v2 governed zero sweeps (`SELECT count(*) FROM runs` returned 0).
+  judge paragraph kept below). v2 governed zero sweeps (`SELECT count(*) FROM runs` on
+  `data/results.duckdb` returned 0 on 2026-10-14).
   - `models.yaml` declares each slot's judge and it is validated, including family separation.
     Decided lineup: Gemma judges slots A-E, gpt-oss-120b judges the Gemini slot, both on
     Cerebras; Gemini is judged by a different model from the other five (disclosed
@@ -22,8 +23,8 @@ overwritten in place.
   - `run_judging` samples each slot's judge three times on the modal output per (item, slot);
     `grade` scores LINE_ITEM_DESCRIPTION from the majority vote (`grader_id` `judge:<slot>`).
     No majority is INCONCLUSIVE, which scores as incorrect.
-  - Decisions are recorded per (field type, judge). A judge with no decision is not scored
-    (~~an unassessed judge was scored~~). Today every judge is undecided: `record_decision` has
+  - Decisions are recorded per (field type, judge). A judge with no decision is not scored in
+    the headline (~~an unassessed judge was scored~~); its verdicts are still published. Today every judge is undecided: `record_decision` has
     no production caller and there are no human labels, so LINE_ITEM_DESCRIPTION is reported
     as not measured in the headline.
   - Headline counts a judge verdict only from the slot's currently assigned judge, with an
@@ -32,6 +33,13 @@ overwritten in place.
     `inconclusive` list (count and n per slot and judge, over both splits and all judge
     verdicts, not the headline's judged share). The web judge table shows per-judge agreement
     and inconclusive counts.
+  - Final-review rulings, added to v3 before merge: a judged field type counts toward any
+    slot's headline only when every slot has an assigned judge and every slot's currently
+    assigned judge holds an accepted decision for it, otherwise it is excluded for all slots;
+    and the judge's one verdict per (item, slot) is weighted by the number of replicate outputs
+    for that (item, slot), so the judged field weighs as much as one deterministic field at any
+    run count. Every published verdict also carries `weight`, and `scripts/reproduce.py`
+    recomputes a weighted mean per item.
   - Target order changed to run-major (runs in start order, then replicate, then output id), so
     targets judged under the older replicate-major order may move once in a multi-run store.
     No live sweep exists, so no published figure changes. `judge_decisions` changed shape:

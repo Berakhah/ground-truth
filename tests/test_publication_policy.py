@@ -33,6 +33,17 @@ def test_no_silent_edit_rule_is_stated():
     assert "never silently" in CHANGELOG.read_text(encoding="utf-8").lower()
 
 
+def test_judge_wiring_entry_matches_the_shipped_headline_rules():
+    """Final review 2026-10-14, I3: an unassessed judge is kept out of the headline (its
+    verdicts are still published), the zero-sweeps claim names the database and the date as the
+    analysis plan does, and the two final-review rulings are recorded."""
+    text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
+    assert "A judge with no decision is not scored in the headline" in text
+    assert "on `data/results.duckdb` returned 0 on 2026-10-14" in text
+    assert "weighted by the number of replicate outputs" in text
+    assert "every slot's currently assigned judge" in text
+
+
 def test_rerun_offer_is_stated():
     body = CORRECTIONS.read_text(encoding="utf-8").lower()
     assert "re-run" in body and "side by side" in body
