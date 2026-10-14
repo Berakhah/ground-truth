@@ -24,8 +24,9 @@ from ground_truth.stats.bootstrap import Interval
 from ground_truth.store.db import connect, migrate
 
 
-def spec(slot: str) -> SlotSpec:
+def spec(slot: str, *, judge: str | None = None) -> SlotSpec:
     return SlotSpec(
+        judge=judge,
         slot=slot,
         family="fam",
         provider="prov",
@@ -104,6 +105,7 @@ def test_rows_carry_the_cost_caveat():
 # deterministic ones included; the tests below replace that rule.
 
 JUDGE_A = "judge:judge-a"
+JUDGES = {"slot-a": "judge-a"}  # each model slot's assigned judge, as models.yaml declares it
 
 
 def _populate_two_field_types(
@@ -177,7 +179,7 @@ def con(tmp_path: Path):
 
 
 def _per_field(con) -> dict[str, Interval]:
-    return _slot_accuracy(con, split=Split.PUBLIC, seed=1)["slot-a"].per_field
+    return _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges=JUDGES)["slot-a"].per_field
 
 
 def test_a_rejected_judges_verdicts_are_absent_but_deterministic_ones_stay(con):
@@ -223,6 +225,46 @@ def test_a_judge_verdict_with_its_judges_rejection_never_scores(con):
     assert "line_item_description" not in _per_field(con)
 
 
+def _reassigned_to_judge_b(con) -> None:
+    """The slot was judged by judge-a, then models.yaml reassigned it to judge-b and grading
+    judged the same target again; both judges hold an accepted decision on the field type."""
+    _populate_two_field_types(
+        con,
+        decisions=(
+            ("line_item_description", "judge-a", "accepted"),
+            ("line_item_description", "judge-b", "accepted"),
+        ),
+    )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v5', 'o1', 'line_1_description', 'judge:judge-b', '1',"
+        " 'v1', false, 'judge majority NOT_EQUIVALENT (3 of 3)', now())"
+    )
+
+
+def test_only_the_slots_assigned_judge_counts_after_a_reassignment(con):
+    """Two accepted judges on one target would weigh the field twice in the item's cluster
+    mean, with two judgements that can contradict (review 2026-10-14, I2)."""
+    _reassigned_to_judge_b(con)
+    judged = _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges={"slot-a": "judge-b"})
+    assert judged["slot-a"].per_field["line_item_description"].point == 0.0
+
+
+def test_a_slot_with_no_assigned_judge_counts_no_judge_verdict(con):
+    _reassigned_to_judge_b(con)
+    per_field = _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges={})["slot-a"].per_field
+    assert "line_item_description" not in per_field
+    assert per_field["money"].point == 1.0
+
+
+def test_build_leaderboard_counts_the_judge_its_specs_assign(con):
+    _reassigned_to_judge_b(con)
+    con.execute("UPDATE outputs SET token_count = 2000")
+    (row_,) = build_leaderboard(
+        con, split=Split.PUBLIC, seed=1, specs={"slot-a": spec("slot-a", judge="judge-b")}
+    )
+    assert row_.per_field["line_item_description"].point == 0.0
+
+
 def test_one_judges_acceptance_on_one_field_type_does_not_admit_it_on_another(con):
     _populate_two_field_types(con, decisions=(("line_item_description", "judge-a", "accepted"),))
     per_field = _per_field(con)
@@ -235,7 +277,7 @@ def test_latency_counts_each_output_once_not_once_per_graded_field(con):
     latency observation, not two -- otherwise n and the percentiles are inflated for every
     multi-field item, which is the normal case for this domain, not an edge case."""
     _populate_two_field_types(con)
-    result = _slot_accuracy(con, split=Split.PUBLIC, seed=1)
+    result = _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges=JUDGES)
     assert result["slot-a"].latency.n == 1
 
 
@@ -247,7 +289,7 @@ def test_retired_item_is_excluded_from_current_accuracy(con):
     _populate_two_field_types(con)
     con.execute("UPDATE items SET split = 'private' WHERE item_id = 'i1'")
     con.execute("UPDATE items SET retired_at = now() WHERE item_id = 'i1'")
-    result = _slot_accuracy(con, split=Split.PRIVATE, seed=1)
+    result = _slot_accuracy(con, split=Split.PRIVATE, seed=1, judges=JUDGES)
     assert "slot-a" not in result, "a retired item's verdicts must not reach current accuracy"
 
 
