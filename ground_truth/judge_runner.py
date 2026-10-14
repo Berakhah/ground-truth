@@ -19,12 +19,13 @@ from ground_truth._bok_shim import (
     Response,
     Sensitivity,
 )
-from ground_truth.golden.schema import ItemField
+from ground_truth.golden.rubric import RubricRule
+from ground_truth.golden.schema import FieldType, Item, ItemField
 from ground_truth.graders.judge.targets import JudgeTarget, select_judge_targets
 from ground_truth.policy import assert_slot_may_see
-from ground_truth.providers import SameFamilyJudge, load_slots
+from ground_truth.providers import SameFamilyJudge, judge_assignments, load_slots
 
-__all__ = ["JudgeTarget", "select_judge_targets"]
+__all__ = ["JudgeTarget", "run_judging", "select_judge_targets"]
 
 
 @dataclass(frozen=True)
@@ -123,3 +124,57 @@ def sample_judgements(  # noqa: PLR0913, PLR0917 -- contract-shaped signature, s
             ],
         )
     return n
+
+
+def run_judging(  # noqa: PLR0913 -- the sampler's contract plus the item set
+    con: duckdb.DuckDBPyConnection,
+    items: list[Item],
+    rubric: dict[FieldType, RubricRule],
+    *,
+    n: int = 3,
+    resolve_fn: Callable[[str], Handle],
+    call_fn: Callable[..., Response],
+    context: CallContext,
+    models_yaml: Path = Path("models.yaml"),
+    sensitivity: Sensitivity = Sensitivity.SYNTHETIC,
+) -> int:
+    """Sample each slot's judge n times on the modal output per (item, slot): 300 x 6 x 3 =
+    5,400 calls (spec 15). Targets already sampled by their judge are skipped, so an
+    interrupted overnight run resumes rather than paying twice."""
+    assignments = judge_assignments(models_yaml)  # fails closed before any call
+    fields = {
+        (item.item_id, f.field_name): f
+        for item in items
+        for f in item.fields
+        if rubric[f.field_type].grader == "judge"
+    }
+    calls = 0
+    for field_name in sorted({name for _, name in fields}):
+        for target in select_judge_targets(con, field_name):
+            item_field = fields.get((target.item_id, field_name))
+            if item_field is None or target.observed is None:
+                continue
+            judge = assignments[target.model_slot]
+            done = con.execute(
+                "SELECT count(*) FROM judge_samples WHERE output_id = ? AND field_name = ? "
+                "AND judge_slot = ?",
+                [target.output_id, field_name, judge],
+            ).fetchone()
+            if done is not None and done[0] >= n:
+                continue
+            calls += sample_judgements(
+                con,
+                target.output_id,
+                item_field,
+                target.observed,
+                judge,
+                target.model_slot,
+                n=n,
+                seed=0,
+                resolve_fn=resolve_fn,
+                call_fn=call_fn,
+                context=context,
+                models_yaml=models_yaml,
+                sensitivity=sensitivity,
+            )
+    return calls
