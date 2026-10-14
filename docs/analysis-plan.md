@@ -1,5 +1,5 @@
 ---
-plan_version: v2
+plan_version: v3
 status: frozen-before-first-sweep
 ---
 
@@ -61,11 +61,22 @@ a single look can see, which is what each look's test is run on.
 threshold for judge-versus-human agreement, frozen here before any agreement number is computed.
 Choosing a threshold after seeing the agreement data would be p-hacking.
 
-Below threshold, the judge is barred from headline scoring for that field type: the field type
-falls back to deterministic grading where one exists, or is published labelled *not measured*
-rather than folded into a passing score. Every field type the judge touched is published,
-including rejected ones — labelled rejected — so the published weakness always ships next to the
-decision it caused.
+The decision unit is the **(field type, judge)** pair, not the field type alone: each judge is
+assessed against human labels separately, and its decision is recorded and published under its
+own name. Below threshold, that judge is barred from headline scoring for that field type: the
+field type falls back to deterministic grading where one exists, or is published labelled *not
+measured* rather than folded into a passing score. Every (field type, judge) pair the judge
+touched is published, including rejected ones -- labelled rejected -- so the published weakness
+always ships next to the decision it caused.
+
+- A judge with no recorded decision is not used for headline scoring. Unassessed is not
+  accepted: a judge whose agreement has not been measured cannot be defended.
+- An INCONCLUSIVE verdict (no majority among the judge's samples) scores as incorrect, and its
+  count is published per (model slot, judge).
+- The judge scores the modal output per (item, slot), not every replicate.
+- LINE_ITEM_DESCRIPTION's run-to-run variance is therefore not measured by the judge: the
+  judge sees one output per (item, slot), and the replicate spread the deterministic graders
+  report for other fields does not exist for this one.
 
 ## Sequential testing calendar
 
@@ -114,6 +125,18 @@ rest of the quarter.
 
 ## Revision history
 
+- **v3, 2026-10-14 -- judge decisions per (field type, judge).** v2 decided agreement once per
+  field type. The judge is now wired into grading, and no available judge family differs from
+  all six model slots, so two judges are used (the decided lineup, `docs/providers.md`
+  "Lineup decisions" and the judge-wiring plan of 2026-10-14: Gemma judges slots A-E and
+  gpt-oss-120b judges the Gemini slot, both served on Cerebras; `models.yaml` is not yet filled
+  with the real assignment). Gemini is therefore judged by a different model from the other
+  five, a disclosed comparability limit. Each judge is assessed against human labels and
+  accepted or rejected on its own; a judge with no recorded decision is not scored; INCONCLUSIVE
+  scores as incorrect and is counted. The 0.667 threshold is unchanged. **v2 governed zero
+  sweeps:** on 2026-10-14 `SELECT count(*) FROM runs` on `data/results.duckdb` returned 0. This
+  change is therefore made before any data exists. v2's judge paragraph is kept below,
+  unedited.
 - **v2, 2026-09-28 -- sequential testing calendar replaced.** v1 tested a z computed on data
   pooled across looks against the fixed-constant O'Brien-Fleming boundary `C / sqrt(t)`,
   `C = 2.1023`. Two problems (stats review 2026-09-27, finding 1, and code review 2026-09-27
@@ -123,6 +146,20 @@ rest of the quarter.
   looks:** on 2026-09-28 the results store held no frozen plan, no sweep run and no recorded
   look, and `detect_drift` had no production caller. This change is therefore made before any
   data exists. v1's text is kept below, unedited.
+
+### Superseded: v2 "Judge rejection threshold" (decision unit: field type)
+
+> The v2 text follows exactly as frozen, for the record. It does not govern any sweep.
+
+> **Krippendorff's alpha >= 0.667** (the conventional tentative-conclusions floor) is the pre-registered
+> threshold for judge-versus-human agreement, frozen here before any agreement number is computed.
+> Choosing a threshold after seeing the agreement data would be p-hacking.
+>
+> Below threshold, the judge is barred from headline scoring for that field type: the field type
+> falls back to deterministic grading where one exists, or is published labelled *not measured*
+> rather than folded into a passing score. Every field type the judge touched is published,
+> including rejected ones — labelled rejected — so the published weakness always ships next to the
+> decision it caused.
 
 ### Superseded: v1 "Sequential testing calendar" and "Unscheduled looks"
 
