@@ -7,6 +7,7 @@ import pytest
 from ground_truth.golden.rubric import loaded_rubric
 from ground_truth.golden.schema import FieldType, Item, ItemField, Source, Split
 from ground_truth.grade import grade_stored_outputs
+from ground_truth.graders.judge.targets import UnassignedSlot
 from ground_truth.store.db import connect, migrate
 
 RUBRIC = Path(__file__).resolve().parents[3] / "docs" / "rubric.md"
@@ -89,6 +90,17 @@ def _judge_verdicts(con):
 
 def _grade(con, judges=JUDGES):
     return grade_stored_outputs(con, _items(), loaded_rubric(RUBRIC), judges=judges)
+
+
+def test_a_slot_with_no_assigned_judge_is_named_before_anything_is_written(con):
+    """An output from a slot models.yaml no longer lists has no judge to score it. A bare
+    KeyError read as an internal bug, and it struck mid-pass after other verdicts were written;
+    the named error says which slot and why, before any write (fail closed)."""
+    _store(con)
+    with pytest.raises(UnassignedSlot, match="slot-a") as raised:
+        _grade(con, judges={"slot-b": "judge-b"})
+    assert "models.yaml" in str(raised.value)
+    assert con.execute("SELECT count(*) FROM verdicts").fetchone()[0] == 0
 
 
 def test_majority_equivalent_is_correct_on_the_target_output_only(con):

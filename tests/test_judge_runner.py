@@ -15,6 +15,7 @@ from ground_truth._bok_shim import (
 )
 from ground_truth.golden.rubric import loaded_rubric
 from ground_truth.golden.schema import FieldType, Item, ItemField, Source, Split
+from ground_truth.graders.judge.targets import UnassignedSlot
 from ground_truth.judge_runner import (
     SameFamilyJudge,
     assert_judge_family_differs,
@@ -362,6 +363,18 @@ def test_run_judging_samples_each_target_n_times_with_the_assigned_judge(con):
     assert _run(con, gw) == 3  # noqa: PLR2004 -- one target x n=3, not 5 replicates x 3
     rows = con.execute("SELECT DISTINCT output_id, judge_slot FROM judge_samples").fetchall()
     assert rows == [("o-i1-slot-a-1", "judge-a")]
+
+
+def test_run_judging_names_a_slot_models_yaml_no_longer_lists(con):
+    """An output from a slot renamed or retired in models.yaml has no assigned judge. A bare
+    KeyError read as an internal bug; the named error says which slot and why, and still stops
+    before any call (fail closed)."""
+    _output(con, item_id="i1", slot="slot-gone", replicate=1, raw=_desc("Concrete works"))
+    gw = FakeGateway()
+    with pytest.raises(UnassignedSlot, match="slot-gone") as raised:
+        _run(con, gw)
+    assert "models.yaml" in str(raised.value)
+    assert con.execute("SELECT count(*) FROM judge_samples").fetchone()[0] == 0
 
 
 def test_run_judging_is_resumable(con):
