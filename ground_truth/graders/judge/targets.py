@@ -17,6 +17,20 @@ JUDGE_GRADER_VERSION = "1"
 _MIN_SAMPLES = 3
 
 
+class UnassignedSlot(LookupError):
+    """A stored output's model slot has no judge assigned: models.yaml no longer lists the slot
+    (renamed or retired) or lists it without a `judge`. Raised before any judge call or verdict
+    write, so nothing is judged, or scored, by a judge nobody assigned."""
+
+    def __init__(self, slot: str, where: str) -> None:
+        super().__init__(
+            f"model slot {slot!r} has outputs in the store but no judge assigned for {where}: "
+            "models.yaml no longer lists it (renamed or retired?) or names no judge for it. "
+            "Restore the slot's entry with its judge, or remove its outputs from this run."
+        )
+        self.slot = slot
+
+
 @dataclass(frozen=True)
 class JudgeTarget:
     item_id: str
