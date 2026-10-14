@@ -83,12 +83,16 @@ def test_headline_accuracy_recomputes_from_published_verdicts_alone():
     for entry in leaderboard["rows"]:
         # The file also lists verdicts the headline does not count (schema checks, unaccepted or
         # unassigned judges, stale judge targets, retired items), flagged false by the build's
-        # own rule (`matrix.build.headline_verdict_ids`; review 2026-10-14, I3).
+        # own rule (`matrix.build.headline_verdict_weights`; review 2026-10-14, I3). Each counted
+        # row counts `weight` times: a judge verdict stands for every replicate of its (item,
+        # slot) (final review 2026-10-14, I2).
         rows = [v for v in verdicts if v["slot"] == entry["slot"] and v["counts_toward_headline"]]
-        by_item: dict[str, list[bool]] = {}
+        by_item: dict[str, list[tuple[bool, int]]] = {}
         for v in rows:
-            by_item.setdefault(v["content_hash"], []).append(v["correct"])
-        recomputed = sum(sum(c) / len(c) for c in by_item.values()) / len(by_item)
+            by_item.setdefault(v["content_hash"], []).append((v["correct"], v["weight"]))
+        recomputed = sum(
+            sum(w for c, w in r if c) / sum(w for _, w in r) for r in by_item.values()
+        ) / len(by_item)
         assert recomputed == pytest.approx(entry["accuracy"]["point"], abs=1e-9), (
             f"{entry['slot']}: published {entry['accuracy']['point']}, recomputed {recomputed}"
         )

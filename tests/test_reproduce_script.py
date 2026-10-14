@@ -95,6 +95,25 @@ def test_a_verdict_flagged_as_counting_is_recomputed(tmp_path):
     assert _run(out) == 1  # h2 is now 1/2, so 0.5 != the published 0.75
 
 
+def test_a_verdicts_weight_is_how_many_times_it_counts(tmp_path):
+    """Final review 2026-10-14, I2: a judge verdict stands for every replicate of its (item,
+    slot) and publishes that count as `weight`. h1's rows are 1/2 correct; one more correct
+    row of weight 2 makes h1 3/4 and the headline (3/4 + 1) / 2 = 0.875. Read as weight 1 it
+    would be (2/3 + 1) / 2 = 0.8333."""
+    out = _release(tmp_path / "a", point=0.875)
+    _append_verdict(
+        out,
+        {
+            "content_hash": "h1",
+            "slot": "slot-a",
+            "correct": True,
+            "counts_toward_headline": True,
+            "weight": 2,
+        },
+    )
+    assert _run(out) == 0
+
+
 def test_placeholder_data_is_refused_not_reproduced(tmp_path, capsys):
     """The committed demo artifacts would otherwise be 'reproduced' and pass a release gate."""
     assert _run(_release(tmp_path / "a", placeholder=True)) == 1

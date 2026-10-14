@@ -278,12 +278,24 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   first output in that order holding that value. Each target is sampled three times and decided
   by majority vote. LINE_ITEM_DESCRIPTION's run-to-run variance is therefore not measured by
   the judge. No majority is INCONCLUSIVE, which scores as incorrect.
+- **How much the judged field weighs.** A deterministic field contributes one verdict per
+  replicate to an item's score; the judge contributes one verdict per (item, slot). That
+  verdict is therefore counted once per replicate output of the (item, slot), across all its
+  runs, so the judged field weighs as much as one deterministic field in the item's score
+  whatever the number of runs. Each published verdict carries this as `weight`: 1 for a
+  deterministic verdict, the replicate-output count for a counted judge verdict, 0 for a
+  verdict that does not count. The recompute (`scripts/reproduce.py`) is a weighted mean per
+  item.
+- **One field set for every slot.** A judged field type counts for any slot only if every slot
+  ranked in the split has an assigned judge holding an accepted decision on it; otherwise it is
+  excluded for every slot. The "not distinguishable" statements therefore always compare slots
+  over the same fields.
 - **Which verdicts count (`counts_toward_headline`).** Each published verdict carries this
   flag so a reader can recompute the headline from the verdict files. A verdict is excluded
   when: its item is retired; the field is not one the item declares (the schema and arithmetic
   pseudo-field verdicts); or it is a judge verdict that is not from the slot's currently
-  assigned judge, is not on the current modal target output, or whose judge has no accepted
-  decision for that field type. Deterministic verdicts on declared fields of non-retired items
+  assigned judge, is not on the current modal target output, or whose field type is not one
+  every ranked slot's judge holds an accepted decision for. Deterministic verdicts on declared fields of non-retired items
   always count, whatever any judge decision says.
 - **The published `inconclusive` list** (`judge_agreement.json`) gives, per (model slot, judge),
   `count` of verdicts whose reason starts "judge inconclusive: " and `n` of all that judge's

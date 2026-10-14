@@ -17,6 +17,7 @@ from ground_truth.matrix.build import (
     build_leaderboard,
     distinguishability_statements,
     headline_verdict_ids,
+    headline_verdict_weights,
 )
 from ground_truth.matrix.cost import LIST_PRICE_CAVEAT, cost_per_1k_items
 from ground_truth.matrix.latency import summarise_latency
@@ -278,6 +279,73 @@ def test_build_leaderboard_counts_the_judge_its_specs_assign(con):
         con, split=Split.PUBLIC, seed=1, specs={"slot-a": spec("slot-a", judge="judge-b")}
     )
     assert row_.per_field["line_item_description"].point == 0.0
+
+
+# -- a judged field weighs what a deterministic field weighs (final review 2026-10-14, I2) ---
+
+
+def _replicated_run(con, run_id: str, started_at: str) -> None:
+    """Five replicates of slot-a on i1. Each has a wrong exact verdict on both deterministic
+    fields; the description is the same in every replicate, so the judge target stays r1-1."""
+    con.execute(
+        "INSERT INTO runs VALUES (?, ?, NULL, 'slot-a', 'ref', 'prov', false, 's1', 'sha', 'h')",
+        [run_id, started_at],
+    )
+    for replicate in range(1, 6):
+        output_id = f"{run_id}-{replicate}"
+        con.execute(
+            "INSERT INTO outputs VALUES (?, ?, 'i1', ?, ?, 'call', 'prov', NULL, 100, 'ph',"
+            " now(), NULL)",
+            [output_id, run_id, replicate, json.dumps({"line_1_description": "Concrete works"})],
+        )
+        for field_name in ("total", "invoice_date"):
+            con.execute(
+                "INSERT INTO verdicts VALUES (?, ?, ?, 'exact', '1', 'v1', false, 'wrong', now())",
+                [f"v-{output_id}-{field_name}", output_id, field_name],
+            )
+
+
+def test_a_judged_field_weighs_as_much_as_a_deterministic_field_across_runs(con):
+    """Worked example. Deterministic graders write a verdict per replicate; the judge writes
+    one per (item, slot). Unweighted, 2 deterministic fields x 5 replicates + 1 judge verdict
+    gave the judged field 1/11 of the item's score, falling to 1/21 after a second run. Weighted
+    by the (item, slot)'s replicate count it is 1/3, the same as each deterministic field, and
+    stays 1/3. The judged field is the only correct one, so the item score is its share."""
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
+    )
+    con.execute("INSERT INTO item_fields VALUES ('i1', 'total', 'money', '1.00', NULL, NULL)")
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'invoice_date', 'date', '2026-01-01', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'line_1_description', 'line_item_description', "
+        "'Concrete works', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES ('line_item_description', "
+        "'judge-a', 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())"
+    )
+    _replicated_run(con, "r1", "2026-01-01")
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-judge', 'r1-1', 'line_1_description', ?, '1', 'v1', true,"
+        " 'judge majority EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+
+    def item_score() -> float:
+        return _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges=JUDGES)[
+            "slot-a"
+        ].accuracy.point
+
+    assert item_score() == pytest.approx(1 / 3)
+    _replicated_run(con, "r2", "2026-02-01")
+    assert item_score() == pytest.approx(1 / 3)
+    weights = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)
+    assert weights["v-judge"] == 10  # noqa: PLR2004 -- ten replicate outputs for (i1, slot-a)
+    assert weights["v-r1-1-total"] == 1
 
 
 # -- every slot is ranked on the same field set (final review 2026-10-14, I1) ----------------

@@ -148,6 +148,21 @@ class _Observation:
     correct: bool
     latency_ms: int
     token_count: int | None
+    # How many observations this verdict stands for in the item's score. A deterministic
+    # grader writes one verdict per replicate output, so each of its verdicts weighs 1. The
+    # judge writes one verdict per (item, slot), on the modal output, so its verdict weighs the
+    # (item, slot)'s replicate-output count: the judged field then carries as much of the
+    # item's score as a deterministic field does, however many runs the slot has (final review
+    # 2026-10-14, I2). Applied by repeating the observation, so `stats.bootstrap`'s flat
+    # per-item mean is unchanged.
+    weight: int
+
+
+_REPLICATES_SQL = """
+    SELECT o.item_id, r.model_slot, count(*)
+    FROM outputs o JOIN runs r ON r.run_id = o.run_id
+    GROUP BY o.item_id, r.model_slot
+"""
 
 
 def _headline_observations(
@@ -176,6 +191,10 @@ def _headline_observations(
         con, {row[9] for row in rows if row[8].startswith(_JUDGE_PREFIX)}
     )
     shared = _judged_field_types_every_slot_holds(con, {row[1] for row in rows}, judges)
+    replicates = {
+        (item_id, slot): int(count)
+        for item_id, slot, count in con.execute(_REPLICATES_SQL).fetchall()
+    }
     observations: list[_Observation] = []
     for (
         verdict_id,
@@ -207,16 +226,26 @@ def _headline_observations(
                 correct=bool(correct),
                 latency_ms=int(latency_ms),
                 token_count=token_count,
+                weight=(replicates[(item_id, slot)] if grader_id.startswith(_JUDGE_PREFIX) else 1),
             )
         )
     return observations
+
+
+def headline_verdict_weights(
+    con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
+) -> dict[str, int]:
+    """Each verdict the headline for `split` counts, by id, with its weight in its item's
+    score; see `_headline_observations`. The publisher writes these as `counts_toward_headline`
+    and `weight`, so a recompute from the published verdict files reaches the headline."""
+    return {o.verdict_id: o.weight for o in _headline_observations(con, split=split, judges=judges)}
 
 
 def headline_verdict_ids(
     con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
 ) -> frozenset[str]:
     """The ids of the verdicts the headline for `split` counts; see `_headline_observations`."""
-    return frozenset(o.verdict_id for o in _headline_observations(con, split=split, judges=judges))
+    return frozenset(headline_verdict_weights(con, split=split, judges=judges))
 
 
 def _slot_accuracy(
@@ -231,8 +260,12 @@ def _slot_accuracy(
     needing a full build_leaderboard() call for every case."""
     by_slot: dict[str, list[tuple[str, str, str, bool, int, int | None]]] = defaultdict(list)
     for o in _headline_observations(con, split=split, judges=judges):
-        by_slot[o.slot].append(
-            (o.output_id, o.item_id, o.field_type, o.correct, o.latency_ms, o.token_count)
+        # `weight` copies of one observation: the flat per-item mean in `stats.bootstrap` then
+        # weighs it `weight` times. Latency and tokens are keyed by output below, so the copies
+        # add no latency or token observation.
+        by_slot[o.slot].extend(
+            [(o.output_id, o.item_id, o.field_type, o.correct, o.latency_ms, o.token_count)]
+            * o.weight
         )
 
     result: dict[str, _SlotAccuracy] = {}
