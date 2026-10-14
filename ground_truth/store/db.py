@@ -67,10 +67,11 @@ CREATE TABLE IF NOT EXISTS human_labels (
     value TEXT NOT NULL, labelled_at TIMESTAMP NOT NULL);
 
 CREATE TABLE IF NOT EXISTS judge_decisions (
-    field_type TEXT PRIMARY KEY, rubric_version TEXT NOT NULL, alpha DOUBLE NOT NULL,
-    alpha_low DOUBLE NOT NULL, alpha_high DOUBLE NOT NULL, n_units INTEGER NOT NULL,
-    threshold DOUBLE NOT NULL, status TEXT NOT NULL CHECK (status IN ('accepted','rejected')),
-    decided_at TIMESTAMPTZ NOT NULL);
+    field_type TEXT NOT NULL, judge_slot TEXT NOT NULL, rubric_version TEXT NOT NULL,
+    alpha DOUBLE NOT NULL, alpha_low DOUBLE NOT NULL, alpha_high DOUBLE NOT NULL,
+    n_units INTEGER NOT NULL, threshold DOUBLE NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('accepted','rejected')),
+    decided_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (field_type, judge_slot));
 
 CREATE TABLE IF NOT EXISTS looks (
     quarter TEXT NOT NULL, look INTEGER NOT NULL, total_looks INTEGER NOT NULL,
@@ -108,7 +109,39 @@ def connect(path: Path) -> duckdb.DuckDBPyConnection:
     return duckdb.connect(str(path))
 
 
+def _rebuild_unkeyed_judge_decisions(con: duckdb.DuckDBPyConnection) -> None:
+    """Drop a `judge_decisions` table from before decisions were keyed per judge, so `_SCHEMA`
+    recreates it keyed `(field_type, judge_slot)` -- but only while it is empty.
+
+    An old row records an agreement figure for a field type without saying which judge was
+    assessed. Assigning it to a judge would publish a figure for a judge it was never measured
+    against, and it cannot be dropped silently either, so a store holding one stops here.
+    """
+    columns = {
+        row[0]
+        for row in con.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_catalog = current_database() AND table_schema = current_schema() "
+            "AND table_name = 'judge_decisions'"
+        ).fetchall()
+    }
+    if not columns or "judge_slot" in columns:
+        return  # a new store, or one already keyed per judge
+    count = con.execute("SELECT count(*) FROM judge_decisions").fetchone()
+    assert count is not None  # count(*) always returns one row
+    if count[0]:
+        raise RuntimeError(
+            f"judge_decisions holds {count[0]} decision(s) recorded before decisions were keyed "
+            "per (field_type, judge_slot); they do not say which judge was assessed, so they "
+            "cannot be re-keyed honestly. Nothing was changed. Export them if you need the "
+            "record, drop the judge_decisions table, and re-run the agreement assessment for "
+            "each judge (or start from a fresh results store)."
+        )
+    con.execute("DROP TABLE judge_decisions")
+
+
 def migrate(con: duckdb.DuckDBPyConnection) -> None:
+    _rebuild_unkeyed_judge_decisions(con)
     con.execute(_SCHEMA)
     for stmt in _ALTER_ITEMS:
         con.execute(stmt)

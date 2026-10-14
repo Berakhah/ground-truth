@@ -116,7 +116,7 @@ def test_single_category_unanimity_is_rejected_not_a_crash():
     """Every unit gets the same verdict from both raters, so expected disagreement is zero and
     alpha is 0/0. A judge that always says EQUIVALENT is indistinguishable from a perfect one on
     this sample, so it cannot clear the threshold -- and a crash here would leave no
-    judge_decisions row, which `matrix.build` reads as "no decision" and scores the judge."""
+    judge_decisions row, so no published statement of why the judge does not score."""
     j, h = unanimous(60)
     report = assess("line_item_description", j, h, samples(), seed=1, n_resamples=200)
     assert report.status is JudgeStatus.REJECTED
@@ -143,7 +143,7 @@ def test_undefined_alpha_is_recorded_as_rejected(tmp_path):
     report = assess("line_item_description", j, h, samples(), seed=1, n_resamples=200)
     con = connect(tmp_path / "undefined-alpha.duckdb")
     migrate(con)
-    record_decision(con, report, rubric_version="v1")
+    record_decision(con, report, rubric_version="v1", judge_slot="judge-a")
     status = con.execute("SELECT status FROM judge_decisions").fetchone()
     con.close()
     assert status == ("rejected",)
@@ -216,10 +216,48 @@ def test_record_decision_stores_the_statement_and_interval_method(tmp_path):
     report = assess("line_item_description", j, h, samples(), seed=1, n_resamples=400)
     con = connect(tmp_path / "stored.duckdb")
     migrate(con)
-    record_decision(con, report, rubric_version="v1")
+    record_decision(con, report, rubric_version="v1", judge_slot="judge-a")
     stored = con.execute("SELECT statement, alpha_method FROM judge_decisions").fetchone()
     con.close()
     assert stored == (report.statement, report.alpha_ci.method)
+
+
+def test_two_judges_for_one_field_type_store_two_decisions(tmp_path):
+    from ground_truth.graders.judge.agreement import record_decision  # noqa: PLC0415
+    from ground_truth.store.db import connect, migrate  # noqa: PLC0415
+
+    accepted = assess("line_item_description", *agreeing(60), samples(), seed=1, n_resamples=200)
+    rejected = assess("line_item_description", *disagreeing(60), samples(), seed=1, n_resamples=200)
+    con = connect(tmp_path / "two-judges.duckdb")
+    migrate(con)
+    record_decision(con, accepted, rubric_version="v1", judge_slot="judge-a")
+    record_decision(con, rejected, rubric_version="v1", judge_slot="judge-b")
+    rows = con.execute(
+        "SELECT field_type, judge_slot, status FROM judge_decisions ORDER BY judge_slot"
+    ).fetchall()
+    con.close()
+    assert rows == [
+        ("line_item_description", "judge-a", "accepted"),
+        ("line_item_description", "judge-b", "rejected"),
+    ]
+
+
+def test_re_recording_one_judge_replaces_only_its_own_decision(tmp_path):
+    from ground_truth.graders.judge.agreement import record_decision  # noqa: PLC0415
+    from ground_truth.store.db import connect, migrate  # noqa: PLC0415
+
+    accepted = assess("line_item_description", *agreeing(60), samples(), seed=1, n_resamples=200)
+    rejected = assess("line_item_description", *disagreeing(60), samples(), seed=1, n_resamples=200)
+    con = connect(tmp_path / "re-record.duckdb")
+    migrate(con)
+    record_decision(con, accepted, rubric_version="v1", judge_slot="judge-a")
+    record_decision(con, accepted, rubric_version="v1", judge_slot="judge-b")
+    record_decision(con, rejected, rubric_version="v1", judge_slot="judge-a")
+    rows = con.execute(
+        "SELECT judge_slot, status FROM judge_decisions ORDER BY judge_slot"
+    ).fetchall()
+    con.close()
+    assert rows == [("judge-a", "rejected"), ("judge-b", "accepted")]
 
 
 def test_caveat_follows_the_excluded_count_not_the_method_wording(monkeypatch):

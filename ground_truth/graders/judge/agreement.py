@@ -142,8 +142,9 @@ def _undefined_alpha_report(
     """Both raters gave every unit the same single verdict: expected disagreement is zero and
     alpha is 0/0. A judge that always answers `verdict` is indistinguishable from a perfect one
     on this sample, so it cannot clear the threshold (CLAUDE.md rule 3: a judge we cannot
-    defend falls back). Raising instead would leave no `judge_decisions` row, which
-    `matrix.build` reads as "no decision" -- and then scores the judge.
+    defend falls back). Raising instead would leave no `judge_decisions` row: `matrix.build`
+    would still keep the judge out of the headline (no accepted decision), but nothing would be
+    published to say it was assessed or why it does not score.
 
     NaN, not 1.0: publishing 1.0 as this sample's alpha would be a claim the data cannot
     support. `alpha_bootstrap_ci` follows the same convention for its resamples, excluding a
@@ -179,32 +180,37 @@ def _undefined_alpha_report(
 
 
 def record_decision(
-    con: duckdb.DuckDBPyConnection, report: AgreementReport, *, rubric_version: str
+    con: duckdb.DuckDBPyConnection,
+    report: AgreementReport,
+    *,
+    rubric_version: str,
+    judge_slot: str,
 ) -> None:
-    """Persist one `assess` result to `judge_decisions`, the table `matrix.build` joins.
+    """Persist one `assess` result for one judge to `judge_decisions`, the table
+    `matrix.build` joins.
 
-    Without this the exclusion in `matrix.build._slot_accuracy` could only ever take its
-    `jd.status IS NULL` branch: nothing wrote the table outside a test fixture, so a rejected
-    judge's verdicts still reached the headline number and spec section 8.2's guarantee -- "a
-    vendor cannot claim they were scored by a bad judge, because they were not" -- held only on
-    the read side.
+    `matrix.build._slot_accuracy` counts a `judge:<judge_slot>` verdict only when this table
+    holds an accepted decision for that judge on that field type, so an unassessed judge never
+    scores. Spec section 8.2's guarantee -- "a vendor cannot claim they were scored by a bad
+    judge, because they were not" -- needs this writer as much as that reader.
 
     `JudgeStatus` renders uppercase; the column's `CHECK (status IN ('accepted','rejected'))`
-    and `build.py`'s `!= 'rejected'` comparison are both lowercase, so `.lower()` here is load-
+    and `build.py`'s `= 'accepted'` comparison are both lowercase, so `.lower()` here is load-
     bearing in two directions at once -- without it the insert is rejected outright, and were
-    the CHECK ever relaxed the exclusion would silently stop matching.
+    the CHECK ever relaxed no judge would ever be admitted.
 
-    `field_type` is the table's primary key: it holds the *current* decision per field type, so
-    re-assessing after collecting more labels replaces that row rather than failing. The
-    superseded decision is not lost -- both statements publish (spec section 8.2) and the
-    published record is the changelog.
+    `(field_type, judge_slot)` is the table's primary key: it holds the *current* decision per
+    judge per field type, so re-assessing one judge after collecting more labels replaces that
+    judge's row only. The superseded decision is not lost -- both statements publish (spec
+    section 8.2) and the published record is the changelog.
     """
     con.execute(
-        "INSERT OR REPLACE INTO judge_decisions (field_type, rubric_version, alpha, alpha_low, "
-        "alpha_high, n_units, threshold, status, decided_at, statement, alpha_method) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT OR REPLACE INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, "
+        "alpha_low, alpha_high, n_units, threshold, status, decided_at, statement, "
+        "alpha_method) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         [
             report.field_type,
+            judge_slot,
             rubric_version,
             report.alpha,
             report.alpha_ci.low,
