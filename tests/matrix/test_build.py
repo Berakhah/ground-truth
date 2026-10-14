@@ -408,3 +408,50 @@ def test_a_stale_judge_verdict_on_a_former_modal_target_does_not_count(con):
     )
     interval = _per_field(con)["line_item_description"]
     assert interval.point == 1.0, "the stale target's judge verdict was counted beside the current"
+
+
+def test_a_re_run_with_the_same_modal_value_keeps_the_judged_field_in_the_headline(con):
+    """Build and grading select the judge target with the same function, so they agree by
+    construction; this pins that agreement across a scheduled re-run. Appending a run whose
+    modal value is unchanged must not move the target off the judged output, or build would
+    drop the field until the new target was judged again (review 2026-10-14, I1)."""
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'line_1_description', 'line_item_description', "
+        "'B', NULL, NULL)"
+    )
+    for run_id, started_at, values in (
+        ("r1", "2026-01-01", "ABBAB"),
+        ("r2", "2026-02-01", "BAABB"),
+    ):
+        con.execute(
+            "INSERT INTO runs VALUES (?, ?, NULL, 'slot-a', 'ref', 'prov', false, 's1', 'sha',"
+            " 'h')",
+            [run_id, started_at],
+        )
+        for replicate, value in enumerate(values, start=1):
+            con.execute(
+                "INSERT INTO outputs VALUES (?, ?, 'i1', ?, ?, 'call', 'prov', NULL, 100, 'ph',"
+                " now(), NULL)",
+                [
+                    f"{run_id}-{replicate}",
+                    run_id,
+                    replicate,
+                    json.dumps({"line_1_description": value}),
+                ],
+            )
+    # Judged when r1 was the only run: "B" was modal and r1-2 its first replicate.
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-judged', 'r1-2', 'line_1_description', ?, '1', 'v1',"
+        " true, 'judge majority EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES ('line_item_description', "
+        "'judge-a', 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())"
+    )
+    assert "line_item_description" in _per_field(con), "a re-run moved the judge target"
