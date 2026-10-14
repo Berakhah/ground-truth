@@ -101,26 +101,51 @@ def _judge_decision(row: tuple[object, ...]) -> dict[str, object]:
     as a false reason (stats code review 2026-09-27 #2, finding 6)."""
     decision: dict[str, object] = {
         "field_type": row[0],
-        "rubric_version": row[1],
-        "alpha": finite_or_none(row[2]),
-        "alpha_low": finite_or_none(row[3]),
-        "alpha_high": finite_or_none(row[4]),
-        "n_units": row[5],
-        "threshold": row[6],
-        "status": row[7],
-        "decided_at": row[8],
-        "statement": row[9],
-        "alpha_method": row[10],
+        "judge_slot": row[1],
+        "rubric_version": row[2],
+        "alpha": finite_or_none(row[3]),
+        "alpha_low": finite_or_none(row[4]),
+        "alpha_high": finite_or_none(row[5]),
+        "n_units": row[6],
+        "threshold": row[7],
+        "status": row[8],
+        "decided_at": row[9],
+        "statement": row[10],
+        "alpha_method": row[11],
     }
     if decision["statement"] is None and decision["alpha"] is None:
         # Recorded before `statement` was stored: the value is undefined and the reason is not
         # known, so say exactly that rather than guess one.
         decision["statement"] = (
-            f"Krippendorff's alpha is undefined, n={row[5]}; the reason was not recorded with "
-            f"this decision. Treated as below the threshold of {row[6]}; this field type is not "
+            f"Krippendorff's alpha is undefined, n={row[6]}; the reason was not recorded with "
+            f"this decision. Treated as below the threshold of {row[7]}; this field type is not "
             "used for headline scoring and is reported as not measured."
         )
     return decision
+
+
+# Counted over every judge verdict in the store, both splits: the figure describes the judge's
+# behaviour, it carries no item identity, and the verdict files publish both splits too. `n` is
+# every `judge:<judge_slot>` verdict for the pair; `count` is those the judge could not decide
+# (`graders.judge.targets.judge_verdict`'s "judge inconclusive: " reason), which score incorrect.
+_INCONCLUSIVE_SQL = """
+    SELECT r.model_slot, substr(v.grader_id, length('judge:') + 1) AS judge_slot,
+           count(*) FILTER (WHERE starts_with(v.reason, 'judge inconclusive: ')) AS count,
+           count(*) AS n
+    FROM verdicts v
+    JOIN outputs o ON o.output_id = v.output_id
+    JOIN runs r ON r.run_id = o.run_id
+    WHERE starts_with(v.grader_id, 'judge:')
+    GROUP BY ALL
+    ORDER BY r.model_slot, judge_slot
+"""
+
+
+def _inconclusive(con: duckdb.DuckDBPyConnection) -> list[dict[str, object]]:
+    return [
+        {"slot": slot, "judge_slot": judge_slot, "count": count, "n": n}
+        for slot, judge_slot, count, n in con.execute(_INCONCLUSIVE_SQL).fetchall()
+    ]
 
 
 def emit_public_verdicts(con: duckdb.DuckDBPyConnection, path: Path) -> int:
@@ -395,12 +420,12 @@ def _emit_into(
             # a bare `CAST(decided_at AS VARCHAR)` renders in session-local time and would
             # make this file byte-different on two machines for the same stored instant
             # (review finding, task-40).
-            "SELECT field_type, rubric_version, alpha, alpha_low, alpha_high, n_units, "
-            "threshold, status, CAST(decided_at AT TIME ZONE 'UTC' AS VARCHAR), statement, "
-            "alpha_method FROM judge_decisions ORDER BY field_type"
+            "SELECT field_type, judge_slot, rubric_version, alpha, alpha_low, alpha_high, "
+            "n_units, threshold, status, CAST(decided_at AT TIME ZONE 'UTC' AS VARCHAR), "
+            "statement, alpha_method FROM judge_decisions ORDER BY field_type, judge_slot"
         ).fetchall()
     ]
-    write_json(judge_path, {"decisions": decisions})
+    write_json(judge_path, {"decisions": decisions, "inconclusive": _inconclusive(con)})
     paths.append(judge_path)
 
     regression_path = out_dir / "regression.json"
