@@ -25,6 +25,7 @@ import os
 import shutil
 import sys
 import tempfile
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -34,7 +35,7 @@ import duckdb
 from ground_truth.artifact_names import REGRESSION, RELEASE, TRIAGE_EXAMPLE
 from ground_truth.golden.manifest import write_manifest_from_db
 from ground_truth.golden.schema import Split
-from ground_truth.matrix.build import LeaderboardRow, build_leaderboard
+from ground_truth.matrix.build import LeaderboardRow, build_leaderboard, headline_verdict_ids
 from ground_truth.providers import load_slots
 from ground_truth.store.db import connect
 
@@ -52,6 +53,7 @@ class PublicVerdict:
     grader_version: str
     rubric_version: str
     reason: str
+    counts_toward_headline: bool
 
 
 @dataclass(frozen=True)
@@ -63,17 +65,26 @@ class PrivateVerdict:
     grader_id: str
     grader_version: str
     rubric_version: str
+    # Whether `matrix.build` counts this verdict in the split's accuracy -- from the build's own
+    # rule (`headline_verdict_ids`), so a recompute over the flagged rows reaches the headline.
+    # Derived only from the grader, the judge decisions and assignment, the item's retirement
+    # and which replicate is the judge target; no item content. Retirement was already
+    # inferable (this file lists retired hashes, the manifest does not).
+    counts_toward_headline: bool
 
 
+# `v.verdict_id` is read to look the verdict up in `headline_verdict_ids`, never published,
+# and ends the ORDER BY: a verdict per replicate shares every other sort key, so without it
+# the replicates' rows -- which can differ in `correct` -- came out in the engine's order.
 _PUBLIC_SQL = """
     SELECT i.item_id, r.model_slot, v.field_name, v.correct, v.grader_id, v.grader_version,
-           v.rubric_version, v.reason
+           v.rubric_version, v.reason, v.verdict_id
     FROM verdicts v
     JOIN outputs o ON o.output_id = v.output_id
     JOIN runs r ON r.run_id = o.run_id
     JOIN items i ON i.item_id = o.item_id
     WHERE i.split = 'public'
-    ORDER BY i.item_id, r.model_slot, v.field_name, v.grader_id
+    ORDER BY i.item_id, r.model_slot, v.field_name, v.grader_id, v.verdict_id
 """
 
 
@@ -148,7 +159,12 @@ def _inconclusive(con: duckdb.DuckDBPyConnection) -> list[dict[str, object]]:
     ]
 
 
-def emit_public_verdicts(con: duckdb.DuckDBPyConnection, path: Path) -> int:
+def emit_public_verdicts(
+    con: duckdb.DuckDBPyConnection, path: Path, *, judges: Mapping[str, str | None]
+) -> int:
+    """`judges` is each model slot's assigned judge, as `build_leaderboard` derives it from
+    models.yaml; it decides `counts_toward_headline` for judge verdicts."""
+    counted = headline_verdict_ids(con, split=Split.PUBLIC, judges=judges)
     verdicts = [
         PublicVerdict(
             item_id=row[0],
@@ -159,6 +175,7 @@ def emit_public_verdicts(con: duckdb.DuckDBPyConnection, path: Path) -> int:
             grader_version=row[5],
             rubric_version=row[6],
             reason=row[7],
+            counts_toward_headline=row[8] in counted,
         )
         for row in con.execute(_PUBLIC_SQL).fetchall()
     ]
@@ -166,24 +183,28 @@ def emit_public_verdicts(con: duckdb.DuckDBPyConnection, path: Path) -> int:
     return len(verdicts)
 
 
-def emit_private_verdicts_by_hash(con: duckdb.DuckDBPyConnection, path: Path) -> int:
+def emit_private_verdicts_by_hash(
+    con: duckdb.DuckDBPyConnection, path: Path, *, judges: Mapping[str, str | None]
+) -> int:
     # The forbidden columns named in the module docstring above are absent from this string,
     # by spelling, not just by omission from the result -- see that docstring for why the
     # outputs/items bridge is a NATURAL JOIN rather than an explicit ON clause. Kept as a
     # local (not a module-level constant) so a source scan of this function's own text --
-    # not just the module's -- sees the query it runs.
+    # not just the module's -- sees the query it runs. `v.verdict_id` is a random uuid read
+    # only to look the row up in `counted`; it is not published (see `_PUBLIC_SQL`'s note).
+    counted = headline_verdict_ids(con, split=Split.PRIVATE, judges=judges)
     sql = """
         WITH oi AS (
             SELECT o.output_id, o.run_id, i.split, i.content_hash
             FROM outputs o NATURAL JOIN items i
         )
         SELECT oi.content_hash, r.model_slot, v.field_name, v.correct, v.grader_id,
-               v.grader_version, v.rubric_version
+               v.grader_version, v.rubric_version, v.verdict_id
         FROM verdicts v
         JOIN oi ON oi.output_id = v.output_id
         JOIN runs r ON r.run_id = oi.run_id
         WHERE oi.split = 'private'
-        ORDER BY oi.content_hash, r.model_slot, v.field_name, v.grader_id
+        ORDER BY oi.content_hash, r.model_slot, v.field_name, v.grader_id, v.verdict_id
     """
     verdicts = [
         PrivateVerdict(
@@ -194,6 +215,7 @@ def emit_private_verdicts_by_hash(con: duckdb.DuckDBPyConnection, path: Path) ->
             grader_id=row[4],
             grader_version=row[5],
             rubric_version=row[6],
+            counts_toward_headline=row[7] in counted,
         )
         for row in con.execute(sql).fetchall()
     ]
@@ -368,9 +390,11 @@ def _emit_into(
     # build_leaderboard raises TokenCountsUnavailable for any slot whose outputs carry no
     # token count, and that exception is left to propagate uncaught here -- fabricating a
     # placeholder cost is exactly what CLAUDE.md rule 5 forbids.
-    rows = build_leaderboard(
-        con, split=Split.PRIVATE, seed=analysis_seed, specs=load_slots(models_yaml)
-    )
+    specs = load_slots(models_yaml)
+    rows = build_leaderboard(con, split=Split.PRIVATE, seed=analysis_seed, specs=specs)
+    # The same slot -> judge map build_leaderboard uses, so each verdict file's
+    # `counts_toward_headline` is the rule the headline was computed with.
+    judges = {slot: spec.judge for slot, spec in specs.items()}
     leaderboard_path = out_dir / "leaderboard.json"
     write_json(
         leaderboard_path,
@@ -383,11 +407,11 @@ def _emit_into(
     paths.append(leaderboard_path)
 
     public_path = out_dir / "verdicts_public.jsonl"
-    emit_public_verdicts(con, public_path)
+    emit_public_verdicts(con, public_path, judges=judges)
     paths.append(public_path)
 
     private_path = out_dir / "verdicts_private_by_hash.jsonl"
-    emit_private_verdicts_by_hash(con, private_path)
+    emit_private_verdicts_by_hash(con, private_path, judges=judges)
     paths.append(private_path)
 
     manifest_path = out_dir / "manifest_private.json"

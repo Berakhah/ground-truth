@@ -59,8 +59,8 @@ class SlotSpecMissing(RuntimeError):
 # The join is on the full key `(field_type, judge_slot)`, so it matches at most one decision
 # row and cannot fan a verdict out into several observations.
 _OBSERVATIONS_SQL = """
-    SELECT r.model_slot, o.output_id, o.item_id, ifld.field_type, v.correct, o.latency_ms,
-           o.token_count, v.grader_id, v.field_name
+    SELECT v.verdict_id, r.model_slot, o.output_id, o.item_id, ifld.field_type, v.correct,
+           o.latency_ms, o.token_count, v.grader_id, v.field_name
     FROM verdicts v
     JOIN outputs o ON o.output_id = v.output_id
     JOIN runs r ON r.run_id = o.run_id
@@ -111,29 +111,44 @@ class _SlotAccuracy:
     mean_tokens: int | None
 
 
-def _slot_accuracy(
-    con: duckdb.DuckDBPyConnection,
-    *,
-    split: Split,
-    seed: int,
-    judges: Mapping[str, str | None],
-) -> dict[str, _SlotAccuracy]:
-    """The exclusion-join, grouping, and bootstrap logic -- everything build_leaderboard
-    needs, cost included. Kept separate so it is directly testable without needing a full
-    build_leaderboard() call for every case.
+@dataclass(frozen=True)
+class _Observation:
+    verdict_id: str
+    slot: str
+    output_id: str
+    item_id: str
+    field_type: str
+    correct: bool
+    latency_ms: int
+    token_count: int | None
 
-    `judges` maps each model slot to its currently assigned judge (models.yaml's `judge`).
-    Only that judge's verdicts count for the slot: after a reassignment the old judge's
-    verdicts on the same target stay in `verdicts`, and if both judges hold an accepted
-    decision, counting both would weigh the field twice in the item's cluster mean with two
-    judgements that can contradict (review 2026-10-14, I2). A slot with no assigned judge
-    counts no judge verdict."""
-    observations = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
+
+def _headline_observations(
+    con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
+) -> list[_Observation]:
+    """Every verdict the headline counts for `split` -- the one place that rule lives.
+
+    `_slot_accuracy` scores these and `headline_verdict_ids` exposes their ids, which the
+    publisher writes as `counts_toward_headline` so a recompute from the published verdict
+    files reaches the published number (review 2026-10-14, I3). On top of `_OBSERVATIONS_SQL`
+    (the split, retired items, fields the item does not declare such as `__schema__`, and the
+    judge-decision gate), a judge verdict counts only when:
+
+    - it is on the current modal target (`_current_judge_targets`), and
+    - it is from the slot's currently assigned judge. `judges` maps each model slot to that
+      judge (models.yaml's `judge`). After a reassignment the old judge's verdicts on the same
+      target stay in `verdicts`, and if both judges hold an accepted decision, counting both
+      would weigh the field twice in the item's cluster mean with two judgements that can
+      contradict (review 2026-10-14, I2). A slot with no assigned judge counts no judge
+      verdict.
+    """
+    rows = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
     current_targets = _current_judge_targets(
-        con, {row[8] for row in observations if row[7].startswith(_JUDGE_PREFIX)}
+        con, {row[9] for row in rows if row[8].startswith(_JUDGE_PREFIX)}
     )
-    by_slot: dict[str, list[tuple[str, str, str, bool, int, int | None]]] = defaultdict(list)
+    observations: list[_Observation] = []
     for (
+        verdict_id,
         slot,
         output_id,
         item_id,
@@ -143,15 +158,49 @@ def _slot_accuracy(
         token_count,
         grader_id,
         field_name,
-    ) in observations:
+    ) in rows:
         if grader_id.startswith(_JUDGE_PREFIX):
             if (output_id, field_name) not in current_targets:
                 continue  # a former modal target's judge verdict; see `_current_judge_targets`
             assigned = judges.get(slot)
             if assigned is None or grader_id != _JUDGE_PREFIX + assigned:
                 continue  # not the slot's currently assigned judge
-        by_slot[slot].append(
-            (output_id, item_id, field_type, bool(correct), int(latency_ms), token_count)
+        observations.append(
+            _Observation(
+                verdict_id=verdict_id,
+                slot=slot,
+                output_id=output_id,
+                item_id=item_id,
+                field_type=field_type,
+                correct=bool(correct),
+                latency_ms=int(latency_ms),
+                token_count=token_count,
+            )
+        )
+    return observations
+
+
+def headline_verdict_ids(
+    con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
+) -> frozenset[str]:
+    """The ids of the verdicts the headline for `split` counts; see `_headline_observations`."""
+    return frozenset(o.verdict_id for o in _headline_observations(con, split=split, judges=judges))
+
+
+def _slot_accuracy(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    split: Split,
+    seed: int,
+    judges: Mapping[str, str | None],
+) -> dict[str, _SlotAccuracy]:
+    """The grouping and bootstrap logic over `_headline_observations` -- everything
+    build_leaderboard needs, cost included. Kept separate so it is directly testable without
+    needing a full build_leaderboard() call for every case."""
+    by_slot: dict[str, list[tuple[str, str, str, bool, int, int | None]]] = defaultdict(list)
+    for o in _headline_observations(con, split=split, judges=judges):
+        by_slot[o.slot].append(
+            (o.output_id, o.item_id, o.field_type, o.correct, o.latency_ms, o.token_count)
         )
 
     result: dict[str, _SlotAccuracy] = {}

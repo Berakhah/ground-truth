@@ -18,6 +18,8 @@ from ground_truth.publish.artifacts import (
 )
 from ground_truth.store.db import connect, migrate
 
+JUDGES = {"slot-a": "judge-a"}  # each model slot's assigned judge, as models.yaml declares it
+
 
 @pytest.fixture()
 def con(tmp_path):
@@ -105,6 +107,113 @@ def test_emit_all_refuses_placeholder_pricing_for_a_real_slot(con, tmp_path):
         emit_all(con, tmp_path / "out", as_of=datetime(2026, 9, 7, tzinfo=UTC), analysis_seed=1)
 
 
+def _models_yaml(tmp_path: Path, *, judge: str) -> Path:
+    path = tmp_path / "models-with-judge.yaml"
+    path.write_text(
+        "slots:\n"
+        "  slot-a:\n"
+        "    family: acme-family\n"
+        "    provider: acme-cloud\n"
+        "    model_ref: acme-v1\n"
+        "    trains_on_data: false\n"
+        "    commercial_use: true\n"
+        "    exposes_fingerprint: false\n"
+        "    list_price_in_per_1m: '1.00'\n"
+        "    list_price_out_per_1m: '2.00'\n"
+        "    pricing_url: https://example.invalid/pricing\n"
+        "    retrieved_at: 2026-09-01\n"
+        f"    judge: {judge}\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _verdicts_the_headline_does_not_count(con, item_id: str) -> None:
+    """A schema verdict (never a field the headline scores) and a judge verdict with no
+    accepted decision, both incorrect, so counting either would move the recomputed number."""
+    con.execute(
+        "INSERT INTO verdicts VALUES (?,?,'__schema__','schema','1','v1',false,'bad',now())",
+        [f"v-schema-{item_id}", f"o-{item_id}"],
+    )
+    con.execute(
+        "INSERT INTO verdicts VALUES (?,?,'contract_sum','judge:judge-a','1','v1',false,"
+        "'judge majority NOT_EQUIVALENT (3 of 3)',now())",
+        [f"v-judge-{item_id}", f"o-{item_id}"],
+    )
+
+
+def _flags(path: Path, key: str) -> dict[tuple[str, str, str], bool]:
+    return {
+        (v[key], v["field_name"], v["grader_id"]): v["counts_toward_headline"]
+        for v in map(json.loads, path.read_text(encoding="utf-8").splitlines())
+    }
+
+
+def test_public_verdicts_flag_whether_they_count_toward_the_headline(con, tmp_path):
+    seed(con, "pub1", "public", "111.11", "hash-pub")
+    _verdicts_the_headline_does_not_count(con, "pub1")
+    path = tmp_path / "verdicts_public.jsonl"
+    emit_public_verdicts(con, path, judges=JUDGES)
+    assert _flags(path, "item_id") == {
+        ("pub1", "contract_sum", "exact"): True,
+        ("pub1", "contract_sum", "judge:judge-a"): False,
+        ("pub1", "__schema__", "schema"): False,
+    }
+
+
+def test_private_verdicts_flag_whether_they_count_toward_the_headline(con, tmp_path):
+    seed(con, "priv1", "private", "999.99", "hash-priv")
+    seed(con, "priv2", "private", "888.88", "hash-retired")
+    con.execute("UPDATE items SET retired_at = now() WHERE item_id = 'priv2'")
+    _verdicts_the_headline_does_not_count(con, "priv1")
+    path = tmp_path / "verdicts_private.jsonl"
+    emit_private_verdicts_by_hash(con, path, judges=JUDGES)
+    assert _flags(path, "content_hash") == {
+        ("hash-priv", "contract_sum", "exact"): True,
+        ("hash-priv", "contract_sum", "judge:judge-a"): False,
+        ("hash-priv", "__schema__", "schema"): False,
+        ("hash-retired", "contract_sum", "exact"): False,  # retired: out of current accuracy
+    }
+
+
+def test_headline_recomputes_from_the_flagged_private_verdicts(con, tmp_path):
+    """Review 2026-10-14, I3: the published verdict files did not say which verdicts the
+    headline counts, so a stranger's recompute (scripts/reproduce.py) diverged from it. The
+    recompute below is reproduce.py's arithmetic, over the rows flagged as counting."""
+    seed(con, "priv1", "private", "999.99", "hash-priv")
+    seed(con, "priv2", "private", "888.88", "hash-2")
+    con.execute("UPDATE outputs SET token_count = 500")
+    _verdicts_the_headline_does_not_count(con, "priv1")
+    out_dir = tmp_path / "out"
+    emit_all(
+        con,
+        out_dir,
+        as_of=datetime(2026, 10, 14, tzinfo=UTC),
+        analysis_seed=1,
+        models_yaml=_models_yaml(tmp_path, judge="judge-a"),
+    )
+    (row,) = json.loads((out_dir / "leaderboard.json").read_text(encoding="utf-8"))["rows"]
+    verdicts = [
+        json.loads(line)
+        for line in (out_dir / "verdicts_private_by_hash.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+
+    def recompute(rows: list[dict]) -> float:
+        by_hash: dict[str, list[bool]] = {}
+        for v in rows:
+            by_hash.setdefault(v["content_hash"], []).append(v["correct"])
+        return sum(sum(c) / len(c) for c in by_hash.values()) / len(by_hash)
+
+    assert recompute([v for v in verdicts if v["counts_toward_headline"]]) == pytest.approx(
+        row["accuracy"]["point"], abs=1e-9
+    )
+    assert recompute(verdicts) != pytest.approx(row["accuracy"]["point"], abs=1e-9), (
+        "the fixture must include verdicts the headline does not count"
+    )
+
+
 def test_private_verdict_type_carries_no_item_id_and_no_output():
     names = {f.name for f in dataclasses.fields(PrivateVerdict)}
     assert "item_id" not in names and "raw_output" not in names
@@ -113,14 +222,14 @@ def test_private_verdict_type_carries_no_item_id_and_no_output():
 def test_public_verdicts_include_item_ids(con, tmp_path):
     seed(con, "pub1", "public", "111.11", "hash-pub")
     path = tmp_path / "verdicts_public.jsonl"
-    assert emit_public_verdicts(con, path) == 1
+    assert emit_public_verdicts(con, path, judges=JUDGES) == 1
     assert "pub1" in path.read_text(encoding="utf-8")
 
 
 def test_private_verdicts_are_keyed_by_hash_only(con, tmp_path):
     seed(con, "priv1", "private", "999.99", "hash-priv")
     path = tmp_path / "verdicts_private.jsonl"
-    assert emit_private_verdicts_by_hash(con, path) == 1
+    assert emit_private_verdicts_by_hash(con, path, judges=JUDGES) == 1
     body = path.read_text(encoding="utf-8")
     assert "hash-priv" in body
     assert "priv1" not in body, "private item ids must never be published"
@@ -131,8 +240,8 @@ def test_public_and_private_emitters_do_not_cross_contaminate(con, tmp_path):
     seed(con, "pub1", "public", "111.11", "hash-pub")
     seed(con, "priv1", "private", "999.99", "hash-priv")
     pub, priv = tmp_path / "pub.jsonl", tmp_path / "priv.jsonl"
-    emit_public_verdicts(con, pub)
-    emit_private_verdicts_by_hash(con, priv)
+    emit_public_verdicts(con, pub, judges=JUDGES)
+    emit_private_verdicts_by_hash(con, priv, judges=JUDGES)
     assert "priv1" not in pub.read_text(encoding="utf-8")
     assert "pub1" not in priv.read_text(encoding="utf-8")
 
@@ -140,23 +249,23 @@ def test_public_and_private_emitters_do_not_cross_contaminate(con, tmp_path):
 def test_output_is_byte_stable(con, tmp_path):
     seed(con, "pub1", "public", "111.11", "hash-pub")
     path = tmp_path / "v.jsonl"
-    emit_public_verdicts(con, path)
+    emit_public_verdicts(con, path, judges=JUDGES)
     first = path.read_text(encoding="utf-8")
-    emit_public_verdicts(con, path)
+    emit_public_verdicts(con, path, judges=JUDGES)
     assert path.read_text(encoding="utf-8") == first
 
 
 def test_every_line_is_valid_json(con, tmp_path):
     seed(con, "pub1", "public", "111.11", "hash-pub")
     path = tmp_path / "v.jsonl"
-    emit_public_verdicts(con, path)
+    emit_public_verdicts(con, path, judges=JUDGES)
     for line in path.read_text(encoding="utf-8").splitlines():
         json.loads(line)
 
 
 def test_empty_split_writes_an_empty_file_not_a_crash(con, tmp_path):
     path = tmp_path / "v.jsonl"
-    assert emit_private_verdicts_by_hash(con, path) == 0
+    assert emit_private_verdicts_by_hash(con, path, judges=JUDGES) == 0
     assert path.read_text(encoding="utf-8") == ""
 
 
