@@ -1,6 +1,7 @@
 # ground_truth/matrix/build.py
-"""Leaderboard rows: cluster-bootstrapped accuracy intervals per slot, judge-rejected
-field types excluded, plus the "not distinguishable at this sample size" statement --
+"""Leaderboard rows: cluster-bootstrapped accuracy intervals per slot, judge verdicts counted
+only for a judge with an accepted decision on that field type, plus the "not distinguishable
+at this sample size" statement --
 spec's brand behaviour and this task's whole reason to exist.
 
 COST -- read before touching this: `outputs.token_count` (ground_truth/store/db.py) carries
@@ -49,6 +50,12 @@ class SlotSpecMissing(RuntimeError):
     supplied specs (models.yaml) no longer lists."""
 
 
+# A `judge:<judge_slot>` verdict counts only when that judge has an accepted decision for that
+# field type: no decision (unassessed), a rejection, or another judge's acceptance all keep it
+# out. A deterministic verdict is never gated by a decision -- a rejected judge falls back to
+# deterministic grading where one exists (docs/analysis-plan.md, "Judge rejection threshold").
+# The join is on the full key `(field_type, judge_slot)`, so it matches at most one decision
+# row and cannot fan a verdict out into several observations.
 _OBSERVATIONS_SQL = """
     SELECT r.model_slot, o.output_id, o.item_id, ifld.field_type, v.correct, o.latency_ms,
            o.token_count
@@ -57,9 +64,11 @@ _OBSERVATIONS_SQL = """
     JOIN runs r ON r.run_id = o.run_id
     JOIN items i ON i.item_id = o.item_id
     JOIN item_fields ifld ON ifld.item_id = o.item_id AND ifld.field_name = v.field_name
-    LEFT JOIN judge_decisions jd ON jd.field_type = ifld.field_type
+    LEFT JOIN judge_decisions jd
+           ON jd.field_type = ifld.field_type
+          AND v.grader_id = 'judge:' || jd.judge_slot
     WHERE i.split = ? AND i.retired_at IS NULL
-          AND (jd.status IS NULL OR jd.status != 'rejected')
+          AND (v.grader_id NOT LIKE 'judge:%' OR jd.status = 'accepted')
 """
 
 
