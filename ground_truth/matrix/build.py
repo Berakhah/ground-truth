@@ -25,6 +25,7 @@ from itertools import combinations
 import duckdb
 
 from ground_truth.golden.schema import Split
+from ground_truth.graders.judge.targets import select_judge_targets
 from ground_truth.matrix.cost import CostClaim, cost_per_1k_items
 from ground_truth.matrix.latency import LatencyDistribution, summarise_latency
 from ground_truth.providers import SlotSpec
@@ -58,7 +59,7 @@ class SlotSpecMissing(RuntimeError):
 # row and cannot fan a verdict out into several observations.
 _OBSERVATIONS_SQL = """
     SELECT r.model_slot, o.output_id, o.item_id, ifld.field_type, v.correct, o.latency_ms,
-           o.token_count
+           o.token_count, v.grader_id, v.field_name
     FROM verdicts v
     JOIN outputs o ON o.output_id = v.output_id
     JOIN runs r ON r.run_id = o.run_id
@@ -70,6 +71,30 @@ _OBSERVATIONS_SQL = """
     WHERE i.split = ? AND i.retired_at IS NULL
           AND (v.grader_id NOT LIKE 'judge:%' OR jd.status = 'accepted')
 """
+
+
+_JUDGE_PREFIX = "judge:"
+
+
+def _current_judge_targets(
+    con: duckdb.DuckDBPyConnection, field_names: set[str]
+) -> set[tuple[str, str]]:
+    """`(output_id, field_name)` for each current judge target: the modal output per (item,
+    slot), selected exactly as grading selects it.
+
+    The judge scores one output per (item, slot, field). Outputs added after a grading pass
+    (more replicates, another run of the slot) can move the modal value to another output;
+    grading then writes a verdict for the new target, and the old target's verdict stays in the
+    append-only `verdicts` table. Counting only the current target's verdict keeps one judge
+    observation per (item, slot, field) instead of two different judgements of it. A current
+    target not yet judged (fewer than three samples) has no verdict, so the field is unjudged
+    for that item rather than scored from a stale output.
+    """
+    return {
+        (target.output_id, field_name)
+        for field_name in sorted(field_names)
+        for target in select_judge_targets(con, field_name)
+    }
 
 
 @dataclass(frozen=True)
@@ -86,10 +111,24 @@ def _slot_accuracy(
     """The exclusion-join, grouping, and bootstrap logic -- everything build_leaderboard
     needs, cost included. Kept separate so it is directly testable without needing a full
     build_leaderboard() call for every case."""
+    observations = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
+    current_targets = _current_judge_targets(
+        con, {row[8] for row in observations if row[7].startswith(_JUDGE_PREFIX)}
+    )
     by_slot: dict[str, list[tuple[str, str, str, bool, int, int | None]]] = defaultdict(list)
-    for slot, output_id, item_id, field_type, correct, latency_ms, token_count in con.execute(
-        _OBSERVATIONS_SQL, [split.value]
-    ).fetchall():
+    for (
+        slot,
+        output_id,
+        item_id,
+        field_type,
+        correct,
+        latency_ms,
+        token_count,
+        grader_id,
+        field_name,
+    ) in observations:
+        if grader_id.startswith(_JUDGE_PREFIX) and (output_id, field_name) not in current_targets:
+            continue  # a former modal target's judge verdict; see `_current_judge_targets`
         by_slot[slot].append(
             (output_id, item_id, field_type, bool(correct), int(latency_ms), token_count)
         )
