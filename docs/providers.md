@@ -102,11 +102,13 @@ Gemma is Google's lineage), llama-3.3-70b (`llama`), gpt-oss-120b (`gpt-oss`), q
 (`qwen`). Each slot conflicts with at most one judge, so every slot keeps three eligible
 judges for the n>=3 majority vote.
 
-**Judge load: run 1 only.** The judge scores LINE_ITEM_DESCRIPTION on the first of the
-five runs per item, not all five (roughly one fifth of the calls; SambaNova allows about
-20 requests a day). The run-to-run variance of that field is therefore reported as not
-measured, and the methodology page must say so. This is a design change still to be
-implemented, test first, before the sweep.
+**Judge load: the modal output per (item, slot)** (revised 2026-10-14). On 2026-09-29 this
+record said "run 1 only"; that proposal had missed the rule already settled by audit H8 and
+spec section 15, and the human partner chose the specified rule instead. The judge scores
+one output per (item, slot): the replicate holding the most common value of the judged
+field, ties going to the lowest replicate (`judge_runner.select_judge_targets`). Same
+budget, 300 x 6 x 3 = 5,400 calls, but the judged output is the typical one rather than an
+arbitrary first draw.
 
 **Still open, account-gated:** reachable, observed `exposes_fingerprint`, console-only
 rate limits (Google, Mistral, Cloudflare neurons-per-call), Groq/Cerebras/SambaNova list
