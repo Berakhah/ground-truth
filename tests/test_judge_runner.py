@@ -19,6 +19,7 @@ from ground_truth.judge_runner import (
     sample_judgements,
     select_judge_targets,
 )
+from ground_truth.providers import judge_assignments
 from ground_truth.store.db import connect, migrate
 from tests.test_runner import FakeGateway
 
@@ -272,3 +273,35 @@ def test_an_unparseable_or_missing_field_votes_as_absent(con):
     (target,) = select_judge_targets(con, "line_1_description")
     assert target.observed is None
     assert target.output_id == "o-i1-slot-a-1"
+
+
+def _yaml(tmp_path, slot_judge):
+    p = tmp_path / "models.yaml"
+    p.write_text(
+        MODELS_YAML.read_text(encoding="utf-8").replace("judge: judge-a", f"judge: {slot_judge}"),
+        encoding="utf-8",
+    )
+    return p
+
+
+def test_every_slot_names_its_judge():
+    assert judge_assignments(MODELS_YAML) == {"slot-a": "judge-a"}
+
+
+def test_an_unknown_judge_is_refused_at_load(tmp_path):
+    with pytest.raises(ValueError, match="judge-nope"):
+        judge_assignments(_yaml(tmp_path, "judge-nope"))
+
+
+def test_a_same_family_assignment_is_refused_at_load(tmp_path):
+    with pytest.raises(SameFamilyJudge):
+        judge_assignments(_yaml(tmp_path, "judge-same-family"))
+
+
+def test_a_slot_without_a_judge_is_refused(tmp_path):
+    p = tmp_path / "models.yaml"
+    p.write_text(
+        MODELS_YAML.read_text(encoding="utf-8").replace("    judge: judge-a\n", ""), "utf-8"
+    )
+    with pytest.raises(ValueError, match="slot-a"):
+        judge_assignments(p)
