@@ -269,6 +269,30 @@ def test_a_tie_goes_to_the_lowest_replicate_so_selection_is_reproducible(con):
     assert (target.observed, target.output_id) == ("B", "o-i1-slot-a-1")
 
 
+def test_a_tie_across_two_runs_of_one_slot_goes_to_the_earlier_run(con):
+    """Two runs of one slot (a re-sweep) both hold a replicate 1, so ordering by replicate alone
+    leaves the tie to the engine's row order. `matrix.build` re-selects targets to count only
+    the current target's judge verdict, so the selection must not depend on that order."""
+    for run_id, started_at, value in (
+        ("r-late", "2026-02-01", "B"),
+        ("r-early", "2026-01-01", "A"),
+    ):
+        con.execute(
+            "INSERT INTO runs (run_id, started_at, model_slot, resolved_model_ref, provider, "
+            "commercial_context, sweep_id, code_version, models_yaml_hash) "
+            "VALUES (?, ?, 'slot-a', 'ref', 'prov', false, 's1', 'sha', 'h')",
+            [run_id, started_at],
+        )
+        con.execute(
+            "INSERT INTO outputs (output_id, run_id, item_id, replicate_idx, raw_output, "
+            "ledger_call_id, provider_served, latency_ms, prompt_hash, observed_at) "
+            "VALUES (?, ?, 'i1', 1, ?, 'call', 'prov', 10, 'ph', now())",
+            [f"o-{run_id}", run_id, _desc(value)],
+        )
+    (target,) = select_judge_targets(con, "line_1_description")
+    assert (target.observed, target.output_id) == ("A", "o-r-early")
+
+
 def test_an_unparseable_or_missing_field_votes_as_absent(con):
     """A modal absence is not judged: there is no text to compare, so the caller records the
     field as not extracted rather than spending three judge calls on nothing."""
