@@ -21,7 +21,7 @@ from ground_truth._bok_shim import (
 )
 from ground_truth.golden.rubric import RubricRule
 from ground_truth.golden.schema import FieldType, Item, ItemField
-from ground_truth.graders.judge.targets import JudgeTarget, select_judge_targets
+from ground_truth.graders.judge.targets import JudgeTarget, UnassignedSlot, select_judge_targets
 from ground_truth.policy import assert_slot_may_see
 from ground_truth.providers import SameFamilyJudge, judge_assignments, load_slots
 
@@ -151,35 +151,45 @@ def run_judging(  # noqa: PLR0913 -- the sampler's contract plus the item set
         for f in item.fields
         if rubric[f.field_type].grader == "judge"
     }
+    # Every target to judge, with its rubric field and observed value: a target whose item does
+    # not declare the field, or whose field is modally absent, is never sent to a judge.
+    work = [
+        (field_name, target, item_field, observed)
+        for field_name in sorted({name for _, name in fields})
+        for target in select_judge_targets(con, field_name)
+        if (item_field := fields.get((target.item_id, field_name))) is not None
+        and (observed := target.observed) is not None
+    ]
+    # Checked before any call: an output from a slot models.yaml no longer assigns a judge
+    # stops the run whole rather than partway, after other slots were paid for.
+    unassigned = sorted({target.model_slot for _, target, _, _ in work} - assignments.keys())
+    if unassigned:
+        raise UnassignedSlot(unassigned[0], "judging")
     calls = 0
-    for field_name in sorted({name for _, name in fields}):
-        for target in select_judge_targets(con, field_name):
-            item_field = fields.get((target.item_id, field_name))
-            if item_field is None or target.observed is None:
-                continue
-            judge = assignments[target.model_slot]
-            done = con.execute(
-                "SELECT count(*) FROM judge_samples WHERE output_id = ? AND field_name = ? "
-                "AND judge_slot = ?",
-                [target.output_id, field_name, judge],
-            ).fetchone()
-            have = 0 if done is None else int(done[0])
-            if have >= n:
-                continue
-            calls += sample_judgements(
-                con,
-                target.output_id,
-                item_field,
-                target.observed,
-                judge,
-                target.model_slot,
-                n=n - have,
-                start=have,
-                seed=0,  # inert: order seeds are hashed from output_id:field_name:index
-                resolve_fn=resolve_fn,
-                call_fn=call_fn,
-                context=context,
-                models_yaml=models_yaml,
-                sensitivity=sensitivity,
-            )
+    for field_name, target, item_field, observed in work:
+        judge = assignments[target.model_slot]
+        done = con.execute(
+            "SELECT count(*) FROM judge_samples WHERE output_id = ? AND field_name = ? "
+            "AND judge_slot = ?",
+            [target.output_id, field_name, judge],
+        ).fetchone()
+        have = 0 if done is None else int(done[0])
+        if have >= n:
+            continue
+        calls += sample_judgements(
+            con,
+            target.output_id,
+            item_field,
+            observed,
+            judge,
+            target.model_slot,
+            n=n - have,
+            start=have,
+            seed=0,  # inert: order seeds are hashed from output_id:field_name:index
+            resolve_fn=resolve_fn,
+            call_fn=call_fn,
+            context=context,
+            models_yaml=models_yaml,
+            sensitivity=sensitivity,
+        )
     return calls

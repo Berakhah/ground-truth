@@ -20,7 +20,12 @@ from ground_truth.graders.deterministic.exact import grade_exact
 from ground_truth.graders.deterministic.normalised import grade_normalised
 from ground_truth.graders.deterministic.numeric_tolerance import grade_numeric_tolerance
 from ground_truth.graders.deterministic.schema import extract_fields, grade_schema
-from ground_truth.graders.judge.targets import JudgeTarget, judge_verdict, select_judge_targets
+from ground_truth.graders.judge.targets import (
+    JudgeTarget,
+    UnassignedSlot,
+    judge_verdict,
+    select_judge_targets,
+)
 
 _SCHEMA_FIELD = "__schema__"
 _ARITHMETIC_FIELD = "__arithmetic__"
@@ -93,6 +98,10 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
             for name in judge_field_names
             for t in select_judge_targets(con, name)
         }
+        # Checked before any verdict is written: a slot with no judge stops the pass whole.
+        unassigned = sorted({t.model_slot for t in judge_targets.values()} - judges.keys())
+        if unassigned:
+            raise UnassignedSlot(unassigned[0], "grading")
 
     def write_judge(output_id: str, model_slot: str, item: Item, field_name: str) -> None:
         target = judge_targets.get((output_id, field_name))
