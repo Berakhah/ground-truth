@@ -43,25 +43,34 @@ export function JudgeAgreementView({ judge, methodologyUrl }: JudgeAgreementView
           (Krippendorff&rsquo;s alpha) meets or exceeds the pre-registered threshold of{" "}
           <span className="tabular">{threshold}</span>. Field types below threshold are
           reported as rejected and not used for headline scoring, never silently dropped.
+          Agreement is measured per judge: a judge with no accepted decision for a field type
+          is not scored in the headline for that field type.
         </p>
 
         <div className="table-scroll">
           <table className="report-table agreement-table" data-testid="agreement-table">
             <caption className="visually-hidden">
-              Judge-versus-human agreement by field type
+              Judge-versus-human agreement by field type and judge
             </caption>
             <thead>
               <tr>
                 <th scope="col">Field type</th>
+                <th scope="col">Judge</th>
                 <th scope="col">Alpha</th>
                 <th scope="col">Status</th>
                 <th scope="col">Statement</th>
               </tr>
             </thead>
             <tbody>
-              {judge.decisions.map((decision) => (
-                <tr key={decision.field_type} data-testid="agreement-row">
+              {judge.decisions.map((decision, index) => (
+                // One decision per (field type, judge), so a field type can appear twice.
+                // Older payloads carry no judge_slot; the index keeps their keys distinct.
+                <tr
+                  key={`${decision.field_type}:${decision.judge_slot ?? index}`}
+                  data-testid="agreement-row"
+                >
                   <th scope="row">{decision.field_type}</th>
+                  <td data-testid="judge-slot">{decision.judge_slot ?? "—"}</td>
                   <td data-testid="alpha-value">
                     {decision.alpha === null ? (
                       // An undefined alpha has no interval to draw; say so in words rather
@@ -95,6 +104,45 @@ export function JudgeAgreementView({ judge, methodologyUrl }: JudgeAgreementView
             </tbody>
           </table>
         </div>
+
+        <section className="inconclusive" aria-labelledby="inconclusive-heading">
+          <h2 id="inconclusive-heading">Inconclusive verdicts</h2>
+          {judge.inconclusive && judge.inconclusive.length > 0 ? (
+            <div className="table-scroll">
+              <table className="report-table inconclusive-table" data-testid="inconclusive-table">
+                <caption className="visually-hidden">
+                  Judge verdicts scored inconclusive, by model slot and judge
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Slot</th>
+                    <th scope="col">Judge</th>
+                    <th scope="col">Inconclusive</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {judge.inconclusive.map((row) => (
+                    <tr key={`${row.slot}:${row.judge_slot}`} data-testid="inconclusive-row">
+                      <th scope="row">{row.slot}</th>
+                      <td>{row.judge_slot}</td>
+                      <td className="tabular">
+                        {row.count} of {row.n}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="effects__figure" data-testid="inconclusive-note">
+                An inconclusive verdict is one where the judge votes produced no majority; it is
+                scored as incorrect, and counted here rather than dropped.
+              </p>
+            </div>
+          ) : (
+            <p className="effects__figure" data-testid="inconclusive-empty">
+              Not yet measured — no inconclusive-verdict counts have been published.
+            </p>
+          )}
+        </section>
 
         <section className="effects" aria-label="Judge bias controls">
           <div className="effects__item" data-testid="order-effect">

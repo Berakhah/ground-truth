@@ -75,6 +75,10 @@ export interface PublicVerdict {
   grader_version: string;
   rubric_version: string;
   reason: string;
+  // Whether this verdict counts toward the headline number (a judge verdict counts only when
+  // the slot's current judge has an accepted agreement decision). Optional: the committed
+  // placeholder verdicts predate it.
+  counts_toward_headline?: boolean;
 }
 
 export function loadPublicVerdicts(): PublicVerdict[] {
@@ -96,6 +100,8 @@ export function loadPublicVerdicts(): PublicVerdict[] {
 // post-review (task-46-report.md): the first draft was modeled on the wrong emitter.
 export interface AgreementDecision {
   field_type: string;
+  // One decision per (field type, judge). Optional: the placeholder-era shape had no judge.
+  judge_slot?: string;
   rubric_version: string;
   // null when alpha is 0/0 (judge and human gave every unit one verdict): emit_all maps the
   // stored NaN to null. alpha_low/alpha_high are also null, with a defined alpha, when every
@@ -133,9 +139,19 @@ export interface ConfusionMatrixData {
   counts: number[][];
 }
 
+// Judge verdicts scored inconclusive (no majority, counted as incorrect): `count` of `n`
+// judge verdicts for this model slot and judge. Sorted by (slot, judge_slot) by the emitter.
+export interface InconclusiveCount {
+  slot: string;
+  judge_slot: string;
+  count: number;
+  n: number;
+}
+
 export interface JudgeAgreementPayload {
   placeholder?: boolean;
   decisions: AgreementDecision[];
+  inconclusive?: InconclusiveCount[];
   // None of these three are emitted by ground_truth.publish.artifacts.emit_all today -- it
   // scopes this file to a verbatim dump of the judge_decisions table (Task 40's deliberate
   // ruling), and order/length effects and confusion matrices aren't stored anywhere queryable
