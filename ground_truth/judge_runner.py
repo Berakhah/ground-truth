@@ -22,7 +22,7 @@ from ground_truth._bok_shim import (
 from ground_truth.golden.schema import ItemField
 from ground_truth.graders.deterministic.schema import extract_fields
 from ground_truth.policy import assert_slot_may_see
-from ground_truth.providers import load_slots
+from ground_truth.providers import SameFamilyJudge, load_slots
 
 
 @dataclass(frozen=True)
@@ -64,14 +64,6 @@ def select_judge_targets(con: duckdb.DuckDBPyConnection, field_name: str) -> lis
         output_id = next(oid for oid, value in replicates if value == modal)
         targets.append(JudgeTarget(item_id, slot, output_id, modal))
     return targets
-
-
-class SameFamilyJudge(RuntimeError):
-    def __init__(self, judge_slot: str, model_slot: str, family: str) -> None:
-        super().__init__(
-            f"judge {judge_slot!r} and model under test {model_slot!r} share family {family!r}; "
-            "self-preference bias makes this judgement indefensible"
-        )
 
 
 @dataclass(frozen=True)
