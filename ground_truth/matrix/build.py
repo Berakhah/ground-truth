@@ -89,6 +89,11 @@ def _current_judge_targets(
     observation per (item, slot, field) instead of two different judgements of it. A current
     target not yet judged (fewer than three samples) has no verdict, so the field is unjudged
     for that item rather than scored from a stale output.
+
+    Cost: `select_judge_targets` reads and JSON-parses every output once per judged field
+    name, both splits, on every build -- at 300 items x 6 slots x 5 replicates that is 9,000
+    parses per field, cheap next to the bootstrap. If it ever is not, compute the targets once
+    and share them with grading rather than caching a copy that could drift from it.
     """
     return {
         (target.output_id, field_name)

@@ -38,17 +38,21 @@ def select_judge_targets(con: duckdb.DuckDBPyConnection, field_name: str) -> lis
 
     Audit H8 / spec section 15: judging every replicate costs 300 x 6 x 5 x 3 = 27,000 calls;
     judging the modal output costs 5,400 and loses nothing, since replicate variance is
-    already measured by the deterministic graders and the calibration signal. A tie goes to
-    the value first seen in replicate order, and the target is the lowest replicate holding
-    it, so the same outputs always select the same target. A slot with several runs holds one
-    replicate 1 per run, so the order is completed by run start and then output id: without
-    that the tie fell to the engine's row order, and `matrix.build` re-selects targets to count
-    only the current target's judge verdict.
+    already measured by the deterministic graders and the calibration signal.
+
+    Outputs are read run-major: runs in start order (run id breaking a tie), then replicates
+    within a run, then output id. A value tie goes to the value first seen in that order, and
+    the target is the first output in that order holding the modal value. Run-major makes the
+    target stable under appended runs: a new run sorts after every existing output, so the
+    target moves only when the modal value itself changes. Replicate-major order moved it on
+    every re-run (review 2026-10-14, I1), and grading, `run_judging` and `matrix.build` all
+    select through this function, so a moved target left the judged field out of the headline
+    until the new target was sampled again.
     """
     rows = con.execute(
         "SELECT o.item_id, r.model_slot, o.output_id, o.raw_output FROM outputs o "
         "JOIN runs r ON r.run_id = o.run_id "
-        "ORDER BY o.item_id, r.model_slot, o.replicate_idx, r.started_at, o.output_id"
+        "ORDER BY o.item_id, r.model_slot, r.started_at, o.run_id, o.replicate_idx, o.output_id"
     ).fetchall()
     groups: dict[tuple[str, str], list[tuple[str, str | None]]] = {}
     for item_id, slot, output_id, raw in rows:
