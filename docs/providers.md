@@ -99,14 +99,18 @@ Judges (LINE_ITEM_DESCRIPTION only, the one `grader: judge` field in `docs/rubri
 pool of four from Cerebras / SambaNova, one per family: gemma (declared family `google`,
 the same string as slot F, because `assert_judge_family_differs` compares strings and
 Gemma is Google's lineage), llama-3.3-70b (`llama`), gpt-oss-120b (`gpt-oss`), qwen
-(`qwen`). Each slot conflicts with at most one judge, so every slot keeps three eligible
-judges for the n>=3 majority vote.
+(`qwen`). Each slot conflicts with at most one judge in the pool. As shipped, each slot is
+assigned one cross-family judge in `models.yaml` (validated before any call); the n>=3
+majority vote is that one judge sampled three times on the same output, not three judges.
 
 **Judge load: the modal output per (item, slot)** (revised 2026-10-14). On 2026-09-29 this
 record said "run 1 only"; that proposal had missed the rule already settled by audit H8 and
 spec section 15, and the human partner chose the specified rule instead. The judge scores
-one output per (item, slot): the replicate holding the most common value of the judged
-field, ties going to the lowest replicate (`judge_runner.select_judge_targets`). Same
+one output per (item, slot): the output holding the most common value of the judged field,
+reading outputs run-major (runs in start order, run id breaking a tie, then replicates
+within a run, then output id), a value tie going to the value seen first and the target
+being the first output holding the modal value
+(`select_judge_targets` in `ground_truth/graders/judge/targets.py`). Same
 budget, 300 x 6 x 3 = 5,400 calls, but the judged output is the typical one rather than an
 arbitrary first draw.
 

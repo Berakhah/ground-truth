@@ -39,6 +39,18 @@ def test_slot_count_is_within_design_bounds():
     assert 1 <= len(slots) <= 6, "design assumes at most six leaderboard slots"  # noqa: PLR2004
 
 
+def test_providers_doc_describes_the_shipped_judge_design():
+    """Final review 2026-10-14, I3: the record said every slot keeps three eligible judges for
+    the majority vote and that ties go to the lowest replicate in `judge_runner`. Shipped: one
+    cross-family judge per slot, sampled three times, with run-major target selection in
+    `graders/judge/targets.py`."""
+    text = " ".join(PROVIDERS_MD.read_text(encoding="utf-8").split())
+    assert "three eligible judges" not in text
+    assert "one cross-family judge" in text
+    assert "judge_runner.select_judge_targets" not in text
+    assert "ground_truth/graders/judge/targets.py" in text
+
+
 def test_judge_slots_load_from_their_own_key():
     judges = load_slots(MODELS_YAML, key="judge_slots")
     assert judges, "at least one judge slot must be configured"
