@@ -81,7 +81,10 @@ def test_headline_accuracy_recomputes_from_published_verdicts_alone():
         .splitlines()
     ]
     for entry in leaderboard["rows"]:
-        rows = [v for v in verdicts if v["slot"] == entry["slot"]]
+        # The file also lists verdicts the headline does not count (schema checks, unaccepted or
+        # unassigned judges, stale judge targets, retired items), flagged false by the build's
+        # own rule (`matrix.build.headline_verdict_ids`; review 2026-10-14, I3).
+        rows = [v for v in verdicts if v["slot"] == entry["slot"] and v["counts_toward_headline"]]
         by_item: dict[str, list[bool]] = {}
         for v in rows:
             by_item.setdefault(v["content_hash"], []).append(v["correct"])

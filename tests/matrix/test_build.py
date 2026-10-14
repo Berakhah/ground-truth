@@ -16,6 +16,7 @@ from ground_truth.matrix.build import (
     _slot_accuracy,
     build_leaderboard,
     distinguishability_statements,
+    headline_verdict_ids,
 )
 from ground_truth.matrix.cost import LIST_PRICE_CAVEAT, cost_per_1k_items
 from ground_truth.matrix.latency import summarise_latency
@@ -254,6 +255,20 @@ def test_a_slot_with_no_assigned_judge_counts_no_judge_verdict(con):
     per_field = _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges={})["slot-a"].per_field
     assert "line_item_description" not in per_field
     assert per_field["money"].point == 1.0
+
+
+def test_headline_verdict_ids_are_exactly_the_verdicts_the_headline_counts(con):
+    """The publisher flags each published verdict with this set (`counts_toward_headline`), so
+    a recompute from the published files reaches the headline. It must be the build's own rule,
+    not a copy: here the exact verdicts count; judge-a's are out (reassigned away from), and
+    judge-b's count (assigned, accepted, on the current target)."""
+    _reassigned_to_judge_b(con)
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-schema', 'o1', '__schema__', 'schema', '1', 'v1', true,"
+        " 'ok', now())"
+    )
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges={"slot-a": "judge-b"})
+    assert ids == {"v1", "v2", "v5"}
 
 
 def test_build_leaderboard_counts_the_judge_its_specs_assign(con):
