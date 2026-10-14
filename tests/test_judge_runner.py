@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from ground_truth.judge_runner import (
     build_judgement_prompt,
     randomise_presentation,
     sample_judgements,
+    select_judge_targets,
 )
 from ground_truth.store.db import connect, migrate
 from tests.test_runner import FakeGateway
@@ -205,3 +207,68 @@ def test_sample_judgements_defaults_to_the_synthetic_corpus_label(con):
         models_yaml=MODELS_YAML,
     )
     assert gw.seen and all(sens is Sensitivity.SYNTHETIC for _, _, _, sens, _ in gw.seen)
+
+
+def _output(con, *, item_id, slot, replicate, raw):
+    """One replicate under its own run (run_id per slot) -- only the columns the selector reads
+    matter; the rest are schema-required fillers."""
+    run_id = f"run-{slot}"
+    con.execute(
+        "INSERT OR IGNORE INTO runs (run_id, started_at, model_slot, resolved_model_ref, "
+        "provider, commercial_context, sweep_id, code_version, models_yaml_hash) "
+        "VALUES (?, now(), ?, 'ref', 'prov', false, 's1', 'sha', 'h')",
+        [run_id, slot],
+    )
+    output_id = f"o-{item_id}-{slot}-{replicate}"
+    con.execute(
+        "INSERT INTO outputs (output_id, run_id, item_id, replicate_idx, raw_output, "
+        "ledger_call_id, provider_served, latency_ms, prompt_hash, observed_at) "
+        "VALUES (?, ?, ?, ?, ?, 'call', 'prov', 10, 'ph', now())",
+        [output_id, run_id, item_id, replicate, raw],
+    )
+    return output_id
+
+
+def _desc(value):
+    return json.dumps({"line_1_description": value})
+
+
+def test_judge_targets_are_one_output_per_item_slot(con):
+    """Audit H8 / spec section 15: the judge scores the modal output per (item, slot), so
+    300 x 6 x 3 = 5,400 judge calls, not one per replicate (27,000)."""
+    for item in ("i1", "i2"):
+        for slot in ("slot-a", "slot-b"):
+            for r in range(1, 6):
+                _output(con, item_id=item, slot=slot, replicate=r, raw=_desc(f"text {r % 2}"))
+    targets = select_judge_targets(con, "line_1_description")
+    assert len({t.output_id for t in targets}) == 2 * 2  # n_items x n_slots
+    assert {(t.item_id, t.model_slot) for t in targets} == {
+        (i, s) for i in ("i1", "i2") for s in ("slot-a", "slot-b")
+    }
+
+
+def test_the_judge_target_carries_the_modal_value(con):
+    values = ["minority", "Concrete works", "Concrete works", "other", "Concrete works"]
+    for r, value in enumerate(values, start=1):
+        _output(con, item_id="i1", slot="slot-a", replicate=r, raw=_desc(value))
+    (target,) = select_judge_targets(con, "line_1_description")
+    assert target.observed == "Concrete works"
+    assert target.output_id == "o-i1-slot-a-2"  # the first replicate holding the modal value
+
+
+def test_a_tie_goes_to_the_lowest_replicate_so_selection_is_reproducible(con):
+    for r, value in enumerate(["B", "A", "A", "B"], start=1):
+        _output(con, item_id="i1", slot="slot-a", replicate=r, raw=_desc(value))
+    (target,) = select_judge_targets(con, "line_1_description")
+    assert (target.observed, target.output_id) == ("B", "o-i1-slot-a-1")
+
+
+def test_an_unparseable_or_missing_field_votes_as_absent(con):
+    """A modal absence is not judged: there is no text to compare, so the caller records the
+    field as not extracted rather than spending three judge calls on nothing."""
+    _output(con, item_id="i1", slot="slot-a", replicate=1, raw="not json")
+    _output(con, item_id="i1", slot="slot-a", replicate=2, raw=json.dumps({"other": "x"}))
+    _output(con, item_id="i1", slot="slot-a", replicate=3, raw=_desc("Concrete works"))
+    (target,) = select_judge_targets(con, "line_1_description")
+    assert target.observed is None
+    assert target.output_id == "o-i1-slot-a-1"
