@@ -77,6 +77,17 @@ always ships next to the decision it caused.
 - LINE_ITEM_DESCRIPTION's run-to-run variance is therefore not measured by the judge: the
   judge sees one output per (item, slot), and the replicate spread the deterministic graders
   report for other fields does not exist for this one.
+- In an item's score, the judge's one verdict is weighted by the number of replicate outputs
+  for that (item, slot), across all its runs. A deterministic field contributes one verdict per
+  replicate, so the judged field then carries the same weight in the item's score as one
+  deterministic field, however many runs the slot has. Unweighted, an item with two
+  deterministic fields and five replicates gave the judged field 1/11 of the score instead of
+  1/3, shrinking with every run added. The published verdict files carry each verdict's
+  `weight` so the headline recomputes from them.
+- One field set per leaderboard: a judged field type counts toward any slot's headline only
+  when every slot ranked in the split has an assigned judge, and every slot's currently
+  assigned judge holds an accepted decision for that field type. Otherwise the field type is
+  excluded for all slots alike, so no two slots' intervals are compared over different fields.
 
 ## Sequential testing calendar
 
@@ -136,7 +147,12 @@ rest of the quarter.
   scores as incorrect and is counted. The 0.667 threshold is unchanged. **v2 governed zero
   sweeps:** on 2026-10-14 `SELECT count(*) FROM runs` on `data/results.duckdb` returned 0. This
   change is therefore made before any data exists. v2's judge paragraph is kept below,
-  unedited.
+  unedited. **v3 amended before merge, 2026-10-14:** the final review of the judge-wiring
+  branch found two headline rules missing, and both were added to v3's judge section in the
+  same unmerged branch rather than as a v4: the judge's verdict is weighted by the number of
+  replicate outputs for its (item, slot), and a judged field type counts only when every
+  slot's currently assigned judge holds an accepted decision for it. v3 had governed no sweep
+  and had never been merged when it was amended, so no data could have informed the change.
 - **v2, 2026-09-28 -- sequential testing calendar replaced.** v1 tested a z computed on data
   pooled across looks against the fixed-constant O'Brien-Fleming boundary `C / sqrt(t)`,
   `C = 2.1023`. Two problems (stats review 2026-09-27, finding 1, and code review 2026-09-27

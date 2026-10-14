@@ -12,12 +12,13 @@ Usage:
 Reads two files from <artifacts-dir>:
   - leaderboard.json               -- published headline accuracy per slot (`rows[].accuracy.point`)
   - verdicts_private_by_hash.jsonl -- one JSON object per line: content_hash, slot, correct,
-                                      counts_toward_headline, ...
+                                      counts_toward_headline, weight, ...
 
 For each leaderboard row, recomputes headline accuracy as the mean, across all private-split
-content hashes graded under that slot, of each hash's own mean correctness across its verdict
-rows flagged `counts_toward_headline` (the file also lists verdicts the headline does not
-count, with the flag false; a file without the flag counts every row)
+content hashes graded under that slot, of each hash's own weighted mean correctness across its
+verdict rows flagged `counts_toward_headline`, each row counted `weight` times (the file also
+lists verdicts the headline does not count, with the flag false; a file without the flag
+counts every row, and a row without `weight` counts once)
 (mean-of-per-item-means, not a flat mean over all rows -- an item with more graded fields
 must not outweigh one with fewer). This is exactly the arithmetic in
 `tests/test_reproducibility.py::test_headline_accuracy_recomputes_from_published_verdicts_alone`.
@@ -59,17 +60,24 @@ RELEASE = "release.json"  # ground_truth/artifact_names.py; this script imports 
 
 
 def recompute_accuracy(verdicts: list[dict[str, object]], slot: str) -> float:
-    by_hash: dict[str, list[bool]] = {}
+    by_hash: dict[str, list[tuple[bool, int]]] = {}
     for v in verdicts:
         # The file also lists verdicts the headline does not count (schema checks, judges
         # without an accepted decision, a judge no longer assigned, retired items); each says so
-        # in `counts_toward_headline`. A release published before that flag lacks it, and then
-        # every row counts, as this script always assumed.
+        # in `counts_toward_headline`. `weight` is how many times a counted verdict counts: 1
+        # for a deterministic verdict (one per replicate), the replicate count of its (item,
+        # slot) for a judge verdict (one per item and slot). A release published before these
+        # fields lacks them, and then every row counts once, as this script always assumed.
         if v["slot"] == slot and v.get("counts_toward_headline", True) is True:
-            by_hash.setdefault(str(v["content_hash"]), []).append(bool(v["correct"]))
+            weight = v.get("weight", 1)
+            if not isinstance(weight, int) or isinstance(weight, bool) or weight < 1:
+                raise ValueError(f"a counted verdict has an invalid weight: {weight!r}")
+            by_hash.setdefault(str(v["content_hash"]), []).append((bool(v["correct"]), weight))
     if not by_hash:
         raise ValueError(f"no private verdicts found for slot {slot!r}")
-    return sum(sum(c) / len(c) for c in by_hash.values()) / len(by_hash)
+    return sum(
+        sum(w for c, w in rows if c) / sum(w for _, w in rows) for rows in by_hash.values()
+    ) / len(by_hash)
 
 
 def placeholder_files(artifacts_dir: Path) -> list[str]:
