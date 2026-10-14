@@ -10,12 +10,14 @@ from ground_truth._bok_shim import (
     Sensitivity,
     SensitivityViolation,
 )
-from ground_truth.golden.schema import FieldType, ItemField
+from ground_truth.golden.rubric import loaded_rubric
+from ground_truth.golden.schema import FieldType, Item, ItemField, Source, Split
 from ground_truth.judge_runner import (
     SameFamilyJudge,
     assert_judge_family_differs,
     build_judgement_prompt,
     randomise_presentation,
+    run_judging,
     sample_judgements,
     select_judge_targets,
 )
@@ -273,6 +275,57 @@ def test_an_unparseable_or_missing_field_votes_as_absent(con):
     (target,) = select_judge_targets(con, "line_1_description")
     assert target.observed is None
     assert target.output_id == "o-i1-slot-a-1"
+
+
+RUBRIC = Path(__file__).resolve().parents[1] / "docs" / "rubric.md"
+
+
+def _items():
+    return [
+        Item(
+            item_id="i1",
+            split=Split.PUBLIC,
+            rubric_version="v1",
+            source=Source.SYNTHETIC,
+            content_hash="h",
+            fields=[field()],
+        )
+    ]
+
+
+def _run(con, gw):
+    return run_judging(
+        con,
+        _items(),
+        loaded_rubric(RUBRIC),
+        resolve_fn=gw.resolve,
+        call_fn=gw.call,
+        context=CallContext(),
+        models_yaml=MODELS_YAML,
+    )
+
+
+def test_run_judging_samples_each_target_n_times_with_the_assigned_judge(con):
+    for r in range(1, 6):
+        _output(con, item_id="i1", slot="slot-a", replicate=r, raw=_desc("Concrete works"))
+    gw = FakeGateway()
+    assert _run(con, gw) == 3  # noqa: PLR2004 -- one target x n=3, not 5 replicates x 3
+    rows = con.execute("SELECT DISTINCT output_id, judge_slot FROM judge_samples").fetchall()
+    assert rows == [("o-i1-slot-a-1", "judge-a")]
+
+
+def test_run_judging_is_resumable(con):
+    _output(con, item_id="i1", slot="slot-a", replicate=1, raw=_desc("Concrete works"))
+    gw = FakeGateway()
+    _run(con, gw)
+    assert _run(con, gw) == 0
+
+
+def test_a_modally_absent_field_costs_no_judge_call(con):
+    _output(con, item_id="i1", slot="slot-a", replicate=1, raw="not json")
+    gw = FakeGateway()
+    assert _run(con, gw) == 0
+    assert gw.seen == []
 
 
 def _yaml(tmp_path, slot_judge):
