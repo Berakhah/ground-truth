@@ -4,7 +4,17 @@ from dataclasses import dataclass
 
 import duckdb
 
+from ground_truth.graders.base import Verdict
 from ground_truth.graders.deterministic.schema import extract_fields
+from ground_truth.graders.judge.aggregate import (
+    JudgeVerdict,
+    Sample,
+    majority_vote,
+    parse_judgement,
+)
+
+JUDGE_GRADER_VERSION = "1"
+_MIN_SAMPLES = 3
 
 
 @dataclass(frozen=True)
@@ -46,3 +56,41 @@ def select_judge_targets(con: duckdb.DuckDBPyConnection, field_name: str) -> lis
         output_id = next(oid for oid, value in replicates if value == modal)
         targets.append(JudgeTarget(item_id, slot, output_id, modal))
     return targets
+
+
+def judge_verdict(
+    con: duckdb.DuckDBPyConnection, target: JudgeTarget, judge_slot: str, field_name: str
+) -> Verdict | None:
+    """Score a target output from its stored judge samples; `None` while it is unjudged.
+
+    An output with fewer than 3 samples has not been judged, and an unjudged output is not a
+    measurement, so nothing is written for it. A modally absent field is scored absent with no
+    sample needed (and no judge call was ever made for it).
+    """
+
+    def verdict(correct: bool, reason: str) -> Verdict:
+        return Verdict(
+            correct=correct,
+            reason=reason,
+            grader_id=f"judge:{judge_slot}",
+            grader_version=JUDGE_GRADER_VERSION,
+        )
+
+    if target.observed is None:
+        return verdict(False, "field not extracted in the modal output; not judged")
+    rows = con.execute(
+        "SELECT presentation_order, raw_judgement FROM judge_samples "
+        "WHERE output_id = ? AND field_name = ? AND judge_slot = ? ORDER BY sample_id",
+        [target.output_id, field_name, judge_slot],
+    ).fetchall()
+    if len(rows) < _MIN_SAMPLES:
+        return None
+    samples = [Sample(order, raw, len(target.observed)) for order, raw in rows]
+    outcome = majority_vote(samples)
+    if outcome is JudgeVerdict.INCONCLUSIVE:
+        return verdict(False, f"judge inconclusive: no majority in {len(samples)} samples")
+    agreeing = sum(1 for s in samples if parse_judgement(s.raw) is outcome)
+    return verdict(
+        outcome is JudgeVerdict.EQUIVALENT,
+        f"judge majority {outcome.value} ({agreeing} of {len(samples)})",
+    )
