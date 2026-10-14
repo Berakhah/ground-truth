@@ -23,6 +23,7 @@ slots:
     list_price_out_per_1m: "0.40"
     pricing_url: "https://example.invalid/pricing"
     retrieved_at: "2026-08-31"
+    judge: judge-a
 judge_slots:
   judge-a:
     family: "PLACEHOLDER-FAMILY-B"
