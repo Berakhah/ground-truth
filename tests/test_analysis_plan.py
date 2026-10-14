@@ -41,9 +41,19 @@ def test_plan_v2_records_what_it_replaced_and_that_v1_governed_no_look():
     """A post-freeze procedure change needs a new plan_version, never a silent edit of v1 --
     and the record must show the change came before any data it could have been fitted to."""
     text = " ".join(PLAN.read_text(encoding="utf-8").split())  # prose wraps across lines
-    assert "plan_version: v2" in text
     assert "v1 governed zero looks" in text
     assert "Superseded: v1" in text and "C = 2.1023" in text, "v1's text is kept for the record"
+
+
+def test_plan_v3_records_the_judge_decision_unit_and_that_v2_governed_no_sweep():
+    """v3 moves the judge decision from field type to (field type, judge); like v2, it must
+    show the change came before any sweep, and keep v2's judge paragraph for the record."""
+    text = " ".join(PLAN.read_text(encoding="utf-8").split())
+    assert "plan_version: v3" in text
+    assert "v2 governed zero sweeps" in text
+    assert "(field type, judge)" in text
+    assert "Superseded: v2" in text, "v2's judge paragraph is kept for the record"
+    assert "Every field type the judge touched is published" in text
 
 
 def test_plan_names_the_sampling_unit():

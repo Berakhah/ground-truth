@@ -59,10 +59,11 @@ against `required_terms()` and fails the build if a term is used without a defin
   consistency: deterministic; an LLM judge is used only where a deterministic grader genuinely
   cannot reach.
 - **judge** -- an LLM-as-judge grader. Its verdicts feed headline scoring for a field type only
-  where its measured agreement with human labels (Krippendorff's alpha) meets or exceeds the
-  pre-registered rejection threshold (`REJECTION_THRESHOLD = 0.667`,
-  `ground_truth/graders/judge/agreement.py`); below that threshold the field type is excluded
-  from headline scoring and reported as not measured, not silently kept. Where judge and human
+  where that judge's own measured agreement with human labels (Krippendorff's alpha) meets or
+  exceeds the pre-registered rejection threshold (`REJECTION_THRESHOLD = 0.667`,
+  `ground_truth/graders/judge/agreement.py`); the decision unit is the (field type, judge) pair.
+  A judge with no recorded decision is not scored. Below that threshold the field type is
+  excluded from headline scoring and reported as not measured, not silently kept. Where judge and human
   gave every unit the same single verdict, alpha is 0/0 -- undefined, not perfect: it is
   published as null beside a statement giving that reason, and the field type is treated as
   below the threshold. A bootstrap resample that lands on the same 0/0 is excluded from the
@@ -251,6 +252,44 @@ retired design, which tested data pooled across looks against an O'Brien-Fleming
 ~~naive fixed-threshold type-I error `0.2119`~~ (pooled looks) and ~~calibrated boundary
 constant `C_OBF_13_LOOKS = 2.1023`~~. Neither governed any look; see `docs/analysis-plan.md`,
 "Revision history".*
+
+### The judge: who scores what, and what the headline counts
+
+Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge` field in
+`docs/rubric.md`. Every other field is graded deterministically. The decided lineup
+(analysis plan v3; `docs/providers.md` "Lineup decisions" records the judge pool):
+
+- **Two judges, both on Cerebras.** No available judge family differs from all six model
+  slots, so Gemma judges slots A-E and gpt-oss-120b judges the Gemini slot (F). The real
+  assignment is declared in `models.yaml` (validated for family separation) when the live audit
+  fills it; this page states the decision, not a measured run.
+- **Comparability limit, disclosed.** Gemini is judged by a different model from the other
+  five slots, so its LINE_ITEM_DESCRIPTION score is not on the same judge as theirs.
+- **Agreement is measured and published per judge**, per field type, with its interval
+  (`judge_agreement.json`). A judge with no recorded decision is not used; a rejected judge is
+  not used; an accepted judge's verdicts count. A decision never removes a deterministic verdict.
+- **Current state.** Human labels for agreement do not exist yet (labelling is a single
+  annotator, with a blind re-label of 20% after two weeks), and nothing records a decision
+  yet. Every judge is therefore undecided, and LINE_ITEM_DESCRIPTION is reported as *not
+  measured* in the headline until human-labelled agreement exists.
+- **What the judge scores.** One output per (item, slot): the modal value of the judged field
+  across runs and replicates, ties going to the value seen first reading runs in start order
+  (run id breaking a tie), then replicates within a run, then output id; the target is the
+  first output in that order holding that value. Each target is sampled three times and decided
+  by majority vote. LINE_ITEM_DESCRIPTION's run-to-run variance is therefore not measured by
+  the judge. No majority is INCONCLUSIVE, which scores as incorrect.
+- **Which verdicts count (`counts_toward_headline`).** Each published verdict carries this
+  flag so a reader can recompute the headline from the verdict files. A verdict is excluded
+  when: its item is retired; the field is not one the item declares (the schema and arithmetic
+  pseudo-field verdicts); or it is a judge verdict that is not from the slot's currently
+  assigned judge, is not on the current modal target output, or whose judge has no accepted
+  decision for that field type. Deterministic verdicts on declared fields of non-retired items
+  always count, whatever any judge decision says.
+- **The published `inconclusive` list** (`judge_agreement.json`) gives, per (model slot, judge),
+  `count` of verdicts whose reason starts "judge inconclusive: " and `n` of all that judge's
+  verdicts for that slot. It is counted over both splits, including retired items and verdicts
+  that are not the current target or not yet gated by a decision, so it is **not** the share of
+  the headline's judged score.
 
 ### What is pending: requires the real sweep
 
