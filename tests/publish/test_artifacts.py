@@ -217,6 +217,70 @@ def test_judge_decisions_publish_the_stored_statement_and_interval_method(con, t
     assert decision["alpha_method"].endswith("5 of 400 undefined resamples excluded")
 
 
+def _judge_agreement(con, tmp_path) -> dict:
+    out_dir = tmp_path / "out"
+    emit_all(con, out_dir, as_of=datetime(2026, 10, 14, tzinfo=UTC), analysis_seed=1)
+    return json.loads((out_dir / "judge_agreement.json").read_text(encoding="utf-8"))
+
+
+def test_each_published_decision_names_its_judge(con, tmp_path):
+    insert = (
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES "
+        "('line_item_description',?,'v1',0.8,0.7,0.9,60,0.667,?,'2026-10-14 08:00:00+00')"
+    )
+    con.execute(insert, ["judge-b", "rejected"])
+    con.execute(insert, ["judge-a", "accepted"])
+    decisions = _judge_agreement(con, tmp_path)["decisions"]
+    assert [(d["field_type"], d["judge_slot"], d["status"]) for d in decisions] == [
+        ("line_item_description", "judge-a", "accepted"),
+        ("line_item_description", "judge-b", "rejected"),
+    ]
+
+
+def _judge_verdict(con, verdict_id, output_id, judge_slot, reason):
+    correct = reason.startswith("judge majority EQUIVALENT")
+    con.execute(
+        "INSERT INTO verdicts VALUES (?,?,'line_1_description',?,'1','v1',?,?,now())",
+        [verdict_id, output_id, f"judge:{judge_slot}", correct, reason],
+    )
+
+
+def test_inconclusive_counts_are_published_per_slot_and_judge(con, tmp_path):
+    """The verdicts whose reason starts "judge inconclusive: " score incorrect; publishing how
+    many there are, out of how many judge verdicts, lets a reader see how much of a slot's
+    judged score is the judge failing to decide rather than the model being wrong."""
+    seed(con, "pub1", "public", "1.00", "hash-1")
+    seed(con, "pub2", "public", "2.00", "hash-2")
+    con.execute(
+        "INSERT INTO runs VALUES ('r-b',now(),NULL,'slot-b','ref','prov',false,'s1','sha','h')"
+    )
+    con.execute(
+        "INSERT INTO outputs VALUES ('o-b1','r-b','pub1',1,'{}','call','prov',NULL,10,'ph',"
+        "now(),NULL)"
+    )
+    inconclusive = "judge inconclusive: no majority in 3 samples"
+    _judge_verdict(con, "j1", "o-pub1", "judge-a", inconclusive)
+    _judge_verdict(con, "j2", "o-pub2", "judge-a", "judge majority EQUIVALENT (3 of 3)")
+    _judge_verdict(con, "j3", "o-b1", "judge-b", "judge majority NOT_EQUIVALENT (2 of 3)")
+    # A different field of the same output, so the count is per verdict, not per output.
+    con.execute(
+        "INSERT INTO verdicts VALUES ('j4','o-pub2','line_2_description','judge:judge-a','1',"
+        "'v1',false,?,now())",
+        [inconclusive],
+    )
+
+    assert _judge_agreement(con, tmp_path)["inconclusive"] == [
+        {"slot": "slot-a", "judge_slot": "judge-a", "count": 2, "n": 3},
+        {"slot": "slot-b", "judge_slot": "judge-b", "count": 0, "n": 1},
+    ]
+
+
+def test_no_judge_verdicts_publish_an_empty_inconclusive_list(con, tmp_path):
+    seed(con, "pub1", "public", "1.00", "hash-1")  # a deterministic verdict only
+    assert _judge_agreement(con, tmp_path)["inconclusive"] == []
+
+
 def test_undefined_alpha_without_a_stored_statement_does_not_invent_a_reason(con, tmp_path):
     """A row written before the statement column existed has a NaN alpha and no stored reason.
     The publisher must not guess one ("every unit got the same verdict") from the NaN alone:
