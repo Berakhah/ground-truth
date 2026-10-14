@@ -19,6 +19,7 @@ providers disabled) -- a missing number stays missing rather than becoming a sil
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import combinations
 
@@ -111,11 +112,22 @@ class _SlotAccuracy:
 
 
 def _slot_accuracy(
-    con: duckdb.DuckDBPyConnection, *, split: Split, seed: int
+    con: duckdb.DuckDBPyConnection,
+    *,
+    split: Split,
+    seed: int,
+    judges: Mapping[str, str | None],
 ) -> dict[str, _SlotAccuracy]:
     """The exclusion-join, grouping, and bootstrap logic -- everything build_leaderboard
     needs, cost included. Kept separate so it is directly testable without needing a full
-    build_leaderboard() call for every case."""
+    build_leaderboard() call for every case.
+
+    `judges` maps each model slot to its currently assigned judge (models.yaml's `judge`).
+    Only that judge's verdicts count for the slot: after a reassignment the old judge's
+    verdicts on the same target stay in `verdicts`, and if both judges hold an accepted
+    decision, counting both would weigh the field twice in the item's cluster mean with two
+    judgements that can contradict (review 2026-10-14, I2). A slot with no assigned judge
+    counts no judge verdict."""
     observations = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
     current_targets = _current_judge_targets(
         con, {row[8] for row in observations if row[7].startswith(_JUDGE_PREFIX)}
@@ -132,8 +144,12 @@ def _slot_accuracy(
         grader_id,
         field_name,
     ) in observations:
-        if grader_id.startswith(_JUDGE_PREFIX) and (output_id, field_name) not in current_targets:
-            continue  # a former modal target's judge verdict; see `_current_judge_targets`
+        if grader_id.startswith(_JUDGE_PREFIX):
+            if (output_id, field_name) not in current_targets:
+                continue  # a former modal target's judge verdict; see `_current_judge_targets`
+            assigned = judges.get(slot)
+            if assigned is None or grader_id != _JUDGE_PREFIX + assigned:
+                continue  # not the slot's currently assigned judge
         by_slot[slot].append(
             (output_id, item_id, field_type, bool(correct), int(latency_ms), token_count)
         )
@@ -184,7 +200,8 @@ def build_leaderboard(
     con: duckdb.DuckDBPyConnection, *, split: Split, seed: int, specs: dict[str, SlotSpec]
 ) -> list[LeaderboardRow]:
     rows: list[LeaderboardRow] = []
-    for slot, slot_accuracy in _slot_accuracy(con, split=split, seed=seed).items():
+    judges = {name: spec.judge for name, spec in specs.items()}
+    for slot, slot_accuracy in _slot_accuracy(con, split=split, seed=seed, judges=judges).items():
         if slot_accuracy.mean_tokens is None:
             raise TokenCountsUnavailable(
                 f"cannot compute a real cost for slot {slot!r}: no output in the store for "
