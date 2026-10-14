@@ -68,6 +68,33 @@ def test_a_wrong_headline_does_not_reproduce(tmp_path):
     assert _run(_release(tmp_path / "a", point=0.80)) == 1
 
 
+def _append_verdict(out: Path, verdict: dict[str, object]) -> None:
+    with (out / "verdicts_private_by_hash.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(verdict) + "\n")
+
+
+def test_a_verdict_flagged_as_not_counting_is_left_out_of_the_recompute(tmp_path):
+    """Review 2026-10-14, I3: the file publishes verdicts the headline does not count (schema
+    checks, judges without an accepted decision, retired items); each says so in
+    `counts_toward_headline`, and the recompute must honour it or it cannot reach the
+    published number."""
+    out = _release(tmp_path / "a")
+    _append_verdict(
+        out,
+        {"content_hash": "h2", "slot": "slot-a", "correct": False, "counts_toward_headline": False},
+    )
+    assert _run(out) == 0
+
+
+def test_a_verdict_flagged_as_counting_is_recomputed(tmp_path):
+    out = _release(tmp_path / "a")
+    _append_verdict(
+        out,
+        {"content_hash": "h2", "slot": "slot-a", "correct": False, "counts_toward_headline": True},
+    )
+    assert _run(out) == 1  # h2 is now 1/2, so 0.5 != the published 0.75
+
+
 def test_placeholder_data_is_refused_not_reproduced(tmp_path, capsys):
     """The committed demo artifacts would otherwise be 'reproduced' and pass a release gate."""
     assert _run(_release(tmp_path / "a", placeholder=True)) == 1
