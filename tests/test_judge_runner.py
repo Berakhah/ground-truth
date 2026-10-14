@@ -1,8 +1,11 @@
+import hashlib
 import json
+import uuid
 from pathlib import Path
 
 import pytest
 
+from ground_truth import judge_runner
 from ground_truth._bok_shim import (
     CacheMode,
     CallContext,
@@ -319,6 +322,40 @@ def test_run_judging_is_resumable(con):
     gw = FakeGateway()
     _run(con, gw)
     assert _run(con, gw) == 0
+
+
+@pytest.mark.parametrize("done", [1, 2])
+def test_run_judging_tops_up_a_partial_target_without_repeating_order_seeds(con, monkeypatch, done):
+    output_id = _output(con, item_id="i1", slot="slot-a", replicate=1, raw=_desc("Concrete works"))
+    for _ in range(done):
+        con.execute(
+            "INSERT INTO judge_samples VALUES (?,?,?,?,?,?,?,now())",
+            [uuid.uuid4().hex, output_id, "line_1_description", "judge-a", 0, "EQUIVALENT", "c"],
+        )
+    seeds: list[int] = []
+    real = judge_runner.randomise_presentation
+
+    def spy(expected, observed, *, seed):
+        seeds.append(seed)
+        return real(expected, observed, seed=seed)
+
+    monkeypatch.setattr(judge_runner, "randomise_presentation", spy)
+    gw = FakeGateway()
+    assert _run(con, gw) == 3 - done
+    assert len(gw.seen) == 3 - done
+    (total,) = con.execute(
+        "SELECT count(*) FROM judge_samples WHERE output_id = ? AND field_name = ? "
+        "AND judge_slot = ?",
+        [output_id, "line_1_description", "judge-a"],
+    ).fetchone()
+    assert total == 3  # noqa: PLR2004
+    expected = [
+        int.from_bytes(
+            hashlib.sha256(f"{output_id}:line_1_description:{i}".encode()).digest()[:4], "big"
+        )
+        for i in range(done, 3)
+    ]
+    assert seeds == expected, "new samples must continue the order-seed index, not restart it"
 
 
 def test_a_modally_absent_field_costs_no_judge_call(con):
