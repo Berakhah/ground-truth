@@ -1,4 +1,5 @@
 # tests/matrix/test_build.py
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -354,3 +355,56 @@ def test_re_deciding_a_judge_replaces_rather_than_raising(con):
         "SELECT judge_slot, status FROM judge_decisions WHERE field_type = 'money'"
     ).fetchall()
     assert rows == [("judge-a", "rejected")]
+
+
+# -- one judge verdict per (item, slot, field): the current modal target's ------------------
+
+
+def test_a_stale_judge_verdict_on_a_former_modal_target_does_not_count(con):
+    """The judge scores one output per (item, slot): the replicate holding the modal value
+    (`graders.judge.targets.select_judge_targets`). Replicates added after a grading pass can
+    move the modal value to another output; grading then writes a verdict for the new target,
+    and the old target's verdict stays in the append-only `verdicts` table. Counting both would
+    score one (item, slot, field) twice with two different judgements."""
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'line_1_description', 'line_item_description', "
+        "'Concrete works', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO runs VALUES ('r1', now(), NULL, 'slot-a', 'ref', 'prov', false, 's1',"
+        " 'sha', 'h')"
+    )
+    for output_id, replicate, value in (("o1", 1, "Concrete"), ("o2", 2, "Concrete works")):
+        con.execute(
+            "INSERT INTO outputs VALUES (?, 'r1', 'i1', ?, ?, 'call', 'prov', NULL, 100, 'ph',"
+            " now(), NULL)",
+            [output_id, replicate, json.dumps({"line_1_description": value})],
+        )
+    # Graded when o1 was the only replicate, so o1 was the modal target then.
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-stale', 'o1', 'line_1_description', ?, '1', 'v1', false,"
+        " 'judge majority NOT_EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+    con.execute(
+        "INSERT INTO outputs VALUES ('o3', 'r1', 'i1', 3, ?, 'call', 'prov', NULL, 100, 'ph',"
+        " now(), NULL)",
+        [json.dumps({"line_1_description": "Concrete works"})],
+    )
+    # Re-graded after o3 arrived: "Concrete works" is now modal and o2 is its first replicate.
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-current', 'o2', 'line_1_description', ?, '1', 'v1', true,"
+        " 'judge majority EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES ('line_item_description', "
+        "'judge-a', 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())"
+    )
+    interval = _per_field(con)["line_item_description"]
+    assert interval.point == 1.0, "the stale target's judge verdict was counted beside the current"

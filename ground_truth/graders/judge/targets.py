@@ -40,11 +40,15 @@ def select_judge_targets(con: duckdb.DuckDBPyConnection, field_name: str) -> lis
     judging the modal output costs 5,400 and loses nothing, since replicate variance is
     already measured by the deterministic graders and the calibration signal. A tie goes to
     the value first seen in replicate order, and the target is the lowest replicate holding
-    it, so the same outputs always select the same target.
+    it, so the same outputs always select the same target. A slot with several runs holds one
+    replicate 1 per run, so the order is completed by run start and then output id: without
+    that the tie fell to the engine's row order, and `matrix.build` re-selects targets to count
+    only the current target's judge verdict.
     """
     rows = con.execute(
         "SELECT o.item_id, r.model_slot, o.output_id, o.raw_output FROM outputs o "
-        "JOIN runs r ON r.run_id = o.run_id ORDER BY o.item_id, r.model_slot, o.replicate_idx"
+        "JOIN runs r ON r.run_id = o.run_id "
+        "ORDER BY o.item_id, r.model_slot, o.replicate_idx, r.started_at, o.output_id"
     ).fetchall()
     groups: dict[tuple[str, str], list[tuple[str, str | None]]] = {}
     for item_id, slot, output_id, raw in rows:
