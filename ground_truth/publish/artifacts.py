@@ -35,7 +35,11 @@ import duckdb
 from ground_truth.artifact_names import REGRESSION, RELEASE, TRIAGE_EXAMPLE
 from ground_truth.golden.manifest import write_manifest_from_db
 from ground_truth.golden.schema import Split
-from ground_truth.matrix.build import LeaderboardRow, build_leaderboard, headline_verdict_ids
+from ground_truth.matrix.build import (
+    LeaderboardRow,
+    build_leaderboard,
+    headline_verdict_weights,
+)
 from ground_truth.providers import load_slots
 from ground_truth.store.db import connect
 
@@ -54,6 +58,7 @@ class PublicVerdict:
     rubric_version: str
     reason: str
     counts_toward_headline: bool
+    weight: int
 
 
 @dataclass(frozen=True)
@@ -65,15 +70,19 @@ class PrivateVerdict:
     grader_id: str
     grader_version: str
     rubric_version: str
-    # Whether `matrix.build` counts this verdict in the split's accuracy -- from the build's own
-    # rule (`headline_verdict_ids`), so a recompute over the flagged rows reaches the headline.
-    # Derived only from the grader, the judge decisions and assignment, the item's retirement
-    # and which replicate is the judge target; no item content. Retirement was already
-    # inferable (this file lists retired hashes, the manifest does not).
+    # Whether `matrix.build` counts this verdict in the split's accuracy, and how many times
+    # (`weight`: 1 per deterministic verdict, the (item, slot)'s replicate-output count for a
+    # judge verdict, 0 when it does not count) -- from the build's own rule
+    # (`headline_verdict_weights`), so a weighted recompute over these rows reaches the
+    # headline. Derived only from the grader, the judge decisions and assignment, the item's
+    # retirement, which replicate is the judge target and how many replicates there are; no
+    # item content. Retirement was already inferable (this file lists retired hashes, the
+    # manifest does not), and so was the replicate count (one exact row per replicate).
     counts_toward_headline: bool
+    weight: int
 
 
-# `v.verdict_id` is read to look the verdict up in `headline_verdict_ids`, never published,
+# `v.verdict_id` is read to look the verdict up in `headline_verdict_weights`, never published,
 # and ends the ORDER BY: a verdict per replicate shares every other sort key, so without it
 # the replicates' rows -- which can differ in `correct` -- came out in the engine's order.
 _PUBLIC_SQL = """
@@ -163,8 +172,8 @@ def emit_public_verdicts(
     con: duckdb.DuckDBPyConnection, path: Path, *, judges: Mapping[str, str | None]
 ) -> int:
     """`judges` is each model slot's assigned judge, as `build_leaderboard` derives it from
-    models.yaml; it decides `counts_toward_headline` for judge verdicts."""
-    counted = headline_verdict_ids(con, split=Split.PUBLIC, judges=judges)
+    models.yaml; it decides `counts_toward_headline` and `weight` for judge verdicts."""
+    counted = headline_verdict_weights(con, split=Split.PUBLIC, judges=judges)
     verdicts = [
         PublicVerdict(
             item_id=row[0],
@@ -176,6 +185,7 @@ def emit_public_verdicts(
             rubric_version=row[6],
             reason=row[7],
             counts_toward_headline=row[8] in counted,
+            weight=counted.get(row[8], 0),
         )
         for row in con.execute(_PUBLIC_SQL).fetchall()
     ]
@@ -192,7 +202,7 @@ def emit_private_verdicts_by_hash(
     # local (not a module-level constant) so a source scan of this function's own text --
     # not just the module's -- sees the query it runs. `v.verdict_id` is a random uuid read
     # only to look the row up in `counted`; it is not published (see `_PUBLIC_SQL`'s note).
-    counted = headline_verdict_ids(con, split=Split.PRIVATE, judges=judges)
+    counted = headline_verdict_weights(con, split=Split.PRIVATE, judges=judges)
     sql = """
         WITH oi AS (
             SELECT o.output_id, o.run_id, i.split, i.content_hash
@@ -216,6 +226,7 @@ def emit_private_verdicts_by_hash(
             grader_version=row[5],
             rubric_version=row[6],
             counts_toward_headline=row[7] in counted,
+            weight=counted.get(row[7], 0),
         )
         for row in con.execute(sql).fetchall()
     ]

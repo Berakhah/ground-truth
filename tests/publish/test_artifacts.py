@@ -214,6 +214,99 @@ def test_headline_recomputes_from_the_flagged_private_verdicts(con, tmp_path):
     )
 
 
+def _judged_private_item_with_three_replicates(con) -> None:
+    """priv1 gets two more replicates (exact verdicts correct) and a description field the
+    judge scores incorrect on the modal target, o-priv1, with judge-a accepted. Weighted, the
+    judge verdict counts 3 times: priv1 = 3/6, priv2 = 1/1, headline 0.75. Unweighted it would
+    be (3/4 + 1) / 2 = 0.875."""
+    con.execute(
+        "INSERT INTO item_fields VALUES ('priv1','line_1_description','line_item_description',"
+        "'Concrete works',NULL,NULL)"
+    )
+    for replicate in (2, 3):
+        con.execute(
+            "INSERT INTO outputs VALUES (?,'r-priv1','priv1',?,'{}','call','prov',NULL,10,'ph',"
+            "now(),500)",
+            [f"o-priv1-{replicate}", replicate],
+        )
+        con.execute(
+            "INSERT INTO verdicts VALUES (?,?,'contract_sum','exact','1','v1',true,'ok',now())",
+            [f"v-priv1-{replicate}", f"o-priv1-{replicate}"],
+        )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-judge','o-priv1','line_1_description','judge:judge-a',"
+        "'1','v1',false,'judge majority NOT_EQUIVALENT (3 of 3)',now())"
+    )
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES ('line_item_description',"
+        "'judge-a','v1',0.9,0.8,0.95,60,0.667,'accepted','2026-10-14 08:00:00+00')"
+    )
+
+
+def test_published_weights_regenerate_the_weighted_headline(con, tmp_path):
+    """Final review 2026-10-14, I2: the judge verdict stands for every replicate of its (item,
+    slot), which the private file cannot show (it carries no output identity), so each row
+    publishes its `weight`: 1 for a deterministic verdict, the replicate count for a counted
+    judge verdict, 0 for a verdict the headline does not count."""
+    seed(con, "priv1", "private", "999.99", "hash-1")
+    seed(con, "priv2", "private", "888.88", "hash-2")
+    con.execute("UPDATE outputs SET token_count = 500")
+    _judged_private_item_with_three_replicates(con)
+    _verdicts_the_headline_does_not_count(con, "priv2")
+    out_dir = tmp_path / "out"
+    emit_all(
+        con,
+        out_dir,
+        as_of=datetime(2026, 10, 14, tzinfo=UTC),
+        analysis_seed=1,
+        models_yaml=_models_yaml(tmp_path, judge="judge-a"),
+    )
+    (row,) = json.loads((out_dir / "leaderboard.json").read_text(encoding="utf-8"))["rows"]
+    verdicts = [
+        json.loads(line)
+        for line in (out_dir / "verdicts_private_by_hash.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert row["accuracy"]["point"] == pytest.approx(0.75)
+    assert sorted(
+        (v["content_hash"], v["grader_id"], v["weight"], v["counts_toward_headline"])
+        for v in verdicts
+    ) == [
+        ("hash-1", "exact", 1, True),
+        ("hash-1", "exact", 1, True),
+        ("hash-1", "exact", 1, True),
+        ("hash-1", "judge:judge-a", 3, True),
+        ("hash-2", "exact", 1, True),
+        ("hash-2", "judge:judge-a", 0, False),  # no accepted decision on contract_sum's type
+        ("hash-2", "schema", 0, False),
+    ]
+    by_hash: dict[str, list[tuple[bool, int]]] = {}
+    for v in verdicts:
+        by_hash.setdefault(v["content_hash"], []).append((v["correct"], v["weight"]))
+    recomputed = sum(
+        sum(c * w for c, w in rows) / sum(w for _, w in rows) for rows in by_hash.values()
+    ) / len(by_hash)
+    assert recomputed == pytest.approx(row["accuracy"]["point"], abs=1e-9)
+
+
+def test_public_verdicts_publish_their_weight(con, tmp_path):
+    seed(con, "pub1", "public", "111.11", "hash-pub")
+    _verdicts_the_headline_does_not_count(con, "pub1")
+    path = tmp_path / "verdicts_public.jsonl"
+    emit_public_verdicts(con, path, judges=JUDGES)
+    weights = {
+        (v["field_name"], v["grader_id"]): v["weight"]
+        for v in map(json.loads, path.read_text(encoding="utf-8").splitlines())
+    }
+    assert weights == {
+        ("contract_sum", "exact"): 1,
+        ("contract_sum", "judge:judge-a"): 0,
+        ("__schema__", "schema"): 0,
+    }
+
+
 def test_private_verdict_type_carries_no_item_id_and_no_output():
     names = {f.name for f in dataclasses.fields(PrivateVerdict)}
     assert "item_id" not in names and "raw_output" not in names

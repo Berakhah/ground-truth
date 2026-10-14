@@ -56,6 +56,16 @@ def test_plan_v3_records_the_judge_decision_unit_and_that_v2_governed_no_sweep()
     assert "Every field type the judge touched is published" in text
 
 
+def test_plan_v3_states_the_judged_field_weight_and_shared_field_set():
+    """Final review 2026-10-14, I1 and I2: the judged field's weight in an item's score and
+    the one-field-set rule across slots are headline procedure, so the plan states them, and
+    says plainly that v3 was amended before merge rather than silently rewritten."""
+    text = " ".join(PLAN.read_text(encoding="utf-8").split())
+    assert "weighted by the number of replicate outputs for that (item, slot)" in text
+    assert "every slot's currently assigned judge" in text
+    assert "amended before merge" in text
+
+
 def test_plan_names_the_sampling_unit():
     assert "item" in PLAN.read_text(encoding="utf-8").lower()
 
