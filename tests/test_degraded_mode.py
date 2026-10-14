@@ -179,3 +179,14 @@ def test_grade_stored_outputs_per_field_dispatch_chain_actually_runs(
     assert schema_verdicts and all(correct for (correct,) in schema_verdicts), (
         "a genuinely correct extraction must pass grade_schema, or nothing downstream runs"
     )
+
+
+def test_judge_target_selection_needs_no_gateway():
+    import ast  # noqa: PLC0415
+
+    from ground_truth.graders.judge import targets  # noqa: PLC0415
+
+    tree = ast.parse(Path(targets.__file__).read_text(encoding="utf-8"))
+    imported = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
+    forbidden = {"ground_truth._bok_shim", "ground_truth.runner", "ground_truth.judge_runner"}
+    assert not imported & forbidden
