@@ -56,7 +56,15 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 
 ### JP-5: Python changes in `matrix/build.py` have had no security review
 
-- **Status:** open.
+- **Status:** done 2026-10-16, no findings. A read-only review of
+  `git diff 5b6cab7..eae2971` for `matrix/build.py`, `publish/artifacts.py` and
+  `scripts/reproduce.py` found no SQL injection (the f-strings interpolate only a literal
+  constant; the split is bound), no private-split leak (public and private verdict files each
+  use their own split, and the new `counts_toward_headline` and `weight` fields add only a bool
+  and an int to already-published rows), and no path or deserialisation issue in
+  `reproduce.py`. It read the code and did not run the tests. It noted `weight` reveals, per
+  private hash, the count of schema-valid outputs, which is already inferable from published
+  rows. The original finding follows.
 - **Problem:** CLAUDE.md requires `security-review` for publish steps touching `golden/`, `triage/`
   or the private split. The review run on 2026-10-15 covered `publish.yml`, `web/lib/fixtures.ts`
   and the fixture pages only, and found nothing. The weighting and completeness-gate code in
