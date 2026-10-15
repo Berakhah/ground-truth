@@ -280,10 +280,11 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   the judge. No majority is INCONCLUSIVE, which scores as incorrect.
 - **How much the judged field weighs.** A deterministic field contributes one verdict per
   replicate to an item's score; the judge contributes one verdict per (item, slot). That
-  verdict is therefore counted once per replicate output of the (item, slot), across all its
-  runs, so the judged field weighs as much as one deterministic field in the item's score
-  whatever the number of runs. Each published verdict carries this as `weight`: 1 for a
-  deterministic verdict, the replicate-output count for a counted judge verdict, 0 for a
+  verdict weighs as many times as the (item, slot) has schema-valid graded outputs, across all
+  its runs, which is the number of verdicts a deterministic field has for it; an output that
+  failed schema validation or has not been graded counts for neither. Each published verdict
+  carries this as `weight`: 1 for a deterministic verdict, that schema-valid graded output
+  count (at least 1) for a counted judge verdict, 0 for a
   verdict that does not count. The recompute (`scripts/reproduce.py`) is a weighted mean per
   item.
 - **One field set for every slot.** A judged field type counts for any slot only if every slot
