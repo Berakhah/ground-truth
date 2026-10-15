@@ -41,6 +41,11 @@ overwritten in place.
   superseded by a later re-grade of the same output, field and grader no longer counts
   (~~both the old and the re-graded verdict counted~~); `counts_toward_headline` is false for it.
 
+- **2026-10-15 -- open items left by the judge-publish merge are logged** in
+  `docs/superpowers/reviews/2026-10-15-judge-publish-open-items.md` (JP-1 to JP-12). None is
+  fixed. JP-1 (a field moved to the judge still counts its old deterministic verdicts) can
+  affect published numbers.
+
 - **2026-10-14 -- the LLM judge is wired in: analysis plan v3, judge decisions per (field type,
   judge).** `docs/analysis-plan.md` is now `plan_version: v3` (threshold 0.667 unchanged; v2's
   judge paragraph kept below). v2 governed zero sweeps (`SELECT count(*) FROM runs` on
