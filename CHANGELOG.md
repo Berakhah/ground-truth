@@ -41,6 +41,15 @@ overwritten in place.
   superseded by a later re-grade of the same output, field and grader no longer counts
   (~~both the old and the re-graded verdict counted~~); `counts_toward_headline` is false for it.
 
+- **2026-10-15 -- judge wins on a judged field type (JP-1).** Where a judge's verdicts count on
+  a field type, the headline scores the field from the judge alone; the field's older
+  deterministic verdicts, left behind when a rubric moved the type to the judge, no longer count
+  beside it (~~both counted, so the field was scored twice~~) and `counts_toward_headline` is
+  false for them. Where the judge does not count (rejected, unassessed, unassigned, held back),
+  deterministic grading still applies. Analysis plan v3 amended in place, after its merge: no
+  sweep had run (`SELECT count(*) FROM runs` returned 0 on 2026-10-15). If one ran elsewhere
+  this must become v4.
+
 - **2026-10-15 -- open items left by the judge-publish merge are logged** in
   `docs/superpowers/reviews/2026-10-15-judge-publish-open-items.md` (JP-1 to JP-12). None is
   fixed. JP-1 (a field moved to the judge still counts its old deterministic verdicts) can

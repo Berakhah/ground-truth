@@ -307,7 +307,10 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   pseudo-field verdicts); or it is a judge verdict that is not from the slot's currently
   assigned judge, is not on the current modal target output, or whose field type is not one
   every ranked slot's judge holds an accepted decision for, or which still has an unjudged
-  current target in the split. No judge decision ever removes a deterministic verdict. A
+  current target in the split. No judge decision removes a deterministic verdict by itself, but
+  where a judge's verdicts do count on a field type, the judge wins: the field's deterministic
+  verdicts (left behind by a rubric that moved the field type to the judge) do not count beside
+  the judge's, and `counts_toward_headline` is false for them. A
   verdict superseded by a later re-grade does not count, and `counts_toward_headline` is false
   for it: the latest verdict wins (latest `computed_at`, the greater verdict id on a tie),
   across deterministic graders for a deterministic field (a rubric that moves a field type to

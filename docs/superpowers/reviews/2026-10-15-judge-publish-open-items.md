@@ -10,7 +10,10 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 
 ### JP-1: a field moved from a deterministic grader to the judge counts both sets of verdicts
 
-- **Status:** open. Predates the branch.
+- **Status:** fixed 2026-10-15 ("judge wins", decided by the project owner): where a judge counts
+  on a field type, its deterministic verdicts no longer count. Analysis plan v3 amended in place
+  after merge (runs = 0), methodology and CHANGELOG updated. The text below is the original
+  finding.
 - **Where:** `ground_truth/matrix/build.py`, the headline verdict selection.
 - **Problem:** the branch dedupes a re-grade across *deterministic* graders (latest verdict per
   output and field). A deterministic verdict does not compete with a `judge:<slot>` verdict, so a
