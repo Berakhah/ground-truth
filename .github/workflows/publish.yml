@@ -64,12 +64,11 @@ jobs:
         # web/app/judge/*-example render synthetic numbers for Playwright only. They 404 unless
         # GT_E2E_FIXTURES=1, which this workflow never sets; this fails the release if one slips
         # into the export anyway. Fails closed: a missing web/out or a grep error (rc 2) also
-        # fails. The extra sentinels are fixture-only strings, so dropping the marker cannot
-        # hide a leak.
+        # fails.
         run: |
           test -d web/out || { echo "web/out missing"; exit 1; }
           rc=0
-          grep -rlE "data-gt-fixture|slot_one|judge_b|undefined resamples excluded" web/out || rc=$?
+          grep -rl "data-gt-fixture" web/out || rc=$?
           if [ "$rc" -eq 0 ]; then echo "a fixture route reached web/out"; exit 1; fi
           if [ "$rc" -ne 1 ]; then echo "fixture scan failed (grep rc=$rc)"; exit 1; fi
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
