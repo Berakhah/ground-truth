@@ -280,23 +280,39 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   the judge. No majority is INCONCLUSIVE, which scores as incorrect.
 - **How much the judged field weighs.** A deterministic field contributes one verdict per
   replicate to an item's score; the judge contributes one verdict per (item, slot). That
-  verdict is therefore counted once per replicate output of the (item, slot), across all its
-  runs, so the judged field weighs as much as one deterministic field in the item's score
-  whatever the number of runs. Each published verdict carries this as `weight`: 1 for a
-  deterministic verdict, the replicate-output count for a counted judge verdict, 0 for a
-  verdict that does not count. The recompute (`scripts/reproduce.py`) is a weighted mean per
-  item.
+  verdict weighs as many times as the (item, slot) has schema-valid graded outputs, across all
+  its runs, which is the number of verdicts a deterministic field has for it; an output that
+  failed schema validation or has not been graded counts for neither. An output is
+  schema-valid when its latest schema verdict is correct, so a re-grade that fails the schema
+  check takes the output out of both. A "not extracted" judge verdict (the modal output has no
+  value for the field) is weighted the same way, by the number of parsed outputs of the
+  (item, slot), at least 1. Each published verdict carries this as `weight`: 1 for a
+  deterministic verdict, that schema-valid graded output count (at least 1) for a counted judge
+  verdict, 0 for a verdict that does not count. The recompute (`scripts/reproduce.py`) is a
+  weighted mean per item.
 - **One field set for every slot.** A judged field type counts for any slot only if every slot
   ranked in the split has an assigned judge holding an accepted decision on it; otherwise it is
   excluded for every slot. The "not distinguishable" statements therefore always compare slots
   over the same fields.
+- **A judged field counts only when judging is complete.** A judged field type counts only when
+  every current judge target for it, across the ranked slots, has a verdict. A target is
+  unjudged when it has no verdict yet from the slot's current judge on the current modal output
+  (fewer than three samples, a reassigned judge, or a moved modal target). While any target is
+  unjudged, the field is out for every slot and the headline uses deterministic grading, like a
+  rejected judge. An inconclusive or not-extracted verdict is
+  a measurement and counts as judged.
 - **Which verdicts count (`counts_toward_headline`).** Each published verdict carries this
   flag so a reader can recompute the headline from the verdict files. A verdict is excluded
   when: its item is retired; the field is not one the item declares (the schema and arithmetic
   pseudo-field verdicts); or it is a judge verdict that is not from the slot's currently
   assigned judge, is not on the current modal target output, or whose field type is not one
-  every ranked slot's judge holds an accepted decision for. Deterministic verdicts on declared fields of non-retired items
-  always count, whatever any judge decision says.
+  every ranked slot's judge holds an accepted decision for, or which still has an unjudged
+  current target in the split. No judge decision ever removes a deterministic verdict. A
+  verdict superseded by a later re-grade does not count, and `counts_toward_headline` is false
+  for it: the latest verdict wins (latest `computed_at`, the greater verdict id on a tie),
+  across deterministic graders for a deterministic field (a rubric that moves a field type to
+  another grader counts it once) and per judge for a judge verdict. A deterministic verdict
+  also does not count when its output's latest schema verdict failed.
 - **The published `inconclusive` list** (`judge_agreement.json`) gives, per (model slot, judge),
   `count` of verdicts whose reason starts "judge inconclusive: " and `n` of all that judge's
   verdicts for that slot. It is counted over both splits, including retired items and verdicts

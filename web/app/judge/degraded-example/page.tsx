@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JudgeAgreementView } from "@/app/judge/page";
 import type { JudgeAgreementPayload } from "@/lib/artifacts";
+import { requireFixtureRoute } from "@/lib/fixtures";
 
 // Test-only fixture route, not linked from anywhere in the real UI. Exists solely so
 // web/e2e/judge-degrades.spec.ts can verify JudgeAgreementView degrades gracefully against a
@@ -11,11 +12,10 @@ import type { JudgeAgreementPayload } from "@/lib/artifacts";
 // (output: 'export' compatible; no per-request branching, no shared mutable state) rather than
 // a file swap, so it carries zero race risk under Playwright's parallel workers.
 //
-// It still ships in the static export (Next has no "test-only, exclude from output: export"
-// primitive), so it needs the same disclosure every other page gives its synthetic data --
-// otherwise a stray visitor or crawler sees plausible alpha/accepted/rejected numbers with no
-// indication they're a fixture. noindex here, and JudgeAgreementView's own `placeholder`
-// banner below, cover that (review finding, post task-46).
+// It must not ship: requireFixtureRoute() (web/lib/fixtures.ts) 404s it unless
+// GT_E2E_FIXTURES=1, which only Playwright's webServer sets, and publish.yml greps web/out
+// after the build and fails the release if a fixture marker is found. As defence in depth the
+// page is still noindex and JudgeAgreementView's own `placeholder` banner flags the data.
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
@@ -86,5 +86,11 @@ const REAL_SHAPE_TODAY: JudgeAgreementPayload = {
 };
 
 export default function JudgeDegradedExamplePage() {
-  return <JudgeAgreementView judge={REAL_SHAPE_TODAY} methodologyUrl="/methodology" />;
+  requireFixtureRoute();
+  return (
+    <>
+      <span hidden data-gt-fixture="degraded-example" />
+      <JudgeAgreementView judge={REAL_SHAPE_TODAY} methodologyUrl="/methodology" />
+    </>
+  );
 }

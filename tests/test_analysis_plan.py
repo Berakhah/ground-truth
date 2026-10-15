@@ -61,7 +61,7 @@ def test_plan_v3_states_the_judged_field_weight_and_shared_field_set():
     the one-field-set rule across slots are headline procedure, so the plan states them, and
     says plainly that v3 was amended before merge rather than silently rewritten."""
     text = " ".join(PLAN.read_text(encoding="utf-8").split())
-    assert "weighted by the number of replicate outputs for that (item, slot)" in text
+    assert "as many times as the (item, slot) has schema-valid graded outputs" in text
     assert "every slot's currently assigned judge" in text
     assert "amended before merge" in text
 
