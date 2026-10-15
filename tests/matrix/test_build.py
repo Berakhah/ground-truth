@@ -667,3 +667,37 @@ def test_a_re_run_with_the_same_modal_value_keeps_the_judged_field_in_the_headli
         "'judge-a', 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())"
     )
     assert "line_item_description" in _per_field(con), "a re-run moved the judge target"
+
+
+# -- a re-graded verdict supersedes the old one (judge-wiring open item: re-grade double count) --
+
+
+def test_a_regraded_verdict_replaces_the_old_one_instead_of_counting_twice(con):
+    """A grader version bump appends a second verdict for the same output and field. Only the
+    latest counts: slot-a's money was correct under grader 1 and wrong under grader 2, so its
+    money accuracy is 0.0, not the 0.5 that counting both would give."""
+    _two_slots(con, accepted=())
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-exact-slot-a-g2', 'o-slot-a', 'total', 'exact', '2', "
+        "'v1', false, 'regraded', now() + INTERVAL 1 SECOND)"
+    )
+    assert _fields_by_slot(con, TWO_JUDGES)["slot-a"] == {"money": 0.0}
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert ids == {"v-exact-slot-a-g2", "v-exact-slot-b"}
+
+
+def test_a_regrade_is_per_grader_so_a_different_grader_on_the_same_field_still_counts(con):
+    """The supersession key includes grader_id: a judge verdict is not replaced by an exact
+    one on the same output and field."""
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert {"v-judge-slot-a", "v-judge-slot-b"} <= ids
+
+
+def test_a_regrade_at_a_bumped_rubric_version_also_supersedes(con):
+    _two_slots(con, accepted=())
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-exact-slot-a-r2', 'o-slot-a', 'total', 'exact', '1', "
+        "'v2', false, 'rubric bump', now() + INTERVAL 1 SECOND)"
+    )
+    assert "v-exact-slot-a" not in headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)

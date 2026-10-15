@@ -296,7 +296,8 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   pseudo-field verdicts); or it is a judge verdict that is not from the slot's currently
   assigned judge, is not on the current modal target output, or whose field type is not one
   every ranked slot's judge holds an accepted decision for. Deterministic verdicts on declared fields of non-retired items
-  always count, whatever any judge decision says.
+  always count, whatever any judge decision says. A verdict superseded by a later re-grade of
+  the same output, field and grader does not count; `counts_toward_headline` is false for it.
 - **The published `inconclusive` list** (`judge_agreement.json`) gives, per (model slot, judge),
   `count` of verdicts whose reason starts "judge inconclusive: " and `n` of all that judge's
   verdicts for that slot. It is counted over both splits, including retired items and verdicts
