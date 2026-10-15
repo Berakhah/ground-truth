@@ -57,7 +57,9 @@ class SlotSpecMissing(RuntimeError):
 # out. A deterministic verdict is never gated by a decision -- a rejected judge falls back to
 # deterministic grading where one exists (docs/analysis-plan.md, "Judge rejection threshold").
 # The join is on the full key `(field_type, judge_slot)`, so it matches at most one decision
-# row and cannot fan a verdict out into several observations.
+# row and cannot fan a verdict out into several observations. A re-grade at a bumped grader or
+# rubric version appends a second verdict for the same output, field and grader; only the latest
+# counts.
 _OBSERVATIONS_SQL = """
     SELECT v.verdict_id, r.model_slot, o.output_id, o.item_id, ifld.field_type, v.correct,
            o.latency_ms, o.token_count, v.grader_id, v.field_name
@@ -71,6 +73,10 @@ _OBSERVATIONS_SQL = """
           AND v.grader_id = 'judge:' || jd.judge_slot
     WHERE i.split = ? AND i.retired_at IS NULL
           AND (v.grader_id NOT LIKE 'judge:%' OR jd.status = 'accepted')
+    QUALIFY row_number() OVER (
+        PARTITION BY v.output_id, v.field_name, v.grader_id
+        ORDER BY v.computed_at DESC, v.verdict_id DESC
+    ) = 1
 """
 
 
