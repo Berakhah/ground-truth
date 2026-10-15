@@ -6,7 +6,9 @@ import { requireFixtureRoute } from "@/lib/fixtures";
 // Test-only fixture route, not linked from the real UI (same pattern as ../degraded-example).
 // Exists so web/e2e/judge.spec.ts can check that two judges on one field type both render and
 // that the inconclusive table appears, without putting fake numbers in the committed
-// artifacts/judge_agreement.json placeholder. Bannered as placeholder data and noindex.
+// artifacts/judge_agreement.json placeholder. Guarded by requireFixtureRoute() (404s unless
+// GT_E2E_FIXTURES=1; publish.yml also fails the release if it reaches web/out). As defence in
+// depth it is bannered as placeholder data and noindex.
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
