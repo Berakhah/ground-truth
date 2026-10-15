@@ -58,7 +58,33 @@ class SlotSpecMissing(RuntimeError):
 # deterministic grading where one exists (docs/analysis-plan.md, "Judge rejection threshold").
 # The join is on the full key `(field_type, judge_slot)`, so it matches at most one decision
 # row and cannot fan a verdict out into several observations.
-_OBSERVATIONS_SQL = """
+#
+# Re-grades. `verdicts` is append-only: a re-grade at a bumped grader or rubric version, or after
+# the rubric moved a field type to another grader, appends verdicts beside the old ones. The
+# latest wins (computed_at, then the greater verdict_id on a tie), so each output contributes
+# at most one deterministic verdict per field whichever deterministic grader wrote it (final
+# review 2026-10-15, I1), and at most one verdict per judge per field -- a judge verdict is not
+# superseded by a deterministic one or by another judge's; the decision gate and the assigned-judge
+# rule in `_headline_observations` decide which of those counts.
+#
+# Schema. A deterministic verdict counts only while its output's latest `__schema__` verdict is
+# correct (`_LATEST_SCHEMA_SQL`): grading writes no field verdict for an unparseable output, so
+# after a re-grade that fails the schema check, that output's older field verdicts would still be
+# the latest of their field (final review 2026-10-15, I2). A judge verdict is not gated on the
+# schema: an unparseable modal target is judged, and scores, as absent.
+_LATEST_SCHEMA_SQL = """
+    latest_schema AS (
+        SELECT output_id, correct
+        FROM verdicts
+        WHERE field_name = '__schema__'
+        QUALIFY row_number() OVER (
+            PARTITION BY output_id ORDER BY computed_at DESC, verdict_id DESC
+        ) = 1
+    )
+"""
+
+_OBSERVATIONS_SQL = f"""
+    WITH {_LATEST_SCHEMA_SQL}
     SELECT v.verdict_id, r.model_slot, o.output_id, o.item_id, ifld.field_type, v.correct,
            o.latency_ms, o.token_count, v.grader_id, v.field_name
     FROM verdicts v
@@ -69,8 +95,15 @@ _OBSERVATIONS_SQL = """
     LEFT JOIN judge_decisions jd
            ON jd.field_type = ifld.field_type
           AND v.grader_id = 'judge:' || jd.judge_slot
+    LEFT JOIN latest_schema s ON s.output_id = v.output_id
     WHERE i.split = ? AND i.retired_at IS NULL
           AND (v.grader_id NOT LIKE 'judge:%' OR jd.status = 'accepted')
+          AND (v.grader_id LIKE 'judge:%' OR s.correct IS TRUE)
+    QUALIFY row_number() OVER (
+        PARTITION BY v.output_id, v.field_name,
+                     CASE WHEN v.grader_id LIKE 'judge:%' THEN v.grader_id END
+        ORDER BY v.computed_at DESC, v.verdict_id DESC
+    ) = 1
 """
 
 
@@ -88,8 +121,8 @@ def _current_judge_targets(
     grading then writes a verdict for the new target, and the old target's verdict stays in the
     append-only `verdicts` table. Counting only the current target's verdict keeps one judge
     observation per (item, slot, field) instead of two different judgements of it. A current
-    target not yet judged (fewer than three samples) has no verdict, so the field is unjudged
-    for that item rather than scored from a stale output.
+    target with no verdict yet from the slot's current judge has none to count, so the field
+    is unjudged for that item rather than scored from a stale output.
 
     Cost: `select_judge_targets` reads and JSON-parses every output once per judged field
     name, both splits, on every build -- at 300 items x 6 slots x 5 replicates that is 9,000
@@ -151,18 +184,68 @@ class _Observation:
     # How many observations this verdict stands for in the item's score. A deterministic
     # grader writes one verdict per replicate output, so each of its verdicts weighs 1. The
     # judge writes one verdict per (item, slot), on the modal output, so its verdict weighs the
-    # (item, slot)'s replicate-output count: the judged field then carries as much of the
-    # item's score as a deterministic field does, however many runs the slot has (final review
-    # 2026-10-14, I2). Applied by repeating the observation, so `stats.bootstrap`'s flat
-    # per-item mean is unchanged.
+    # (item, slot)'s count of outputs whose latest `__schema__` verdict is correct (floor 1):
+    # the judged field then carries as much of the item's score as a deterministic field does,
+    # however many runs the slot has and however often it was re-graded (final review
+    # 2026-10-14, I2; 2026-10-15, I2). Applied by repeating the observation, so
+    # `stats.bootstrap`'s flat per-item mean is unchanged.
     weight: int
 
 
-_REPLICATES_SQL = """
+# The judged field's weight: how many verdicts a deterministic field has for this (item, slot),
+# i.e. the outputs whose latest `__schema__` verdict is correct -- the same set
+# `_OBSERVATIONS_SQL` admits deterministic verdicts from. Counting every stored output let
+# schema-invalid and not-yet-graded replicates inflate the judged field's share of the item
+# score; counting any correct schema verdict ever kept an output re-graded as unparseable in
+# the weight after its field verdicts had dropped out (final review 2026-10-15, I2).
+_REPLICATES_SQL = f"""
+    WITH {_LATEST_SCHEMA_SQL}
     SELECT o.item_id, r.model_slot, count(*)
-    FROM outputs o JOIN runs r ON r.run_id = o.run_id
+    FROM outputs o
+    JOIN runs r ON r.run_id = o.run_id
+    JOIN latest_schema s ON s.output_id = o.output_id
+    WHERE s.correct
     GROUP BY o.item_id, r.model_slot
 """
+
+
+def _unjudged_field_types(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    split: Split,
+    slots: set[str],
+    judged: set[tuple[str, str]],
+    field_types: set[str],
+) -> frozenset[str]:
+    """The judged field types with a current judge target that has no counted verdict yet.
+
+    `judged` is `(output_id, field_name)` for every judge verdict that survived the other
+    gates; `field_types` the judged types still in play. A target belongs to this split when its
+    item is in the split, is not retired, and declares the field. A target is unjudged when it
+    has no verdict yet from the slot's current judge on the current modal output: fewer than
+    three samples (`judge_verdict` returns None), a reassigned judge that has not judged it, or
+    a modal target that moved to an output not judged yet. Unjudged is not a measurement, so
+    the type is held back for every slot until the sweep finishes it. An inconclusive or
+    not-extracted verdict exists and so counts as judged.
+    """
+    if not field_types:
+        return frozenset()
+    declared = con.execute(
+        "SELECT i.item_id, f.field_name, f.field_type FROM items i "
+        "JOIN item_fields f ON f.item_id = i.item_id "
+        "WHERE i.split = ? AND i.retired_at IS NULL",
+        [split.value],
+    ).fetchall()
+    type_of = {(item_id, name): ftype for item_id, name, ftype in declared}
+    names = sorted({name for (_, name), ftype in type_of.items() if ftype in field_types})
+    return frozenset(
+        type_of[(target.item_id, name)]
+        for name in names
+        for target in select_judge_targets(con, name)
+        if (target.item_id, name) in type_of
+        and target.model_slot in slots
+        and (target.output_id, name) not in judged
+    )
 
 
 def _headline_observations(
@@ -173,8 +256,9 @@ def _headline_observations(
     `_slot_accuracy` scores these and `headline_verdict_ids` exposes their ids, which the
     publisher writes as `counts_toward_headline` so a recompute from the published verdict
     files reaches the published number (review 2026-10-14, I3). On top of `_OBSERVATIONS_SQL`
-    (the split, retired items, fields the item does not declare such as `__schema__`, and the
-    judge-decision gate), a judge verdict counts only when:
+    (the split, retired items, fields the item does not declare such as `__schema__`, the
+    judge-decision gate, latest-wins on re-grades, and a deterministic verdict only from an
+    output whose latest `__schema__` verdict is correct), a judge verdict counts only when:
 
     - it is on the current modal target (`_current_judge_targets`), and
     - it is from the slot's currently assigned judge. `judges` maps each model slot to that
@@ -184,7 +268,12 @@ def _headline_observations(
       contradict (review 2026-10-14, I2). A slot with no assigned judge counts no judge
       verdict.
     - its field type is one every ranked slot's assigned judge holds an accepted decision on
-      (`_judged_field_types_every_slot_holds`).
+      (`_judged_field_types_every_slot_holds`), and
+    - its field type has no current judge target left unjudged in this split
+      (`_unjudged_field_types`). While any target for it has no verdict yet (a sweep still
+      running), the type is out for every slot: counting the judged items would rank one slot
+      on more descriptions than another. It falls back to deterministic grading, as for a
+      rejected judge. An inconclusive verdict is a measurement and counts as judged.
     """
     rows = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
     current_targets = _current_judge_targets(
@@ -195,7 +284,7 @@ def _headline_observations(
         (item_id, slot): int(count)
         for item_id, slot, count in con.execute(_REPLICATES_SQL).fetchall()
     }
-    observations: list[_Observation] = []
+    candidates: list[tuple[_Observation, str | None]] = []
     for (
         verdict_id,
         slot,
@@ -216,20 +305,35 @@ def _headline_observations(
                 continue  # not the slot's currently assigned judge
             if field_type not in shared:
                 continue  # some ranked slot's judge is not accepted on it: out for every slot
-        observations.append(
-            _Observation(
-                verdict_id=verdict_id,
-                slot=slot,
-                output_id=output_id,
-                item_id=item_id,
-                field_type=field_type,
-                correct=bool(correct),
-                latency_ms=int(latency_ms),
-                token_count=token_count,
-                weight=(replicates[(item_id, slot)] if grader_id.startswith(_JUDGE_PREFIX) else 1),
+        candidates.append(
+            (
+                _Observation(
+                    verdict_id=verdict_id,
+                    slot=slot,
+                    output_id=output_id,
+                    item_id=item_id,
+                    field_type=field_type,
+                    correct=bool(correct),
+                    latency_ms=int(latency_ms),
+                    token_count=token_count,
+                    weight=(
+                        max(1, replicates.get((item_id, slot), 0))
+                        if grader_id.startswith(_JUDGE_PREFIX)
+                        else 1
+                    ),
+                ),
+                field_name if grader_id.startswith(_JUDGE_PREFIX) else None,
             )
         )
-    return observations
+    judged = {(o.output_id, name) for o, name in candidates if name is not None}
+    held_back = _unjudged_field_types(
+        con,
+        split=split,
+        slots={o.slot for o, _ in candidates},
+        judged=judged,
+        field_types={o.field_type for o, name in candidates if name is not None},
+    )
+    return [o for o, name in candidates if name is None or o.field_type not in held_back]
 
 
 def headline_verdict_weights(

@@ -65,9 +65,10 @@ def recompute_accuracy(verdicts: list[dict[str, object]], slot: str) -> float:
         # The file also lists verdicts the headline does not count (schema checks, judges
         # without an accepted decision, a judge no longer assigned, retired items); each says so
         # in `counts_toward_headline`. `weight` is how many times a counted verdict counts: 1
-        # for a deterministic verdict (one per replicate), the replicate count of its (item,
-        # slot) for a judge verdict (one per item and slot). A release published before these
-        # fields lacks them, and then every row counts once, as this script always assumed.
+        # for a deterministic verdict (one per schema-valid output), the number of schema-valid
+        # graded outputs of its (item, slot), at least 1, for a judge verdict (one per item and
+        # slot). A release published before these fields lacks them, and then every row counts
+        # once, as this script always assumed.
         if v["slot"] == slot and v.get("counts_toward_headline", True) is True:
             weight = v.get("weight", 1)
             if not isinstance(weight, int) or isinstance(weight, bool) or weight < 1:

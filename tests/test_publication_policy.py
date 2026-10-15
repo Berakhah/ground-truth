@@ -40,7 +40,8 @@ def test_judge_wiring_entry_matches_the_shipped_headline_rules():
     text = " ".join(CHANGELOG.read_text(encoding="utf-8").split())
     assert "A judge with no decision is not scored in the headline" in text
     assert "on `data/results.duckdb` returned 0 on 2026-10-14" in text
-    assert "weighted by the number of replicate outputs" in text
+    assert "weighted by the number of replicate outputs" in text  # 2026-10-14 entry, kept
+    assert "weighted by the number of schema-valid graded outputs" in text  # 2026-10-15
     assert "every slot's currently assigned judge" in text
 
 
