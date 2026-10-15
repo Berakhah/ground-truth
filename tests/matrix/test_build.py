@@ -123,6 +123,7 @@ def _populate_two_field_types(
     - `date` (`invoice_date`): an exact verdict only; no decision can ever remove it.
     - `line_item_description` (`line_1_description`): a `judge:judge-a` verdict only.
 
+    o1 parsed (a correct `__schema__` verdict), as grading writes before any field verdict.
     `decisions` is `(field_type, judge_slot, status)` rows for judge_decisions. `token_count`
     defaults to NULL -- the pre-migration / degraded-mode case."""
     con.execute(
@@ -145,6 +146,10 @@ def _populate_two_field_types(
         "INSERT INTO outputs VALUES ('o1', 'r1', 'i1', 1, '{}', 'call1', 'prov', NULL, 100,"
         " 'ph', now(), ?)",
         [token_count],
+    )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-schema', 'o1', '__schema__', 'schema', '1', 'v1', true,"
+        " 'ok', now())"
     )
     con.execute(
         "INSERT INTO verdicts VALUES ('v1', 'o1', 'total', 'exact', '1', 'v1', true, 'ok', now())"
@@ -264,10 +269,6 @@ def test_headline_verdict_ids_are_exactly_the_verdicts_the_headline_counts(con):
     not a copy: here the exact verdicts count; judge-a's are out (reassigned away from), and
     judge-b's count (assigned, accepted, on the current target)."""
     _reassigned_to_judge_b(con)
-    con.execute(
-        "INSERT INTO verdicts VALUES ('v-schema', 'o1', '__schema__', 'schema', '1', 'v1', true,"
-        " 'ok', now())"
-    )
     ids = headline_verdict_ids(con, split=Split.PUBLIC, judges={"slot-a": "judge-b"})
     assert ids == {"v1", "v2", "v5"}
 
@@ -314,8 +315,9 @@ def test_a_judged_field_weighs_as_much_as_a_deterministic_field_across_runs(con)
     """Worked example. Deterministic graders write a verdict per replicate; the judge writes
     one per (item, slot). Unweighted, 2 deterministic fields x 5 replicates + 1 judge verdict
     gave the judged field 1/11 of the item's score, falling to 1/21 after a second run. Weighted
-    by the (item, slot)'s replicate count it is 1/3, the same as each deterministic field, and
-    stays 1/3. The judged field is the only correct one, so the item score is its share."""
+    by the (item, slot)'s schema-valid graded output count (here every replicate) it is 1/3,
+    the same as each deterministic field, and stays 1/3. The judged field is the only correct
+    one, so the item score is its share."""
     con.execute(
         "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
         "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
@@ -349,7 +351,7 @@ def test_a_judged_field_weighs_as_much_as_a_deterministic_field_across_runs(con)
     _replicated_run(con, "r2", "2026-02-01")
     assert item_score() == pytest.approx(1 / 3)
     weights = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)
-    assert weights["v-judge"] == 10  # noqa: PLR2004 -- ten replicate outputs for (i1, slot-a)
+    assert weights["v-judge"] == 10  # noqa: PLR2004 -- ten schema-valid outputs for (i1, slot-a)
     assert weights["v-r1-1-total"] == 1
 
 
@@ -427,7 +429,8 @@ def test_the_judged_weight_never_falls_below_one(con):
 
 
 def _two_slots(con, *, accepted: tuple[str, ...]) -> None:
-    """One item, two slots, one output each. Each output has an exact `money` verdict and a
+    """One item, two slots, one output each. Each output parsed (a correct `__schema__`
+    verdict) and has an exact `money` verdict and a
     judge verdict on `line_item_description` from its own slot's judge (slot-a -> judge-a,
     slot-b -> judge-b). `accepted` lists the judges holding an accepted decision on it."""
     con.execute(
@@ -448,6 +451,11 @@ def _two_slots(con, *, accepted: tuple[str, ...]) -> None:
             "INSERT INTO outputs VALUES (?, ?, 'i1', 1, '{}', 'call', 'prov', NULL, 100, 'ph',"
             " now(), NULL)",
             [f"o-{slot}", f"r-{slot}"],
+        )
+        con.execute(
+            "INSERT INTO verdicts VALUES (?, ?, '__schema__', 'schema', '1', 'v1', true, 'ok',"
+            " now())",
+            [f"v-schema-{slot}", f"o-{slot}"],
         )
         con.execute(
             "INSERT INTO verdicts VALUES (?, ?, 'total', 'exact', '1', 'v1', true, 'ok', now())",
@@ -761,12 +769,29 @@ def test_a_regraded_verdict_replaces_the_old_one_instead_of_counting_twice(con):
     assert ids == {"v-exact-slot-a-g2", "v-exact-slot-b"}
 
 
-def test_a_regrade_is_per_grader_so_a_different_grader_on_the_same_field_still_counts(con):
-    """The supersession key includes grader_id: a judge verdict is not replaced by an exact
-    one on the same output and field."""
-    _two_slots(con, accepted=("judge-a", "judge-b"))
+def test_a_judge_verdict_and_a_deterministic_verdict_on_one_field_both_survive(con):
+    """Supersession is per grader for a judge: an exact verdict on the same output and field
+    does not replace the judge's, nor the judge's the exact one. Which of them the headline
+    counts is the decision gate's business, not the re-grade rule's."""
+    _populate_two_field_types(con, decisions=(("money", "judge-a", "accepted"),))
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=JUDGES)
+    assert {"v1", "v3"} <= ids  # exact and judge-a, both on o1's `total`
+
+
+def test_a_field_moved_to_another_deterministic_grader_counts_once(con):
+    """Final review 2026-10-15, I1: a rubric that moves money from `exact` to
+    `numeric_tolerance`, then a re-grade, leaves both graders' verdicts on o-slot-a's total.
+    Keyed by grader, both counted (money 0.5) and the field weighed 2 against the judge's 1.
+    Across deterministic graders the latest verdict wins."""
+    _two_slots(con, accepted=())
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-tol-slot-a', 'o-slot-a', 'total', 'numeric_tolerance', "
+        "'1', 'v2', false, 'outside tolerance', now() + INTERVAL 1 SECOND)"
+    )
+    assert _fields_by_slot(con, TWO_JUDGES)["slot-a"] == {"money": 0.0}
     ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
-    assert {"v-judge-slot-a", "v-judge-slot-b"} <= ids
+    assert "v-tol-slot-a" in ids
+    assert "v-exact-slot-a" not in ids
 
 
 def test_a_regrade_at_a_bumped_rubric_version_also_supersedes(con):
@@ -775,7 +800,167 @@ def test_a_regrade_at_a_bumped_rubric_version_also_supersedes(con):
         "INSERT INTO verdicts VALUES ('v-exact-slot-a-r2', 'o-slot-a', 'total', 'exact', '1', "
         "'v2', false, 'rubric bump', now() + INTERVAL 1 SECOND)"
     )
-    assert "v-exact-slot-a" not in headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert "v-exact-slot-a-r2" in ids
+    assert "v-exact-slot-a" not in ids
+
+
+def test_equal_computed_at_is_broken_by_the_greater_verdict_id(con):
+    """Two verdicts written in one clock tick: the order must not be the engine's."""
+    _two_slots(con, accepted=())
+    con.execute("UPDATE verdicts SET computed_at = TIMESTAMPTZ '2026-10-15 08:00:00+00'")
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-exact-slot-a-z', 'o-slot-a', 'total', 'exact', '2', "
+        "'v1', false, 'same tick', TIMESTAMPTZ '2026-10-15 08:00:00+00')"
+    )
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert "v-exact-slot-a-z" in ids  # 'v-exact-slot-a-z' > 'v-exact-slot-a'
+    assert "v-exact-slot-a" not in ids
+
+
+# -- a schema re-grade decides whether the output counts (final review 2026-10-15, I2) --------
+
+
+def _regrade_schema(con, output_id: str, *, correct: bool, version: str, second: int) -> None:
+    """Grading at grader version `version`, `second` seconds after the fixture's pass: a new
+    `__schema__` verdict, and -- only when it parsed -- new verdicts on both deterministic
+    fields (grade.py writes no field verdict for an unparseable output)."""
+    at = f"now() + INTERVAL {second} SECOND"
+    con.execute(
+        f"INSERT INTO verdicts VALUES (?, ?, '__schema__', 'schema', ?, 'v1', ?, 'regrade', {at})",
+        [f"v-{output_id}-schema-{version}", output_id, version, correct],
+    )
+    if correct:
+        for field_name in ("total", "invoice_date"):
+            con.execute(
+                f"INSERT INTO verdicts VALUES (?, ?, ?, 'exact', ?, 'v1', false, 'wrong', {at})",
+                [f"v-{output_id}-{field_name}-{version}", output_id, field_name, version],
+            )
+
+
+def _deterministic_ids(con) -> dict[str, set[str]]:
+    """The counted deterministic verdict ids, by field name."""
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=JUDGES)
+    by_field: dict[str, set[str]] = {"total": set(), "invoice_date": set()}
+    for verdict_id, field_name in con.execute(
+        "SELECT verdict_id, field_name FROM verdicts "
+        "WHERE field_name IN ('total', 'invoice_date') AND grader_id NOT LIKE 'judge:%'"
+    ).fetchall():
+        if verdict_id in ids:
+            by_field[field_name].add(verdict_id)
+    return by_field
+
+
+def test_an_output_re_graded_as_unparseable_counts_for_neither(con):
+    """grade.py writes a new `__schema__` verdict and, when it fails, no field verdict, so
+    r1-5's old exact verdicts were still the latest of their field and kept counting, and the
+    judged weight (any correct schema verdict, ever) still counted r1-5. The published rule
+    (methodology, the judged field's weight) is that a schema-invalid output counts for
+    neither: its deterministic verdicts drop out and the judged weight drops by one."""
+    _weight_fixture(con)
+    _regrade_schema(con, "r1-5", correct=False, version="2", second=1)
+    by_field = _deterministic_ids(con)
+    assert "v-r1-5-total" not in by_field["total"]
+    assert "v-r1-5-invoice_date" not in by_field["invoice_date"]
+    weight = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)["v-judge"]
+    assert weight == 4  # noqa: PLR2004
+    assert {len(ids) for ids in by_field.values()} == {weight}
+
+
+def test_the_judged_weight_floor_holds_when_every_output_is_re_graded_unparseable(con):
+    _weight_fixture(con)
+    for replicate in range(1, 6):
+        _regrade_schema(con, f"r1-{replicate}", correct=False, version="2", second=1)
+    assert _deterministic_ids(con) == {"total": set(), "invoice_date": set()}
+    # The judge verdict on the unparseable modal target still counts (it scores as absent).
+    assert headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)["v-judge"] == 1
+
+
+def test_an_output_re_graded_unparseable_then_parseable_counts_again(con):
+    _weight_fixture(con)
+    _regrade_schema(con, "r1-5", correct=False, version="2", second=1)
+    _regrade_schema(con, "r1-5", correct=True, version="3", second=2)
+    by_field = _deterministic_ids(con)
+    assert "v-r1-5-total-3" in by_field["total"]
+    assert "v-r1-5-total" not in by_field["total"]  # superseded by the version-3 re-grade
+    weight = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)["v-judge"]
+    assert weight == 5  # noqa: PLR2004
+    assert {len(ids) for ids in by_field.values()} == {weight}
+
+
+def test_the_judged_weight_matches_the_deterministic_count_across_re_grades(con):
+    """The invariant behind the weight: for every (item, slot), the judged field weighs exactly
+    as many verdicts as each deterministic field has, through a grader move on one field, a
+    rubric bump on another, and schema flips (r1-3 out, r1-4 out and back)."""
+    _weight_fixture(con)
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-r1-1-total-tol', 'r1-1', 'total', 'numeric_tolerance', "
+        "'1', 'v2', true, 'within', now() + INTERVAL 1 SECOND)"
+    )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-r1-2-date-r2', 'r1-2', 'invoice_date', 'exact', '1', "
+        "'v2', true, 'rubric bump', now() + INTERVAL 1 SECOND)"
+    )
+    _regrade_schema(con, "r1-3", correct=False, version="2", second=2)
+    _regrade_schema(con, "r1-4", correct=False, version="2", second=2)
+    _regrade_schema(con, "r1-4", correct=True, version="3", second=3)
+    by_field = _deterministic_ids(con)
+    weight = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)["v-judge"]
+    assert {field: len(ids) for field, ids in by_field.items()} == {"total": 4, "invoice_date": 4}
+    assert weight == 4  # noqa: PLR2004
+    assert "v-r1-1-total-tol" in by_field["total"]
+    assert "v-r1-2-date-r2" in by_field["invoice_date"]
+
+
+# -- what holds a judged type back: a target with no verdict from the current judge -----------
+
+
+def test_a_reassigned_judge_with_no_verdict_yet_holds_the_judged_type_back(con):
+    """slot-b was reassigned to judge-c (accepted) after judge-b judged its target. judge-b's
+    verdict no longer counts and judge-c has none yet: the target is unjudged, so the type is
+    out for every slot."""
+    _two_slots(con, accepted=("judge-a", "judge-b", "judge-c"))
+    fields = _fields_by_slot(con, {"slot-a": "judge-a", "slot-b": "judge-c"})
+    assert "line_item_description" not in fields["slot-a"]
+    assert "line_item_description" not in fields["slot-b"]
+
+
+def test_a_moved_modal_target_with_no_verdict_yet_holds_the_judged_type_back(con):
+    """slot-a's only judge verdict is on o1, the modal target before o2 and o3 arrived; the
+    target is now o2, which has no verdict yet."""
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'line_1_description', 'line_item_description', "
+        "'Concrete works', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO runs VALUES ('r1', now(), NULL, 'slot-a', 'ref', 'prov', false, 's1',"
+        " 'sha', 'h')"
+    )
+    for output_id, replicate, value in (
+        ("o1", 1, "Concrete"),
+        ("o2", 2, "Concrete works"),
+        ("o3", 3, "Concrete works"),
+    ):
+        con.execute(
+            "INSERT INTO outputs VALUES (?, 'r1', 'i1', ?, ?, 'call', 'prov', NULL, 100, 'ph',"
+            " now(), NULL)",
+            [output_id, replicate, json.dumps({"line_1_description": value})],
+        )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-stale', 'o1', 'line_1_description', ?, '1', 'v1', false,"
+        " 'judge majority NOT_EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES ('line_item_description', "
+        "'judge-a', 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())"
+    )
+    assert _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges=JUDGES) == {}
 
 
 # -- a judged field counts only once every current target is judged (open item: completeness) --
@@ -783,7 +968,7 @@ def test_a_regrade_at_a_bumped_rubric_version_also_supersedes(con):
 
 def _add_item_with_slot_b_unjudged(con) -> None:
     """A second item, i2, with a description field; slot-a's output has a judge verdict,
-    slot-b's has none (fewer than three samples so far)."""
+    slot-b's has none yet."""
     con.execute(
         "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
         "VALUES ('i2', 'public', 'v1', 'synthetic', 'h2', now())"

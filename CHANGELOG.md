@@ -12,6 +12,25 @@ overwritten in place.
 
 ### Changed
 
+- **2026-10-15 -- a re-grade counts once across graders and across schema re-checks.** A
+  deterministic verdict is superseded by a later re-grade of the same output and field
+  whichever deterministic grader wrote it, so a rubric that moves a field type to another
+  grader no longer counts both graders' verdicts (~~superseded only by the same grader~~); a
+  judge verdict is still superseded only by the same judge's. A deterministic verdict counts
+  only while its output's latest schema verdict is correct, and the judged weight counts the
+  same outputs (~~any correct schema verdict ever~~): an output re-graded as unparseable drops
+  out of both, and counts again once re-graded as parseable. The judged weight then equals the
+  number of verdicts each deterministic field has for the (item, slot) under any re-grade.
+  Analysis plan v3 amended in place (no sweep has run). No live sweep exists, so no published
+  figure changes.
+
+- **2026-10-15 -- the judged weight counts schema-valid graded outputs only.** The judge's one
+  verdict per (item, slot) is weighted by the number of schema-valid graded outputs of that
+  (item, slot), which is the number of verdicts a deterministic field has for it
+  (~~the number of replicate outputs stored~~); an output that failed schema validation or has
+  not been graded counts for neither, and the weight is at least 1. Analysis plan v3 amended
+  in place (no sweep has run).
+
 - **2026-10-15 -- a judged field counts only once every current target is judged.** A judged
   field type counts only when every current judge target for it, across the ranked slots, has a
   verdict; while any is unjudged the field is out for every slot and the headline uses
@@ -34,9 +53,9 @@ overwritten in place.
     `grade` scores LINE_ITEM_DESCRIPTION from the majority vote (`grader_id` `judge:<slot>`).
     No majority is INCONCLUSIVE, which scores as incorrect.
   - Decisions are recorded per (field type, judge). A judge with no decision is not scored in
-    the headline (~~an unassessed judge was scored~~); its verdicts are still published. Today every judge is undecided: `record_decision` has
-    no production caller and there are no human labels, so LINE_ITEM_DESCRIPTION is reported
-    as not measured in the headline.
+    the headline (~~an unassessed judge was scored~~); its verdicts are still published. Today
+    every judge is undecided: `record_decision` has no production caller and there are no human
+    labels, so LINE_ITEM_DESCRIPTION is reported as not measured in the headline.
   - Headline counts a judge verdict only from the slot's currently assigned judge, with an
     accepted decision for that field type, on the current modal target. Every published verdict
     carries `counts_toward_headline`; `judge_agreement.json` names each judge and gains an
@@ -46,11 +65,10 @@ overwritten in place.
   - Final-review rulings, added to v3 before merge: a judged field type counts toward any
     slot's headline only when every slot has an assigned judge and every slot's currently
     assigned judge holds an accepted decision for it, otherwise it is excluded for all slots;
-    and the judge's one verdict per (item, slot) is weighted by the number of schema-valid
-    graded outputs of that (item, slot), which is the number of verdicts a deterministic field
-    has for it; an output that failed schema validation or has not been graded counts for
-    neither (amended in place before any sweep). Every published verdict also carries `weight`, and `scripts/reproduce.py`
-    recomputes a weighted mean per item.
+    and the judge's one verdict per (item, slot) is weighted by the number of replicate outputs
+    for that (item, slot), so the judged field weighs as much as one deterministic field at any
+    run count (refined 2026-10-15, below). Every published verdict also carries `weight`, and
+    `scripts/reproduce.py` recomputes a weighted mean per item.
   - Target order changed to run-major (runs in start order, then replicate, then output id), so
     targets judged under the older replicate-major order may move once in a multi-run store.
     No live sweep exists, so no published figure changes. `judge_decisions` changed shape:
@@ -106,10 +124,10 @@ overwritten in place.
   synthetic data; the previous hand-written demo stated a z (3.41) its own intervals did not give
   (2.85). Follow-up review (code review 2026-09-27 #3): the regression-watch MDE now uses the
   standard error of the z test that decides detection (it quoted the paired McNemar formula,
-  which describes a more powerful test and so overstated what a null look could see); p-values no longer underflow to 0 at large
-  |z| and are printed to significant figures (a BH p printed as ~~0.0000~~); only the
-  registered 13-look, alpha 0.05 calendar is accepted; a cell with no observations is refused
-  by name instead of crashing the look.
+  which describes a more powerful test and so overstated what a null look could see); p-values
+  no longer underflow to 0 at large |z| and are printed to significant figures (a BH p printed
+  as ~~0.0000~~); only the registered 13-look, alpha 0.05 calendar is accepted; a cell with no
+  observations is refused by name instead of crashing the look.
 - **2026-09-28 -- judge decisions publish what `assess` said** (code review 2026-09-27 #2).
   `judge_decisions` gains nullable `statement` and `alpha_method` columns, and
   `judge_agreement.json` publishes both on every row. The publisher no longer writes its own
@@ -135,11 +153,12 @@ overwritten in place.
   Previously (since 5ada687) every publish overwrote the hand-committed regression-watch
   result with an empty stub; the stub is now written only when none is committed, and the
   reproducibility gate no longer compares that file, which is not regenerated from the
-  results database. A failed rollback
-  keeps the original exception and notes the folder holding the previous release. A cell
-  whose z cannot be computed (NaN or infinite bound, zero-width pair) is refused by name,
-  every such cell in one error, instead of aborting anonymously or publishing z = 0. The judge's "conditional on alpha being defined" caveat is decided
-  from a counted `n_undefined_excluded`, not by searching the interval's `method` string.
+  results database. A failed rollback keeps the original exception and notes the folder
+  holding the previous release. A cell whose z cannot be computed (NaN or infinite bound,
+  zero-width pair) is refused by name, every such cell in one error, instead of aborting
+  anonymously or publishing z = 0. The judge's "conditional on alpha being defined" caveat is
+  decided from a counted `n_undefined_excluded`, not by searching the interval's `method`
+  string.
   Methodology figure: naive fixed-threshold error ~~"about a third of quarters"~~ -> 0.334
   with a look-sized baseline to 0.487 with a noiseless one, assumption stated for each.
   Published shape: `leaderboard.json`'s `judge_agreement[].alpha_ci` gains

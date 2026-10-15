@@ -48,6 +48,12 @@ def seed(con, item_id, split, secret_value, content_hash):
         "INSERT INTO outputs VALUES (?,?,?,1,?,'call','prov',NULL,10,'ph',?,NULL)",
         [f"o-{item_id}", f"r-{item_id}", item_id, json.dumps({"contract_sum": secret_value}), now],
     )
+    # The output parsed: grading writes this before any field verdict, and a deterministic
+    # verdict counts only when its output's latest schema verdict is correct.
+    con.execute(
+        "INSERT INTO verdicts VALUES (?,?,'__schema__','schema','1','v1',true,'ok',?)",
+        [f"v-schema-ok-{item_id}", f"o-{item_id}", now],
+    )
     con.execute(
         "INSERT INTO verdicts VALUES (?,?,'contract_sum','exact','1','v1',true,'ok',?)",
         [f"v-{item_id}", f"o-{item_id}", now],
@@ -130,10 +136,17 @@ def _models_yaml(tmp_path: Path, *, judge: str) -> Path:
 
 def _verdicts_the_headline_does_not_count(con, item_id: str) -> None:
     """A schema verdict (never a field the headline scores) and a judge verdict with no
-    accepted decision, both incorrect, so counting either would move the recomputed number."""
+    accepted decision, both incorrect, so counting either would move the recomputed number.
+    The failed schema verdict is on a second, unparseable replicate: grading writes no field
+    verdict for it, and a failed schema verdict on the seeded output would exclude that output's
+    exact verdict from the headline."""
+    con.execute(
+        "INSERT INTO outputs VALUES (?,?,?,2,'not json','call','prov',NULL,10,'ph',now(),NULL)",
+        [f"o-{item_id}-bad", f"r-{item_id}", item_id],
+    )
     con.execute(
         "INSERT INTO verdicts VALUES (?,?,'__schema__','schema','1','v1',false,'bad',now())",
-        [f"v-schema-{item_id}", f"o-{item_id}"],
+        [f"v-schema-{item_id}", f"o-{item_id}-bad"],
     )
     con.execute(
         "INSERT INTO verdicts VALUES (?,?,'contract_sum','judge:judge-a','1','v1',false,"
@@ -173,6 +186,7 @@ def test_private_verdicts_flag_whether_they_count_toward_the_headline(con, tmp_p
         ("hash-priv", "contract_sum", "judge:judge-a"): False,
         ("hash-priv", "__schema__", "schema"): False,
         ("hash-retired", "contract_sum", "exact"): False,  # retired: out of current accuracy
+        ("hash-retired", "__schema__", "schema"): False,
     }
 
 
@@ -233,7 +247,7 @@ def _judged_private_item_with_three_replicates(con) -> None:
             "INSERT INTO verdicts VALUES (?,?,'contract_sum','exact','1','v1',true,'ok',now())",
             [f"v-priv1-{replicate}", f"o-priv1-{replicate}"],
         )
-    for output_id in ("o-priv1", "o-priv1-2", "o-priv1-3"):  # all three parsed: weight is 3
+    for output_id in ("o-priv1-2", "o-priv1-3"):  # all three parsed (`seed` did o-priv1): 3
         con.execute(
             "INSERT INTO verdicts VALUES (?,?,'__schema__','schema','1','v1',true,'ok',now())",
             [f"v-schema-{output_id}", output_id],
@@ -289,6 +303,7 @@ def test_published_weights_regenerate_the_weighted_headline(con, tmp_path):
         ("hash-2", "exact", 1, True),
         ("hash-2", "judge:judge-a", 0, False),  # no accepted decision on contract_sum's type
         ("hash-2", "schema", 0, False),
+        ("hash-2", "schema", 0, False),
     ]
     by_hash: dict[str, list[tuple[bool, int]]] = {}
     for v in verdicts:
@@ -323,14 +338,14 @@ def test_private_verdict_type_carries_no_item_id_and_no_output():
 def test_public_verdicts_include_item_ids(con, tmp_path):
     seed(con, "pub1", "public", "111.11", "hash-pub")
     path = tmp_path / "verdicts_public.jsonl"
-    assert emit_public_verdicts(con, path, judges=JUDGES) == 1
+    assert emit_public_verdicts(con, path, judges=JUDGES) == 2  # noqa: PLR2004 -- schema, exact
     assert "pub1" in path.read_text(encoding="utf-8")
 
 
 def test_private_verdicts_are_keyed_by_hash_only(con, tmp_path):
     seed(con, "priv1", "private", "999.99", "hash-priv")
     path = tmp_path / "verdicts_private.jsonl"
-    assert emit_private_verdicts_by_hash(con, path, judges=JUDGES) == 1
+    assert emit_private_verdicts_by_hash(con, path, judges=JUDGES) == 2  # noqa: PLR2004
     body = path.read_text(encoding="utf-8")
     assert "hash-priv" in body
     assert "priv1" not in body, "private item ids must never be published"

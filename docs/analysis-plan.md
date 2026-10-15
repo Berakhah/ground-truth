@@ -80,10 +80,19 @@ always ships next to the decision it caused.
 - In an item's score, the judged verdict weighs as many times as the (item, slot) has
   schema-valid graded outputs, across all its runs, which is the number of verdicts a
   deterministic field has for it; an output that failed schema validation or has not been
-  graded counts for neither. (At least once, if every output failed.) Unweighted, an item with two
+  graded counts for neither. (At least once, if every output failed.) An output is
+  schema-valid when its latest schema verdict is correct. Unweighted, an item with two
   deterministic fields and five replicates gave the judged field 1/11 of the score instead of
   1/3, shrinking with every run added. The published verdict files carry each verdict's
   `weight` so the headline recomputes from them.
+- Re-grades: verdicts are append-only, and the latest verdict wins (latest `computed_at`, the
+  greater verdict id on a tie). A deterministic verdict is superseded by a later one on the
+  same output and field from any deterministic grader, so a rubric that moves a field type to
+  another grader counts the field once; a judge verdict is superseded only by the same judge's.
+  A deterministic verdict counts only while its output's latest schema verdict is correct, so
+  an output re-graded as unparseable drops out of the deterministic fields and the judged
+  weight together, and returns to both if re-graded as parseable. The judged weight therefore
+  equals the number of verdicts each deterministic field has for the (item, slot).
 - One field set per leaderboard: a judged field type counts toward any slot's headline only
   when every slot ranked in the split has an assigned judge, and every slot's currently
   assigned judge holds an accepted decision for that field type. Otherwise the field type is
@@ -159,6 +168,15 @@ rest of the quarter.
   replicate outputs for its (item, slot), and a judged field type counts only when every
   slot's currently assigned judge holds an accepted decision for it. v3 had governed no sweep
   and had never been merged when it was amended, so no data could have informed the change.
+  **v3 amended again 2026-10-15 (runs = 0, no sweep under v3),** still before merge, by the
+  same branch's later reviews: (a) the judged weight is the number of schema-valid graded
+  outputs of the (item, slot), schema validity read from each output's latest schema verdict,
+  not the number of stored replicate outputs; (b) completeness: a judged field type is dropped
+  for every slot while any current judge target for it in the split has no verdict from the
+  slot's current judge; (c) re-grade supersession: the latest verdict wins, across
+  deterministic graders for a deterministic field and per judge for a judge verdict, and a
+  deterministic verdict counts only while its output's latest schema verdict is correct.
+  `SELECT count(*) FROM runs` on `data/results.duckdb` still returned 0 on 2026-10-15.
 - **v2, 2026-09-28 -- sequential testing calendar replaced.** v1 tested a z computed on data
   pooled across looks against the fixed-constant O'Brien-Fleming boundary `C / sqrt(t)`,
   `C = 2.1023`. Two problems (stats review 2026-09-27, finding 1, and code review 2026-09-27
