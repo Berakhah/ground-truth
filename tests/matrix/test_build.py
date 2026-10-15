@@ -201,11 +201,24 @@ def test_a_rejected_judges_verdicts_are_absent_but_deterministic_ones_stay(con):
     assert "date" in per_field, "an undecided field type must not be swept up in the exclusion"
 
 
-def test_an_accepted_judges_verdicts_count_beside_deterministic_ones(con):
+def test_a_counted_judge_replaces_the_deterministic_verdicts_on_its_field_type(con):
+    """JP-1, decided 2026-10-15 "judge wins": money was graded by `exact` and is now judged.
+    Once the judge's verdict counts, the field's older deterministic verdict stops counting
+    (money 0.0 from the judge alone), not 0.5 from both. `date` has no judge and is untouched."""
     _populate_two_field_types(con, decisions=(("money", "judge-a", "accepted"),))
     per_field = _per_field(con)
-    assert per_field["money"].point == 0.5  # noqa: PLR2004 -- exact (true) + judge (false)
+    assert per_field["money"].point == 0.0
     assert "date" in per_field
+
+
+def test_a_judge_not_counted_leaves_the_deterministic_fallback_in_place(con):
+    """The judge only wins where it counts. An accepted decision for a judge the slot is not
+    assigned (so its verdict is not counted) leaves money on its deterministic verdict."""
+    _populate_two_field_types(con, decisions=(("money", "judge-a", "accepted"),))
+    per_field = _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges={"slot-a": None})[
+        "slot-a"
+    ].per_field
+    assert per_field["money"].point == 1.0
 
 
 def test_a_judge_verdict_with_no_decision_never_scores(con):
@@ -630,7 +643,8 @@ def test_a_persisted_acceptance_lets_that_judges_verdicts_in(con):
     assert stored == ("accepted",), "judge_decisions.status must be stored lowercase"
 
     per_field = _per_field(con)
-    assert per_field["money"].point == 0.5  # noqa: PLR2004 -- exact (true) + judge-a (false)
+    # Judge wins (JP-1): the accepted judge-a's verdict (false) replaces the exact one (true).
+    assert per_field["money"].point == 0.0
     assert "date" in per_field
 
 
@@ -769,13 +783,21 @@ def test_a_regraded_verdict_replaces_the_old_one_instead_of_counting_twice(con):
     assert ids == {"v-exact-slot-a-g2", "v-exact-slot-b"}
 
 
-def test_a_judge_verdict_and_a_deterministic_verdict_on_one_field_both_survive(con):
-    """Supersession is per grader for a judge: an exact verdict on the same output and field
-    does not replace the judge's, nor the judge's the exact one. Which of them the headline
-    counts is the decision gate's business, not the re-grade rule's."""
+def test_the_judge_verdict_wins_over_a_deterministic_one_on_the_same_field(con):
+    """JP-1: re-grade supersession stays per grader (the table keeps both rows), but the
+    headline counts the judge's verdict alone on a field type it counts for."""
     _populate_two_field_types(con, decisions=(("money", "judge-a", "accepted"),))
     ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=JUDGES)
-    assert {"v1", "v3"} <= ids  # exact and judge-a, both on o1's `total`
+    assert "v3" in ids
+    assert "v1" not in ids  # exact on o1's `total`, superseded by the judged field type
+    assert "v2" in ids  # `date` has no judge
+
+
+def test_the_deterministic_verdict_stays_in_the_ids_where_the_judge_does_not_count(con):
+    _populate_two_field_types(con, decisions=(("money", "judge-a", "rejected"),))
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=JUDGES)
+    assert "v1" in ids
+    assert "v3" not in ids
 
 
 def test_a_field_moved_to_another_deterministic_grader_counts_once(con):
