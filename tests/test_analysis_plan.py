@@ -49,11 +49,22 @@ def test_plan_v3_records_the_judge_decision_unit_and_that_v2_governed_no_sweep()
     """v3 moves the judge decision from field type to (field type, judge); like v2, it must
     show the change came before any sweep, and keep v2's judge paragraph for the record."""
     text = " ".join(PLAN.read_text(encoding="utf-8").split())
-    assert "plan_version: v3" in text
+    assert "**v3, 2026-10-14 -- judge decisions per (field type, judge).**" in text
     assert "v2 governed zero sweeps" in text
     assert "(field type, judge)" in text
     assert "Superseded: v2" in text, "v2's judge paragraph is kept for the record"
     assert "Every field type the judge touched is published" in text
+
+
+def test_plan_v4_records_judge_wins_as_a_new_version_not_an_edit_of_v3():
+    """JP-1: "judge wins" changes which verdicts form the headline, after v3 was merged and
+    pushed. That is a new plan_version; the record must show v3 governed no sweep and that the
+    rule is the project owner's decision."""
+    text = " ".join(PLAN.read_text(encoding="utf-8").split())
+    assert text.startswith("--- plan_version: v4")
+    assert "v3 governed zero sweeps" in text
+    assert "Judge wins:" in text
+    assert "amended a third time" not in text, "v3 must not be edited after its merge"
 
 
 def test_plan_v3_states_the_judged_field_weight_and_shared_field_set():
