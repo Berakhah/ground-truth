@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JudgeAgreementView } from "@/app/judge/page";
 import type { JudgeAgreementPayload } from "@/lib/artifacts";
+import { requireFixtureRoute } from "@/lib/fixtures";
 
 // Test-only fixture route, not linked from anywhere in the real UI. Exists solely so
 // web/e2e/judge-degrades.spec.ts can verify JudgeAgreementView degrades gracefully against a
@@ -86,5 +87,11 @@ const REAL_SHAPE_TODAY: JudgeAgreementPayload = {
 };
 
 export default function JudgeDegradedExamplePage() {
-  return <JudgeAgreementView judge={REAL_SHAPE_TODAY} methodologyUrl="/methodology" />;
+  requireFixtureRoute();
+  return (
+    <>
+      <span hidden data-gt-fixture="degraded-example" />
+      <JudgeAgreementView judge={REAL_SHAPE_TODAY} methodologyUrl="/methodology" />
+    </>
+  );
 }
