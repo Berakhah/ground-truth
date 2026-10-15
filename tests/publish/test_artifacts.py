@@ -233,6 +233,11 @@ def _judged_private_item_with_three_replicates(con) -> None:
             "INSERT INTO verdicts VALUES (?,?,'contract_sum','exact','1','v1',true,'ok',now())",
             [f"v-priv1-{replicate}", f"o-priv1-{replicate}"],
         )
+    for output_id in ("o-priv1", "o-priv1-2", "o-priv1-3"):  # all three parsed: weight is 3
+        con.execute(
+            "INSERT INTO verdicts VALUES (?,?,'__schema__','schema','1','v1',true,'ok',now())",
+            [f"v-schema-{output_id}", output_id],
+        )
     con.execute(
         "INSERT INTO verdicts VALUES ('v-judge','o-priv1','line_1_description','judge:judge-a',"
         "'1','v1',false,'judge majority NOT_EQUIVALENT (3 of 3)',now())"
@@ -247,8 +252,8 @@ def _judged_private_item_with_three_replicates(con) -> None:
 def test_published_weights_regenerate_the_weighted_headline(con, tmp_path):
     """Final review 2026-10-14, I2: the judge verdict stands for every replicate of its (item,
     slot), which the private file cannot show (it carries no output identity), so each row
-    publishes its `weight`: 1 for a deterministic verdict, the replicate count for a counted
-    judge verdict, 0 for a verdict the headline does not count."""
+    publishes its `weight`: 1 for a deterministic verdict, the schema-valid output count for a
+    counted judge verdict, 0 for a verdict the headline does not count."""
     seed(con, "priv1", "private", "999.99", "hash-1")
     seed(con, "priv2", "private", "888.88", "hash-2")
     con.execute("UPDATE outputs SET token_count = 500")
@@ -278,6 +283,9 @@ def test_published_weights_regenerate_the_weighted_headline(con, tmp_path):
         ("hash-1", "exact", 1, True),
         ("hash-1", "exact", 1, True),
         ("hash-1", "judge:judge-a", 3, True),
+        ("hash-1", "schema", 0, False),
+        ("hash-1", "schema", 0, False),
+        ("hash-1", "schema", 0, False),
         ("hash-2", "exact", 1, True),
         ("hash-2", "judge:judge-a", 0, False),  # no accepted decision on contract_sum's type
         ("hash-2", "schema", 0, False),

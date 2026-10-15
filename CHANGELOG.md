@@ -40,9 +40,10 @@ overwritten in place.
   - Final-review rulings, added to v3 before merge: a judged field type counts toward any
     slot's headline only when every slot has an assigned judge and every slot's currently
     assigned judge holds an accepted decision for it, otherwise it is excluded for all slots;
-    and the judge's one verdict per (item, slot) is weighted by the number of replicate outputs
-    for that (item, slot), so the judged field weighs as much as one deterministic field at any
-    run count. Every published verdict also carries `weight`, and `scripts/reproduce.py`
+    and the judge's one verdict per (item, slot) is weighted by the number of schema-valid
+    graded outputs of that (item, slot), which is the number of verdicts a deterministic field
+    has for it; an output that failed schema validation or has not been graded counts for
+    neither (amended in place before any sweep). Every published verdict also carries `weight`, and `scripts/reproduce.py`
     recomputes a weighted mean per item.
   - Target order changed to run-major (runs in start order, then replicate, then output id), so
     targets judged under the older replicate-major order may move once in a multi-run store.

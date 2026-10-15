@@ -298,6 +298,11 @@ def _replicated_run(con, run_id: str, started_at: str) -> None:
             " now(), NULL)",
             [output_id, run_id, replicate, json.dumps({"line_1_description": "Concrete works"})],
         )
+        con.execute(
+            "INSERT INTO verdicts VALUES (?, ?, '__schema__', 'schema', '1', 'v1', true, 'ok', "
+            "now())",
+            [f"v-{output_id}-schema", output_id],
+        )
         for field_name in ("total", "invoice_date"):
             con.execute(
                 "INSERT INTO verdicts VALUES (?, ?, ?, 'exact', '1', 'v1', false, 'wrong', now())",
@@ -346,6 +351,76 @@ def test_a_judged_field_weighs_as_much_as_a_deterministic_field_across_runs(con)
     weights = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)
     assert weights["v-judge"] == 10  # noqa: PLR2004 -- ten replicate outputs for (i1, slot-a)
     assert weights["v-r1-1-total"] == 1
+
+
+def _weight_fixture(con) -> None:
+    """The setup of the test above, one run: i1 with two deterministic fields and a judged one."""
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i1', 'public', 'v1', 'synthetic', 'h', now())"
+    )
+    con.execute("INSERT INTO item_fields VALUES ('i1', 'total', 'money', '1.00', NULL, NULL)")
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'invoice_date', 'date', '2026-01-01', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i1', 'line_1_description', 'line_item_description', "
+        "'Concrete works', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO judge_decisions (field_type, judge_slot, rubric_version, alpha, alpha_low, "
+        "alpha_high, n_units, threshold, status, decided_at) VALUES ('line_item_description', "
+        "'judge-a', 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())"
+    )
+    _replicated_run(con, "r1", "2026-01-01")
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-judge', 'r1-1', 'line_1_description', ?, '1', 'v1', "
+        "true, 'judge majority EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+
+
+def test_schema_invalid_outputs_do_not_add_to_the_judged_weight(con):
+    """Two of the five replicates are unparseable: they carry a failed __schema__ verdict and no
+    deterministic field verdicts, so each deterministic field has 3 verdicts and the judged
+    field must weigh 3, not 5."""
+    _weight_fixture(con)
+    for output_id in ("r1-4", "r1-5"):
+        con.execute(
+            "UPDATE verdicts SET correct = false WHERE output_id = ? AND field_name = '__schema__'",
+            [output_id],
+        )
+        con.execute(
+            "DELETE FROM verdicts WHERE output_id = ? AND field_name IN ('total', 'invoice_date')",
+            [output_id],
+        )
+    weights = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)
+    assert weights["v-judge"] == 3  # noqa: PLR2004 -- three schema-valid graded outputs
+
+
+def test_ungraded_outputs_do_not_add_to_the_judged_weight(con):
+    """Five outputs arrive after the grading pass and have no verdicts yet. The judged weight
+    must stay at 5 until they are graded, not jump to 10."""
+    _weight_fixture(con)
+    con.execute(
+        "INSERT INTO runs VALUES ('r2', '2026-02-01', NULL, 'slot-a', 'ref', 'prov', false, "
+        "'s1', 'sha', 'h')"
+    )
+    for replicate in range(1, 6):
+        con.execute(
+            "INSERT INTO outputs VALUES (?, 'r2', 'i1', ?, '{}', 'call', 'prov', NULL, 100, 'ph', "
+            "now(), NULL)",
+            [f"r2-{replicate}", replicate],
+        )
+    weights = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)
+    assert weights["v-judge"] == 5  # noqa: PLR2004
+
+
+def test_the_judged_weight_never_falls_below_one(con):
+    _weight_fixture(con)
+    con.execute("UPDATE verdicts SET correct = false WHERE field_name = '__schema__'")
+    weights = headline_verdict_weights(con, split=Split.PUBLIC, judges=JUDGES)
+    assert weights["v-judge"] == 1
 
 
 # -- every slot is ranked on the same field set (final review 2026-10-14, I1) ----------------
