@@ -77,10 +77,10 @@ always ships next to the decision it caused.
 - LINE_ITEM_DESCRIPTION's run-to-run variance is therefore not measured by the judge: the
   judge sees one output per (item, slot), and the replicate spread the deterministic graders
   report for other fields does not exist for this one.
-- In an item's score, the judge's one verdict is weighted by the number of replicate outputs
-  for that (item, slot), across all its runs. A deterministic field contributes one verdict per
-  replicate, so the judged field then carries the same weight in the item's score as one
-  deterministic field, however many runs the slot has. Unweighted, an item with two
+- In an item's score, the judged verdict weighs as many times as the (item, slot) has
+  schema-valid graded outputs, across all its runs, which is the number of verdicts a
+  deterministic field has for it; an output that failed schema validation or has not been
+  graded counts for neither. (At least once, if every output failed.) Unweighted, an item with two
   deterministic fields and five replicates gave the judged field 1/11 of the score instead of
   1/3, shrinking with every run added. The published verdict files carry each verdict's
   `weight` so the headline recomputes from them.

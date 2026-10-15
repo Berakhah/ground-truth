@@ -157,16 +157,23 @@ class _Observation:
     # How many observations this verdict stands for in the item's score. A deterministic
     # grader writes one verdict per replicate output, so each of its verdicts weighs 1. The
     # judge writes one verdict per (item, slot), on the modal output, so its verdict weighs the
-    # (item, slot)'s replicate-output count: the judged field then carries as much of the
+    # (item, slot)'s schema-valid graded output count: the judged field then carries as much of the
     # item's score as a deterministic field does, however many runs the slot has (final review
     # 2026-10-14, I2). Applied by repeating the observation, so `stats.bootstrap`'s flat
     # per-item mean is unchanged.
     weight: int
 
 
+# The judged field's weight: how many verdicts a deterministic field has for this (item, slot),
+# i.e. the outputs that parsed (a correct `__schema__` verdict). Counting every stored output
+# let schema-invalid and not-yet-graded replicates inflate the judged field's share of the item
+# score. `count(DISTINCT ...)` because a re-grade appends a second `__schema__` verdict.
 _REPLICATES_SQL = """
-    SELECT o.item_id, r.model_slot, count(*)
-    FROM outputs o JOIN runs r ON r.run_id = o.run_id
+    SELECT o.item_id, r.model_slot, count(DISTINCT o.output_id)
+    FROM outputs o
+    JOIN runs r ON r.run_id = o.run_id
+    JOIN verdicts v ON v.output_id = o.output_id
+                   AND v.field_name = '__schema__' AND v.correct
     GROUP BY o.item_id, r.model_slot
 """
 
@@ -232,7 +239,11 @@ def _headline_observations(
                 correct=bool(correct),
                 latency_ms=int(latency_ms),
                 token_count=token_count,
-                weight=(replicates[(item_id, slot)] if grader_id.startswith(_JUDGE_PREFIX) else 1),
+                weight=(
+                    max(1, replicates.get((item_id, slot), 0))
+                    if grader_id.startswith(_JUDGE_PREFIX)
+                    else 1
+                ),
             )
         )
     return observations
