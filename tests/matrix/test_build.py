@@ -776,3 +776,79 @@ def test_a_regrade_at_a_bumped_rubric_version_also_supersedes(con):
         "'v2', false, 'rubric bump', now() + INTERVAL 1 SECOND)"
     )
     assert "v-exact-slot-a" not in headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+
+
+# -- a judged field counts only once every current target is judged (open item: completeness) --
+
+
+def _add_item_with_slot_b_unjudged(con) -> None:
+    """A second item, i2, with a description field; slot-a's output has a judge verdict,
+    slot-b's has none (fewer than three samples so far)."""
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i2', 'public', 'v1', 'synthetic', 'h2', now())"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i2', 'line_1_description', 'line_item_description', "
+        "'Rebar', NULL, NULL)"
+    )
+    for slot in ("slot-a", "slot-b"):
+        con.execute(
+            "INSERT INTO outputs VALUES (?, ?, 'i2', 1, ?, 'call', 'prov', NULL, 100, 'ph', "
+            "now(), NULL)",
+            [f"o2-{slot}", f"r-{slot}", json.dumps({"line_1_description": "Rebar"})],
+        )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v2-judge-slot-a', 'o2-slot-a', 'line_1_description', "
+        "'judge:judge-a', '1', 'v1', true, 'judge majority EQUIVALENT (3 of 3)', now())"
+    )
+
+
+def test_a_judged_field_with_an_unjudged_target_is_dropped_for_every_slot(con):
+    """slot-b's i2 output is not judged yet. Counting slot-a's judged i2 would rank slot-a on
+    descriptions for two items and slot-b for one: drop the field type everywhere."""
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _add_item_with_slot_b_unjudged(con)
+    fields = _fields_by_slot(con, TWO_JUDGES)
+    assert "line_item_description" not in fields["slot-a"]
+    assert "line_item_description" not in fields["slot-b"]
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert not {"v-judge-slot-a", "v-judge-slot-b", "v2-judge-slot-a"} & ids
+
+
+def test_the_judged_field_returns_once_the_last_target_is_judged(con):
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _add_item_with_slot_b_unjudged(con)
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v2-judge-slot-b', 'o2-slot-b', 'line_1_description', "
+        "'judge:judge-b', '1', 'v1', true, 'judge majority EQUIVALENT (3 of 3)', now())"
+    )
+    assert "line_item_description" in _fields_by_slot(con, TWO_JUDGES)["slot-a"]
+
+
+def test_an_inconclusive_verdict_counts_as_judged_not_as_missing(con):
+    """Inconclusive is a measurement (correct = false, reported in the inconclusive table), so
+    it must not trip the completeness gate."""
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _add_item_with_slot_b_unjudged(con)
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v2-judge-slot-b', 'o2-slot-b', 'line_1_description', "
+        "'judge:judge-b', '1', 'v1', false, 'judge inconclusive: no majority in 3 samples', "
+        "now())"
+    )
+    assert "line_item_description" in _fields_by_slot(con, TWO_JUDGES)["slot-b"]
+
+
+def test_completeness_ignores_retired_items(con):
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _add_item_with_slot_b_unjudged(con)
+    con.execute("UPDATE items SET retired_at = now() WHERE item_id = 'i2'")
+    assert "line_item_description" in _fields_by_slot(con, TWO_JUDGES)["slot-a"]
+
+
+def test_completeness_ignores_the_other_split(con):
+    """An unjudged target on a private item must not hold back the public headline."""
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _add_item_with_slot_b_unjudged(con)
+    con.execute("UPDATE items SET split = 'private' WHERE item_id = 'i2'")
+    assert "line_item_description" in _fields_by_slot(con, TWO_JUDGES)["slot-a"]

@@ -291,12 +291,18 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   ranked in the split has an assigned judge holding an accepted decision on it; otherwise it is
   excluded for every slot. The "not distinguishable" statements therefore always compare slots
   over the same fields.
+- **A judged field counts only when judging is complete.** A judged field type counts only when
+  every current judge target for it, across the ranked slots, has a verdict. While any target is
+  unjudged (fewer than three samples so far), the field is out for every slot and the headline
+  uses deterministic grading, like a rejected judge. An inconclusive or not-extracted verdict is
+  a measurement and counts as judged.
 - **Which verdicts count (`counts_toward_headline`).** Each published verdict carries this
   flag so a reader can recompute the headline from the verdict files. A verdict is excluded
   when: its item is retired; the field is not one the item declares (the schema and arithmetic
   pseudo-field verdicts); or it is a judge verdict that is not from the slot's currently
   assigned judge, is not on the current modal target output, or whose field type is not one
-  every ranked slot's judge holds an accepted decision for. Deterministic verdicts on declared fields of non-retired items
+  every ranked slot's judge holds an accepted decision for, or which still has an unjudged
+  current target in the split. Deterministic verdicts on declared fields of non-retired items
   always count, whatever any judge decision says. A verdict superseded by a later re-grade of
   the same output, field and grader does not count; `counts_toward_headline` is false for it.
 - **The published `inconclusive` list** (`judge_agreement.json`) gives, per (model slot, judge),
