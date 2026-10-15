@@ -71,13 +71,14 @@ class PrivateVerdict:
     grader_version: str
     rubric_version: str
     # Whether `matrix.build` counts this verdict in the split's accuracy, and how many times
-    # (`weight`: 1 per deterministic verdict, the (item, slot)'s replicate-output count for a
-    # judge verdict, 0 when it does not count) -- from the build's own rule
-    # (`headline_verdict_weights`), so a weighted recompute over these rows reaches the
+    # (`weight`: 1 per deterministic verdict, the (item, slot)'s count of schema-valid graded
+    # outputs for a judge verdict, at least 1, 0 when it does not count) -- from the build's own
+    # rule (`headline_verdict_weights`), so a weighted recompute over these rows reaches the
     # headline. Derived only from the grader, the judge decisions and assignment, the item's
-    # retirement, which replicate is the judge target and how many replicates there are; no
-    # item content. Retirement was already inferable (this file lists retired hashes, the
-    # manifest does not), and so was the replicate count (one exact row per replicate).
+    # retirement, which replicate is the judge target and how many outputs passed the schema
+    # check; no item content. Retirement was already inferable (this file lists retired hashes,
+    # the manifest does not), and so was that output count (one counted deterministic row per
+    # schema-valid output, and the schema rows themselves are published).
     counts_toward_headline: bool
     weight: int
 
