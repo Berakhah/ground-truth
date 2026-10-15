@@ -64,8 +64,8 @@ class SlotSpecMissing(RuntimeError):
 # latest wins (computed_at, then the greater verdict_id on a tie), so each output contributes
 # at most one deterministic verdict per field whichever deterministic grader wrote it (final
 # review 2026-10-15, I1), and at most one verdict per judge per field -- a judge verdict is not
-# superseded by a deterministic one or by another judge's; the decision gate and the assigned-judge
-# rule in `_headline_observations` decide which of those counts.
+# superseded in this query by a deterministic one or by another judge's; the decision gate, the
+# assigned-judge rule and "judge wins" in `_headline_observations` decide which of those counts.
 #
 # Schema. A deterministic verdict counts only while its output's latest `__schema__` verdict is
 # correct (`_LATEST_SCHEMA_SQL`): grading writes no field verdict for an unparseable output, so
@@ -333,7 +333,15 @@ def _headline_observations(
         judged=judged,
         field_types={o.field_type for o, name in candidates if name is not None},
     )
-    return [o for o, name in candidates if name is None or o.field_type not in held_back]
+    counted = [(o, name) for o, name in candidates if name is None or o.field_type not in held_back]
+    # Judge wins (JP-1, decided 2026-10-15): a field type the judge counts on is scored by the
+    # judge alone. A field the rubric moved from a deterministic grader to the judge keeps its
+    # old deterministic verdicts in the append-only table; counting them beside the judge's
+    # would score one field twice with two judgements that can contradict. Where the judge does
+    # not count (rejected, unassessed, unassigned, held back) nothing is dropped, so the field
+    # still falls back to deterministic grading.
+    judged_types = {o.field_type for o, name in counted if name is not None}
+    return [o for o, name in counted if name is not None or o.field_type not in judged_types]
 
 
 def headline_verdict_weights(
