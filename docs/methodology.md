@@ -257,7 +257,7 @@ constant `C_OBF_13_LOOKS = 2.1023`~~. Neither governed any look; see `docs/analy
 
 Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge` field in
 `docs/rubric.md`. Every other field is graded deterministically. The decided lineup
-(analysis plan v3; `docs/providers.md` "Lineup decisions" records the judge pool):
+(analysis plan v3, current as v4; `docs/providers.md` "Lineup decisions" records the judge pool):
 
 - **Two judges, both on Cerebras.** No available judge family differs from all six model
   slots, so Gemma judges slots A-E and gpt-oss-120b judges the Gemini slot (F). The real
