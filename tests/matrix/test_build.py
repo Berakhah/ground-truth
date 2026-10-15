@@ -211,7 +211,7 @@ def test_a_counted_judge_replaces_the_deterministic_verdicts_on_its_field_type(c
     assert "date" in per_field
 
 
-def test_a_judge_not_counted_leaves_the_deterministic_fallback_in_place(con):
+def test_an_unassigned_judge_leaves_the_deterministic_fallback_in_place(con):
     """The judge only wins where it counts. An accepted decision for a judge the slot is not
     assigned (so its verdict is not counted) leaves money on its deterministic verdict."""
     _populate_two_field_types(con, decisions=(("money", "judge-a", "accepted"),))
@@ -529,6 +529,52 @@ def test_the_shared_field_set_rule_also_decides_counts_toward_headline(con):
     _two_slots(con, accepted=("judge-a",))
     ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
     assert ids == {"v-exact-slot-a", "v-exact-slot-b"}
+
+
+def _old_exact_on_the_judged_field(con) -> None:
+    """The rubric once graded `line_item_description` with `exact`: each slot's output keeps a
+    correct exact verdict on it, beside the judge's incorrect one (JP-1)."""
+    for slot in ("slot-a", "slot-b"):
+        con.execute(
+            "INSERT INTO verdicts VALUES (?, ?, 'line_1_description', 'exact', '1', 'v0', true,"
+            " 'ok', now())",
+            [f"v-old-exact-{slot}", f"o-{slot}"],
+        )
+
+
+def test_judge_wins_for_every_slot_when_every_slots_judge_counts(con):
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _old_exact_on_the_judged_field(con)
+    assert _fields_by_slot(con, TWO_JUDGES)["slot-a"]["line_item_description"] == 0.0
+    assert _fields_by_slot(con, TWO_JUDGES)["slot-b"]["line_item_description"] == 0.0
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert {"v-judge-slot-a", "v-judge-slot-b"} <= ids
+    assert not {"v-old-exact-slot-a", "v-old-exact-slot-b"} & ids
+
+
+def test_one_slots_judge_not_counting_returns_the_old_exact_verdicts_for_every_slot(con):
+    """The shared-field-set rule drops the judged type for both slots; judge-wins must then not
+    drop the deterministic fallback for either."""
+    _two_slots(con, accepted=("judge-a",))
+    _old_exact_on_the_judged_field(con)
+    fields = _fields_by_slot(con, TWO_JUDGES)
+    assert fields["slot-a"]["line_item_description"] == 1.0
+    assert fields["slot-b"]["line_item_description"] == 1.0
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert {"v-old-exact-slot-a", "v-old-exact-slot-b"} <= ids
+    assert not {"v-judge-slot-a", "v-judge-slot-b"} & ids
+
+
+def test_a_judged_type_held_back_as_incomplete_returns_the_old_exact_verdicts(con):
+    """A mid-sweep build (slot-b's i2 not judged yet) holds the type back; the old exact
+    verdicts on i1 are the fallback and must count, not vanish with the judge's."""
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _old_exact_on_the_judged_field(con)
+    _add_item_with_slot_b_unjudged(con)
+    assert _fields_by_slot(con, TWO_JUDGES)["slot-a"]["line_item_description"] == 1.0
+    ids = headline_verdict_ids(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert {"v-old-exact-slot-a", "v-old-exact-slot-b"} <= ids
+    assert not {"v-judge-slot-a", "v-judge-slot-b", "v2-judge-slot-a"} & ids
 
 
 def test_one_judges_acceptance_on_one_field_type_does_not_admit_it_on_another(con):
