@@ -1,5 +1,5 @@
 ---
-plan_version: v3
+plan_version: v4
 status: frozen-before-first-sweep
 ---
 
@@ -157,6 +157,17 @@ rest of the quarter.
 
 ## Revision history
 
+- **v4, 2026-10-15 -- judge wins on a judged field type.** v3 was silent on a field type that
+  has both a judge's verdicts and older deterministic verdicts (left behind when a rubric moves
+  the type to the judge): both counted, so the field was scored twice with two judgements that
+  can contradict. v4 adds the "Judge wins" rule to the judge section: where the judge's verdicts
+  count, the judge's verdict is the field's only score; where they do not, the field falls back
+  to deterministic grading as before. Nothing else in v3 changes (threshold 0.667, decision unit,
+  weight, completeness and shared-field-set rules). **v3 governed zero sweeps:** on 2026-10-15
+  `SELECT count(*) FROM runs` on `data/results.duckdb` returned 0. This change is therefore made
+  before any data exists. The rule is the project owner's decision (open item JP-1). A sweep run
+  on another machine would not appear in that count; none is known, and the plan does not claim
+  to rule one out beyond that count.
 - **v3, 2026-10-14 -- judge decisions per (field type, judge).** v2 decided agreement once per
   field type. The judge is now wired into grading, and no available judge family differs from
   all six model slots, so two judges are used (the decided lineup, `docs/providers.md`
@@ -183,12 +194,7 @@ rest of the quarter.
   deterministic graders for a deterministic field and per judge for a judge verdict, and a
   deterministic verdict counts only while its output's latest schema verdict is correct.
   `SELECT count(*) FROM runs` on `data/results.duckdb` still returned 0 on 2026-10-15.
-  **v3 amended a third time 2026-10-15, after the v3 merge (runs = 0, no sweep under v3):**
-  judge wins -- on a field type whose judge counts, the judge's verdict is the only score and
-  the field's older deterministic verdicts do not count beside it (open item JP-1, decided by
-  the project owner). This amendment is post-merge, unlike the two above; it is still made in
-  place only because `SELECT count(*) FROM runs` on `data/results.duckdb` returned 0 when it was
-  made, so no data could have informed it. If a sweep ran elsewhere, this must become a v4.
+  v3 was merged and pushed on 2026-10-15 and is not edited after that; see v4.
 - **v2, 2026-09-28 -- sequential testing calendar replaced.** v1 tested a z computed on data
   pooled across looks against the fixed-constant O'Brien-Fleming boundary `C / sqrt(t)`,
   `C = 2.1023`. Two problems (stats review 2026-09-27, finding 1, and code review 2026-09-27

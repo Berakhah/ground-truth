@@ -46,9 +46,9 @@ overwritten in place.
   deterministic verdicts, left behind when a rubric moved the type to the judge, no longer count
   beside it (~~both counted, so the field was scored twice~~) and `counts_toward_headline` is
   false for them. Where the judge does not count (rejected, unassessed, unassigned, held back),
-  deterministic grading still applies. Analysis plan v3 amended in place, after its merge: no
-  sweep had run (`SELECT count(*) FROM runs` returned 0 on 2026-10-15). If one ran elsewhere
-  this must become v4.
+  deterministic grading still applies. This is **analysis plan v4**, not an edit of v3, which was
+  already merged and pushed; v3 governed zero sweeps (`SELECT count(*) FROM runs` returned 0 on
+  2026-10-15, on the local `data/results.duckdb` only).
 
 - **2026-10-15 -- open items left by the judge-publish merge are logged** in
   `docs/superpowers/reviews/2026-10-15-judge-publish-open-items.md` (JP-1 to JP-12). None is
