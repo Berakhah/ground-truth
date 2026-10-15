@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JudgeAgreementView } from "@/app/judge/page";
 import type { JudgeAgreementPayload } from "@/lib/artifacts";
+import { requireFixtureRoute } from "@/lib/fixtures";
 
 // Test-only fixture route, not linked from the real UI (same pattern as ../degraded-example).
 // Exists so web/e2e/judge.spec.ts can check that two judges on one field type both render and
@@ -45,5 +46,11 @@ const MULTI_JUDGE: JudgeAgreementPayload = {
 };
 
 export default function JudgeMultiJudgeExamplePage() {
-  return <JudgeAgreementView judge={MULTI_JUDGE} methodologyUrl="/methodology" />;
+  requireFixtureRoute();
+  return (
+    <>
+      <span hidden data-gt-fixture="multi-judge-example" />
+      <JudgeAgreementView judge={MULTI_JUDGE} methodologyUrl="/methodology" />
+    </>
+  );
 }
