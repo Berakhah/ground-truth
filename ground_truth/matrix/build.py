@@ -54,8 +54,10 @@ class SlotSpecMissing(RuntimeError):
 
 # A `judge:<judge_slot>` verdict counts only when that judge has an accepted decision for that
 # field type: no decision (unassessed), a rejection, or another judge's acceptance all keep it
-# out. A deterministic verdict is never gated by a decision -- a rejected judge falls back to
+# out. A decision never gates a deterministic verdict by itself -- a rejected judge falls back to
 # deterministic grading where one exists (docs/analysis-plan.md, "Judge rejection threshold").
+# Only a judge that counts displaces them: judge wins on its field type (JP-1, see
+# `_headline_observations`).
 # The join is on the full key `(field_type, judge_slot)`, so it matches at most one decision
 # row and cannot fan a verdict out into several observations.
 #
