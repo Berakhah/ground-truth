@@ -178,6 +178,43 @@ _REPLICATES_SQL = """
 """
 
 
+def _unjudged_field_types(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    split: Split,
+    slots: set[str],
+    judged: set[tuple[str, str]],
+    field_types: set[str],
+) -> frozenset[str]:
+    """The judged field types with a current judge target that has no counted verdict yet.
+
+    `judged` is `(output_id, field_name)` for every judge verdict that survived the other
+    gates; `field_types` the judged types still in play. A target belongs to this split when its
+    item is in the split, is not retired, and declares the field. Fewer than three samples
+    leaves a target without a verdict (`judge_verdict` returns None): unjudged, not a
+    measurement, so the type is held back for every slot until the sweep finishes it. An
+    inconclusive or not-extracted verdict exists and so counts as judged.
+    """
+    if not field_types:
+        return frozenset()
+    declared = con.execute(
+        "SELECT i.item_id, f.field_name, f.field_type FROM items i "
+        "JOIN item_fields f ON f.item_id = i.item_id "
+        "WHERE i.split = ? AND i.retired_at IS NULL",
+        [split.value],
+    ).fetchall()
+    type_of = {(item_id, name): ftype for item_id, name, ftype in declared}
+    names = sorted({name for (_, name), ftype in type_of.items() if ftype in field_types})
+    return frozenset(
+        type_of[(target.item_id, name)]
+        for name in names
+        for target in select_judge_targets(con, name)
+        if (target.item_id, name) in type_of
+        and target.model_slot in slots
+        and (target.output_id, name) not in judged
+    )
+
+
 def _headline_observations(
     con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
 ) -> list[_Observation]:
@@ -197,7 +234,12 @@ def _headline_observations(
       contradict (review 2026-10-14, I2). A slot with no assigned judge counts no judge
       verdict.
     - its field type is one every ranked slot's assigned judge holds an accepted decision on
-      (`_judged_field_types_every_slot_holds`).
+      (`_judged_field_types_every_slot_holds`), and
+    - its field type has no current judge target left unjudged in this split
+      (`_unjudged_field_types`). While any target for it has no verdict yet (a sweep still
+      running), the type is out for every slot: counting the judged items would rank one slot
+      on more descriptions than another. It falls back to deterministic grading, as for a
+      rejected judge. An inconclusive verdict is a measurement and counts as judged.
     """
     rows = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
     current_targets = _current_judge_targets(
@@ -208,7 +250,7 @@ def _headline_observations(
         (item_id, slot): int(count)
         for item_id, slot, count in con.execute(_REPLICATES_SQL).fetchall()
     }
-    observations: list[_Observation] = []
+    candidates: list[tuple[_Observation, str | None]] = []
     for (
         verdict_id,
         slot,
@@ -229,24 +271,35 @@ def _headline_observations(
                 continue  # not the slot's currently assigned judge
             if field_type not in shared:
                 continue  # some ranked slot's judge is not accepted on it: out for every slot
-        observations.append(
-            _Observation(
-                verdict_id=verdict_id,
-                slot=slot,
-                output_id=output_id,
-                item_id=item_id,
-                field_type=field_type,
-                correct=bool(correct),
-                latency_ms=int(latency_ms),
-                token_count=token_count,
-                weight=(
-                    max(1, replicates.get((item_id, slot), 0))
-                    if grader_id.startswith(_JUDGE_PREFIX)
-                    else 1
+        candidates.append(
+            (
+                _Observation(
+                    verdict_id=verdict_id,
+                    slot=slot,
+                    output_id=output_id,
+                    item_id=item_id,
+                    field_type=field_type,
+                    correct=bool(correct),
+                    latency_ms=int(latency_ms),
+                    token_count=token_count,
+                    weight=(
+                        max(1, replicates.get((item_id, slot), 0))
+                        if grader_id.startswith(_JUDGE_PREFIX)
+                        else 1
+                    ),
                 ),
+                field_name if grader_id.startswith(_JUDGE_PREFIX) else None,
             )
         )
-    return observations
+    judged = {(o.output_id, name) for o, name in candidates if name is not None}
+    held_back = _unjudged_field_types(
+        con,
+        split=split,
+        slots={o.slot for o, _ in candidates},
+        judged=judged,
+        field_types={o.field_type for o, name in candidates if name is not None},
+    )
+    return [o for o, name in candidates if name is None or o.field_type not in held_back]
 
 
 def headline_verdict_weights(

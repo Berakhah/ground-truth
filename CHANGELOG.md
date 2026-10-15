@@ -12,6 +12,12 @@ overwritten in place.
 
 ### Changed
 
+- **2026-10-15 -- a judged field counts only once every current target is judged.** A judged
+  field type counts only when every current judge target for it, across the ranked slots, has a
+  verdict; while any is unjudged the field is out for every slot and the headline uses
+  deterministic grading, like a rejected judge (a partial run would rank slots on different field
+  sets). Inconclusive and not-extracted verdicts count as judged.
+
 - **2026-10-15 -- a re-graded verdict supersedes the old one in the headline.** A verdict
   superseded by a later re-grade of the same output, field and grader no longer counts
   (~~both the old and the re-graded verdict counted~~); `counts_toward_headline` is false for it.

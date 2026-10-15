@@ -88,6 +88,12 @@ always ships next to the decision it caused.
   when every slot ranked in the split has an assigned judge, and every slot's currently
   assigned judge holds an accepted decision for that field type. Otherwise the field type is
   excluded for all slots alike, so no two slots' intervals are compared over different fields.
+- Judging must be complete: a judged field type counts only when every current judge target for
+  it in the split, across the ranked slots, has a verdict. While any target is unjudged, the
+  field type is dropped for every slot and the headline falls back to deterministic grading, as
+  for a rejected judge. Reason: a partial run would rank slots on different field sets (one slot
+  on more judged items than another). Dropping rather than refusing keeps a mid-sweep build
+  runnable. An inconclusive or not-extracted verdict counts as judged.
 
 ## Sequential testing calendar
 
