@@ -29,6 +29,17 @@ from ground_truth.graders.judge.targets import (
 
 _SCHEMA_FIELD = "__schema__"
 _ARITHMETIC_FIELD = "__arithmetic__"
+_JUDGE_GRADER_PREFIX = "judge:"
+
+
+class GradingConflict(RuntimeError):
+    """A re-grade reached a different answer than a stored verdict with the same key.
+
+    Verdicts are append-only and keyed by (output, field, grader, grader version, rubric
+    version), so the key carries no outcome. A deterministic grader that disagrees with itself at
+    the same version means an output or the grader changed without a version bump; the stored
+    verdict stays, and the version has to be bumped for the new answer to be recorded.
+    """
 
 
 def _verdict_count(con: duckdb.DuckDBPyConnection) -> int:
@@ -39,13 +50,30 @@ def _verdict_count(con: duckdb.DuckDBPyConnection) -> int:
     return int(row[0])
 
 
-def _write_verdict(
+def _write_verdict(  # noqa: PLR0913, PLR0917 -- one verdict row's key plus the conflict sink
     con: duckdb.DuckDBPyConnection,
     output_id: str,
     field_name: str,
     rubric_version: str,
     verdict: Verdict,
+    conflicts: list[str],
 ) -> None:
+    # A judge verdict is a majority over stored samples, so another sample at the same grader
+    # version can legitimately change it; only a deterministic grader disagreeing with itself is
+    # a conflict. The stored verdict is left alone either way.
+    if not verdict.grader_id.startswith(_JUDGE_GRADER_PREFIX):
+        stored = con.execute(
+            "SELECT correct FROM verdicts WHERE output_id = ? AND field_name = ? "
+            "AND grader_id = ? AND grader_version = ? AND rubric_version = ?",
+            [output_id, field_name, verdict.grader_id, verdict.grader_version, rubric_version],
+        ).fetchone()
+        if stored is not None and bool(stored[0]) != verdict.correct:
+            conflicts.append(
+                f"{output_id} {field_name} ({verdict.grader_id} v{verdict.grader_version}, "
+                f"rubric {rubric_version}): stored correct={bool(stored[0])}, "
+                f"re-grade correct={verdict.correct}"
+            )
+            return
     con.execute(
         "INSERT OR IGNORE INTO verdicts VALUES (?,?,?,?,?,?,?,?,?)",
         [
@@ -75,6 +103,10 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
     grader_version, rubric_version)` constraint means re-grading at the same rubric
     version writes nothing new, so the return value counts rows genuinely new to
     `verdicts` (a before/after count), not attempted writes -- "written" means written.
+
+    The ignore is silent only when the re-grade agrees. A deterministic verdict that disagrees
+    with the stored one at the same grader version (an output or a grader changed under the
+    record, JP-2) is not written, and the pass raises `GradingConflict` once it has finished.
     """
     money_tolerance = rubric[FieldType.MONEY].tolerance
     if money_tolerance is None:
@@ -82,6 +114,7 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
 
     by_item_id = {item.item_id: item for item in items}
     before = _verdict_count(con)
+    conflicts: list[str] = []
 
     # Judge verdicts exist only when the caller supplies the model-slot -> judge-slot map; with
     # None, judge fields are skipped exactly as before (degraded mode, existing callers).
@@ -109,7 +142,7 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
             return  # not the modal output of its (item, slot), or judging is off
         verdict = judge_verdict(con, target, judges[model_slot], field_name)
         if verdict is not None:
-            _write_verdict(con, output_id, field_name, item.rubric_version, verdict)
+            _write_verdict(con, output_id, field_name, item.rubric_version, verdict, conflicts)
 
     rows = con.execute(
         "SELECT o.output_id, o.item_id, o.raw_output, r.model_slot FROM outputs o "
@@ -119,7 +152,9 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
         item = by_item_id[item_id]
 
         schema_verdict = grade_schema(item, raw_output)
-        _write_verdict(con, output_id, _SCHEMA_FIELD, item.rubric_version, schema_verdict)
+        _write_verdict(
+            con, output_id, _SCHEMA_FIELD, item.rubric_version, schema_verdict, conflicts
+        )
         if not schema_verdict.correct:
             # An unparseable target is still the modal target and must score as absent.
             for field in item.fields:
@@ -142,9 +177,19 @@ def grade_stored_outputs(  # noqa: PLR0912 -- explicit dispatch chain, not a loo
                 continue
             else:
                 raise ValueError(f"rubric declares unknown grader {grader_name!r}")
-            _write_verdict(con, output_id, field.field_name, item.rubric_version, verdict)
+            _write_verdict(
+                con, output_id, field.field_name, item.rubric_version, verdict, conflicts
+            )
 
         arithmetic_verdict = grade_arithmetic(item, observed, money_tolerance)
-        _write_verdict(con, output_id, _ARITHMETIC_FIELD, item.rubric_version, arithmetic_verdict)
+        _write_verdict(
+            con, output_id, _ARITHMETIC_FIELD, item.rubric_version, arithmetic_verdict, conflicts
+        )
 
+    if conflicts:
+        raise GradingConflict(
+            f"{len(conflicts)} re-graded verdict(s) disagree with the stored verdict at the same "
+            "grader version; the stored verdicts were kept. Bump the grader version to record the "
+            "new answer:\n" + "\n".join(conflicts)
+        )
     return _verdict_count(con) - before

@@ -12,6 +12,15 @@ overwritten in place.
 
 ### Changed
 
+- **2026-10-16 -- a re-grade that disagrees with a stored deterministic verdict now fails loudly
+  (JP-2).** Verdicts are append-only and keyed by (output, field, grader, grader version, rubric
+  version); the key carries no outcome, so a re-grade at the same grader version that reached a
+  different answer (an output or a grader changed without a version bump) was dropped silently
+  and the old verdict kept counting. `grade_stored_outputs` now keeps the stored verdict, finishes
+  the pass, and raises `GradingConflict` naming every disagreeing verdict; the new answer is
+  recorded by bumping the grader version. Judge verdicts are exempt: a judge verdict is a majority
+  over stored samples, so another sample at the same version can change it. No published number
+  changes.
 - **2026-10-15 -- a re-grade counts once across graders and across schema re-checks.** A
   deterministic verdict is superseded by a later re-grade of the same output and field
   whichever deterministic grader wrote it, so a rubric that moves a field type to another
