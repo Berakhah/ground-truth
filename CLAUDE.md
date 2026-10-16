@@ -77,7 +77,7 @@ Inherited from `00`: no hardcoded model names (R1), no secrets in the repo inclu
 
 ## Stack & layout
 
-Python 3.12+, `uv`, `ruff`, `mypy --strict`. Result history in DuckDB. Scheduled runs via the same orchestration as brief 03. Every model call recorded through `bok-core`'s ledger (`00` R7) — that is what makes fingerprint tracking possible at all. Next.js 15 + `bok-ui`, or a static site.
+Python 3.12+, `uv`, `ruff`, `mypy --strict`. Result history in DuckDB. Scheduled runs via the same orchestration as brief 03. Every model call recorded through `bok-core`'s ledger (`00` R7) — that is what makes fingerprint tracking possible at all. Next.js 16 + `bok-ui`, or a static site.
 
 ```
 ground_truth/
@@ -92,7 +92,7 @@ ground_truth/
   regression/   scheduled runs, drift detection, fingerprint tracking
   triage/       task distribution ingest, expected-value model, recommendation output
   publish/      static leaderboard generator, methodology renderer
-web/            Next.js 15 + bok-ui (or static)
+web/            Next.js 16 + bok-ui (or static)
 ```
 
 This is a **published document with an interface**, not a dashboard. Design it like a well-set research report that happens to be interactive. Screens: **Leaderboard** (signature; intervals rendered as intervals, methodology link beside the title not in a footer) · Item explorer · Judge agreement (with confusion matrix) · Calibration · Regression watch (alerts state the test used and the p-value or interval, never a bare red arrow) · Triage report (print-ready, calculation shown).
