@@ -19,14 +19,14 @@ providers disabled) -- a missing number stays missing rather than becoming a sil
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from itertools import combinations
 
 import duckdb
 
 from ground_truth.golden.schema import Split
-from ground_truth.graders.judge.targets import select_judge_targets
+from ground_truth.graders.judge.targets import JudgeTarget, select_judge_targets
 from ground_truth.matrix.cost import CostClaim, cost_per_1k_items
 from ground_truth.matrix.latency import LatencyDistribution, summarise_latency
 from ground_truth.providers import SlotSpec
@@ -112,9 +112,10 @@ _OBSERVATIONS_SQL = f"""
 _JUDGE_PREFIX = "judge:"
 
 
-def _current_judge_targets(
-    con: duckdb.DuckDBPyConnection, field_names: set[str]
-) -> set[tuple[str, str]]:
+_TargetsFor = Callable[[str], list[JudgeTarget]]
+
+
+def _current_judge_targets(targets_for: _TargetsFor, field_names: set[str]) -> set[tuple[str, str]]:
     """`(output_id, field_name)` for each current judge target: the modal output per (item,
     slot), selected exactly as grading selects it.
 
@@ -126,16 +127,29 @@ def _current_judge_targets(
     target with no verdict yet from the slot's current judge has none to count, so the field
     is unjudged for that item rather than scored from a stale output.
 
-    Cost: `select_judge_targets` reads and JSON-parses every output once per judged field
-    name, both splits, on every build -- at 300 items x 6 slots x 5 replicates that is 9,000
-    parses per field, cheap next to the bootstrap. If it ever is not, compute the targets once
-    and share them with grading rather than caching a copy that could drift from it.
+    Cost: `select_judge_targets` reads and JSON-parses every output, both splits, once per
+    judged field name -- at 300 items x 6 slots x 5 replicates that is 9,000 parses per field.
+    `targets_for` is the per-selection memo `_headline_selection` builds, so this and the
+    completeness check share one pass per name (JP-10); it lives for one selection, so it
+    cannot drift from the store.
     """
     return {
         (target.output_id, field_name)
         for field_name in sorted(field_names)
-        for target in select_judge_targets(con, field_name)
+        for target in targets_for(field_name)
     }
+
+
+def _memoised_targets(con: duckdb.DuckDBPyConnection) -> _TargetsFor:
+    """`select_judge_targets` for `con`, computed once per field name for one selection."""
+    cache: dict[str, list[JudgeTarget]] = {}
+
+    def targets_for(field_name: str) -> list[JudgeTarget]:
+        if field_name not in cache:
+            cache[field_name] = select_judge_targets(con, field_name)
+        return cache[field_name]
+
+    return targets_for
 
 
 def _judged_field_types_every_slot_holds(
@@ -211,8 +225,9 @@ _REPLICATES_SQL = f"""
 """
 
 
-def _unjudged_field_types(
+def _unjudged_field_types(  # noqa: PLR0913 -- the connection, the memo and four keyword inputs
     con: duckdb.DuckDBPyConnection,
+    targets_for: _TargetsFor,
     *,
     split: Split,
     slots: set[str],
@@ -240,11 +255,13 @@ def _unjudged_field_types(
     ).fetchall()
     type_of = {(item_id, name): ftype for item_id, name, ftype in declared}
     names = sorted({name for (_, name), ftype in type_of.items() if ftype in field_types})
+    # The same field name can be declared as another type on another item; `targets_for` is by
+    # name, so keep only targets whose own item declares one of the judged types in play (JP-9).
     return frozenset(
         type_of[(target.item_id, name)]
         for name in names
-        for target in select_judge_targets(con, name)
-        if (target.item_id, name) in type_of
+        for target in targets_for(name)
+        if type_of.get((target.item_id, name)) in field_types
         and target.model_slot in slots
         and (target.output_id, name) not in judged
     )
@@ -296,8 +313,9 @@ def _headline_selection(
       rejected judge. An inconclusive verdict is a measurement and counts as judged.
     """
     rows = con.execute(_OBSERVATIONS_SQL, [split.value]).fetchall()
+    targets_for = _memoised_targets(con)
     current_targets = _current_judge_targets(
-        con, {row[9] for row in rows if row[8].startswith(_JUDGE_PREFIX)}
+        targets_for, {row[9] for row in rows if row[8].startswith(_JUDGE_PREFIX)}
     )
     shared = _judged_field_types_every_slot_holds(con, {row[1] for row in rows}, judges)
     replicates = {
@@ -350,6 +368,7 @@ def _headline_selection(
     judged = {(o.output_id, name) for o, name in candidates if name is not None}
     held_back = _unjudged_field_types(
         con,
+        targets_for,
         split=split,
         slots={o.slot for o, _ in candidates},
         judged=judged,

@@ -12,6 +12,12 @@ overwritten in place.
 
 ### Changed
 
+- 2026-10-16 (JP-9, JP-10): the completeness check in `matrix/build.py` now reports a field
+  type as held back only when it is one of the judged types in play. Before, a field name shared
+  by two items under different types could list the other item's type as "judging incomplete".
+  Judge targets are now selected once per field name per headline selection instead of twice. No
+  published number changes: neither affects a verdict the headline counts.
+
 - **2026-10-16 -- the leaderboard says which judged field types the headline left out
   (JP-12).** A judged field type dropped as a whole (judging incomplete, or not every ranked
   slot's judge accepted on it) used to vanish from the headline with no word to the reader.
