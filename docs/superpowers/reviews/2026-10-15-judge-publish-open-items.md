@@ -93,7 +93,7 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
   finding: the publish gate matches the `data-gt-fixture` marker only, so a new fixture page with
   no guard and no marker would pass.
 - **JP-8:** fixed 2026-10-16. The same marker scan now runs in the `ci.yml` web job right after the
-  build, before Playwright. Not yet run on GitHub Actions; the first push shows it. Original
+  build, before Playwright. Ran green on GitHub Actions 2026-10-16 (run after `10a0064`), the first fully green `ci` run in the history: the workflow had been failing on a `tsc` and a Playwright step that ran outside `web/`, and on a `float("nan")` hit by the money-path scan. Original
   finding: a removed guard was caught only at a `v*` tag.
 - **JP-9:** fixed 2026-10-16 (reversing the earlier deferral). `_unjudged_field_types` selects
   targets by field name, so a name declared as another type on another item reached its target and
