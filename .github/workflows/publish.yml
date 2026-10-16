@@ -60,7 +60,9 @@ jobs:
       - run: npm ci --prefix web
       - name: typecheck
         working-directory: web
-        run: npx tsc --noEmit
+        # `next typegen` writes the global LayoutProps/PageProps types tsc needs; on a clean
+        # checkout nothing else has generated them yet.
+        run: npx next typegen && npx tsc --noEmit
       - run: npm run build --prefix web
       - name: no test fixture routes in the published site
         # web/app/judge/*-example render synthetic numbers for Playwright only. They 404 unless
