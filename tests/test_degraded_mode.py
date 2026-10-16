@@ -17,7 +17,7 @@ from ground_truth._bok_shim import (
 from ground_truth.golden.generate import generate
 from ground_truth.golden.rubric import loaded_rubric
 from ground_truth.golden.schema import Item
-from ground_truth.grade import grade_stored_outputs
+from ground_truth.grade import GradingConflict, grade_stored_outputs
 from ground_truth.runner import build_prompt, execute_sweep
 from ground_truth.store.db import connect, migrate
 from tests.test_runner import FakeGateway
@@ -123,6 +123,28 @@ def test_regrading_at_the_same_version_is_idempotent(populated):
     first = con.execute("SELECT count(*) FROM verdicts").fetchone()[0]
     grade_stored_outputs(con, items, rubric)
     assert con.execute("SELECT count(*) FROM verdicts").fetchone()[0] == first
+
+
+def test_regrading_that_disagrees_with_a_stored_verdict_fails_loudly(
+    populated_with_correct_outputs,
+):
+    """JP-2: the verdict key has no outcome in it, so a re-grade at the same grader version that
+    reaches a different answer used to be dropped by INSERT OR IGNORE, leaving the old verdict
+    standing. Grader versions only change by a bump, so a disagreement at the same version means
+    an output or a grader changed under the record: say so, naming the verdict."""
+    con, items = populated_with_correct_outputs
+    rubric = loaded_rubric(RUBRIC)
+    grade_stored_outputs(con, items, rubric)
+    output_id = con.execute("SELECT output_id FROM outputs LIMIT 1").fetchone()[0]
+    con.execute("UPDATE outputs SET raw_output = 'not json' WHERE output_id = ?", [output_id])
+    with pytest.raises(GradingConflict, match=output_id) as excinfo:
+        grade_stored_outputs(con, items, rubric)
+    assert "__schema__" in str(excinfo.value)
+    stored = con.execute(
+        "SELECT correct FROM verdicts WHERE output_id = ? AND field_name = '__schema__'",
+        [output_id],
+    ).fetchall()
+    assert stored == [(True,)], "the stored verdict must be left as it was, not overwritten"
 
 
 def test_grade_module_imports_no_provider_code():

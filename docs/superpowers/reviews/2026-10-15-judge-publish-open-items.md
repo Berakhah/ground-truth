@@ -26,7 +26,11 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 
 ### JP-2: re-grading at an already-used grader version writes nothing
 
-- **Status:** open.
+- **Status:** fixed 2026-10-16 (decided by the project owner: keep append-only, fail loudly). A
+  deterministic re-grade that disagrees with the stored verdict at the same grader version keeps
+  the stored verdict and raises `GradingConflict` after the pass, naming each verdict; a version
+  bump records the new answer. Judge verdicts are exempt (they change legitimately with more
+  samples). The original finding follows.
 - **Where:** `ground_truth/grade.py`.
 - **Problem:** re-grading at a grader version that was already used writes no new verdicts. If an
   output later fails its schema check, the earlier field verdicts stay and the output stays
