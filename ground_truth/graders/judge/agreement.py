@@ -151,7 +151,7 @@ def _undefined_alpha_report(
     0/0 draw rather than scoring it as perfect agreement.
     """
     n_units = len(units)
-    nan = float("nan")
+    nan = math.nan
     return AgreementReport(
         field_type=field_type,
         alpha=nan,
