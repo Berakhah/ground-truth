@@ -301,6 +301,15 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   unjudged, the field is out for every slot and the headline uses deterministic grading, like a
   rejected judge. An inconclusive or not-extracted verdict is
   a measurement and counts as judged.
+- **What the headline leaves out is published (`held_back_field_types`).** `leaderboard.json`
+  lists every judged field type the two rules above dropped as a whole, each with a fixed
+  reason: *judging incomplete* (a current target has no verdict yet) or *not every ranked slot's
+  judge holds an accepted decision on it*. The entry is a type name and a reason and nothing
+  else: no item, output, hash or count, because the headline is computed on the private split.
+  The leaderboard page prints it beside the distinguishability statement. A judge that was
+  rejected, or never assessed, is dropped earlier and is published as its status in
+  `judge_agreement.json`, not here. Where the rubric has a deterministic grader for a listed
+  type, the headline scores it with that grader instead.
 - **Which verdicts count (`counts_toward_headline`).** Each published verdict carries this
   flag so a reader can recompute the headline from the verdict files. A verdict is excluded
   when: its item is retired; the field is not one the item declares (the schema and arithmetic

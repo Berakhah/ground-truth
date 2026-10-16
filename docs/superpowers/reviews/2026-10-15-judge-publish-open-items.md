@@ -99,6 +99,12 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 - **JP-10:** `select_judge_targets` runs twice per build.
 - **JP-11:** analysis plan v3 was amended in place because `data/results.duckdb` held 0 runs on
   2026-10-15. If a sweep ran on another machine, the amendment must become a v4.
-- **JP-12:** the completeness gate drops a half-judged field type rather than refusing to publish,
-  so a half-judged run publishes quietly without that field. Chosen deliberately; revisit if the
-  quiet drop causes a surprise.
+- **JP-12:** fixed 2026-10-16 (decided by the project owner: keep the drop, say so). The drop
+  stays, but `leaderboard.json` now lists the held-back field types with a reason
+  (`held_back_field_types`) and the leaderboard page prints them. Type name and fixed reason only,
+  no private-split detail. Original finding: the completeness gate drops a half-judged field type
+  rather than refusing to publish, so a half-judged run published quietly without that field.
+  Security review (2026-10-16, JP-12 plus the JP-2 `grade.py` change): no finding at or above the
+  8/10 confidence bar. Read-only review of the changed files, no tests run. It confirmed that
+  `held_back_field_types` carries only the `FieldType` enum value and one of two fixed reasons, and
+  that the new SQL is fully parameterised.

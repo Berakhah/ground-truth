@@ -44,11 +44,19 @@ export interface LeaderboardRow {
   per_field: Record<string, AccuracyEstimate>;
 }
 
+// A judged field type the headline leaves out as a whole, with a fixed reason; a type name and
+// nothing from the private items it was derived from (ground_truth.matrix.build).
+export interface HeldBackFieldType {
+  field_type: string;
+  reason: string;
+}
+
 export interface LeaderboardPayload {
   version: string;
   as_of: string;
   methodology_url: string;
   placeholder?: boolean;
+  held_back_field_types?: HeldBackFieldType[];
   rows: LeaderboardRow[];
   distinguishability: string[];
   judge_agreement: unknown[];

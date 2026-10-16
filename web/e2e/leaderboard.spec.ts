@@ -18,6 +18,13 @@ test('overlapping models are described in words', async ({ page }) => {
   );
 });
 
+test('a judged field type left out of the numbers is named, with its reason', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('held-back')).toContainText(
+    /line_item_description \(judging incomplete/,
+  );
+});
+
 test('the methodology link sits beside the title, not in the footer', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('banner').getByRole('link', { name: /methodology/i })).toBeVisible();

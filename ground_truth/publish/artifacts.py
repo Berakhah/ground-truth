@@ -39,6 +39,7 @@ from ground_truth.matrix.build import (
     LeaderboardRow,
     build_leaderboard,
     headline_verdict_weights,
+    held_back_field_types,
 )
 from ground_truth.providers import load_slots
 from ground_truth.store.db import connect
@@ -412,6 +413,12 @@ def _emit_into(
         leaderboard_path,
         {
             "rows": [leaderboard_row_to_dict(row) for row in rows],
+            # The judged field types the headline left out as a whole, with a fixed reason each
+            # (JP-12): a type and a reason, nothing from the private items it was derived from.
+            "held_back_field_types": [
+                asdict(held)
+                for held in held_back_field_types(con, split=Split.PRIVATE, judges=judges)
+            ],
             "as_of": as_of.isoformat(),
             "analysis_seed": analysis_seed,
         },

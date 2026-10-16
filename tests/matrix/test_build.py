@@ -10,6 +10,9 @@ from ground_truth.golden.schema import Split
 from ground_truth.graders.judge.aggregate import Sample
 from ground_truth.graders.judge.agreement import JudgeStatus, assess, record_decision
 from ground_truth.matrix.build import (
+    REASON_JUDGE_NOT_ACCEPTED,
+    REASON_JUDGING_INCOMPLETE,
+    HeldBackFieldType,
     LeaderboardRow,
     SlotSpecMissing,
     TokenCountsUnavailable,
@@ -18,6 +21,7 @@ from ground_truth.matrix.build import (
     distinguishability_statements,
     headline_verdict_ids,
     headline_verdict_weights,
+    held_back_field_types,
 )
 from ground_truth.matrix.cost import LIST_PRICE_CAVEAT, cost_per_1k_items
 from ground_truth.matrix.latency import summarise_latency
@@ -1128,3 +1132,54 @@ def test_completeness_ignores_the_other_split(con):
     _add_item_with_slot_b_unjudged(con)
     con.execute("UPDATE items SET split = 'private' WHERE item_id = 'i2'")
     assert "line_item_description" in _fields_by_slot(con, TWO_JUDGES)["slot-a"]
+
+
+# -- the headline says which judged field types it left out, and why (JP-12) -----------------
+
+
+def _held_back(con) -> list[HeldBackFieldType]:
+    return held_back_field_types(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+
+
+def test_nothing_is_held_back_when_every_judged_type_counts(con):
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    assert _held_back(con) == []
+
+
+def test_a_type_one_slots_judge_lacks_is_listed_as_not_accepted(con):
+    _two_slots(con, accepted=("judge-a",))
+    assert _held_back(con) == [
+        HeldBackFieldType("line_item_description", REASON_JUDGE_NOT_ACCEPTED)
+    ]
+
+
+def test_a_half_judged_type_is_listed_as_incomplete_and_leaves_when_judged(con):
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _add_item_with_slot_b_unjudged(con)
+    assert _held_back(con) == [
+        HeldBackFieldType("line_item_description", REASON_JUDGING_INCOMPLETE)
+    ]
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v2-judge-slot-b', 'o2-slot-b', 'line_1_description', "
+        "'judge:judge-b', '1', 'v1', true, 'judge majority EQUIVALENT (3 of 3)', now())"
+    )
+    assert _held_back(con) == []
+
+
+def test_a_type_no_judge_has_an_accepted_decision_on_is_not_listed_here(con):
+    """The list covers the two consistency gates (incomplete judging, judges not all accepted).
+    A rejected or unassessed judge is dropped earlier, by the judge-decision gate, and is
+    published as its status in `judge_agreement.json`; listing it here too would say the same
+    thing twice in two places that could drift."""
+    _two_slots(con, accepted=())
+    assert _held_back(con) == []
+
+
+def test_the_listing_carries_a_type_name_and_a_reason_and_nothing_else(con):
+    """It is published from the private split: no item id, output id, hash or count."""
+    _two_slots(con, accepted=("judge-a",))
+    entries = _held_back(con)
+    assert entries, "nothing to check the shape of"
+    for entry in entries:
+        assert set(vars(entry)) == {"field_type", "reason"}
+        assert not {"i1", "o-slot-a", "o-slot-b"} & {entry.field_type, entry.reason}
