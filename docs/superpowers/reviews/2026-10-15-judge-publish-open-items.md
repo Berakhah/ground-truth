@@ -95,8 +95,14 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 - **JP-8:** fixed 2026-10-16. The same marker scan now runs in the `ci.yml` web job right after the
   build, before Playwright. Not yet run on GitHub Actions; the first push shows it. Original
   finding: a removed guard was caught only at a `v*` tag.
-- **JP-9:** no defensive field-type check in the completeness helper.
-- **JP-10:** `select_judge_targets` runs twice per build.
+- **JP-9:** fixed 2026-10-16 (reversing the earlier deferral). `_unjudged_field_types` selects
+  targets by field name, so a name declared as another type on another item reached its target and
+  could list that type as "judging incomplete". It now keeps only targets whose own item declares
+  a judged type in play. Original finding: no defensive field-type check in the completeness
+  helper.
+- **JP-10:** fixed 2026-10-16 (reversing the earlier deferral). `_headline_selection` builds a
+  per-selection memo, so `select_judge_targets` runs once per field name instead of twice.
+  Original finding: it ran twice per build.
 - **JP-11:** analysis plan v3 was amended in place because `data/results.duckdb` held 0 runs on
   2026-10-15. If a sweep ran on another machine, the amendment must become a v4.
 - **JP-12:** fixed 2026-10-16 (decided by the project owner: keep the drop, say so). The drop
