@@ -105,6 +105,9 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
   Original finding: it ran twice per build.
 - **JP-11:** analysis plan v3 was amended in place because `data/results.duckdb` held 0 runs on
   2026-10-15. If a sweep ran on another machine, the amendment must become a v4.
+  Closed 2026-10-16, not applicable: the project owner confirmed no sweep ran anywhere else, so
+  nothing was ever scored under v3 and the in-place amendment stands. If a sweep does turn up
+  that predates it, reopen this and cut v4.
 - **JP-12:** fixed 2026-10-16 (decided by the project owner: keep the drop, say so). The drop
   stays, but `leaderboard.json` now lists the held-back field types with a reason
   (`held_back_field_types`) and the leaderboard page prints them. Type name and fixed reason only,
