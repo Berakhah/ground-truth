@@ -1028,7 +1028,30 @@ def test_a_moved_modal_target_with_no_verdict_yet_holds_the_judged_type_back(con
         "alpha_high, n_units, threshold, status, decided_at) VALUES ('line_item_description', "
         "'judge-a', 'v1', 0.9, 0.8, 0.95, 60, 0.667, 'accepted', now())"
     )
-    assert _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges=JUDGES) == {}
+    # i2 is fully judged, so the type would count through i2 if nothing held it back; the stale
+    # verdict on o1 never counts. Only the hold-back keeps the type out. (Asserting an empty
+    # result instead passes with the hold-back broken, because o1's verdict is stale anyway.)
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i2', 'public', 'v1', 'synthetic', 'h2', now())"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i2', 'line_1_description', 'line_item_description', "
+        "'Rebar', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO outputs VALUES ('o-i2', 'r1', 'i2', 1, ?, 'call', 'prov', NULL, 100, 'ph', "
+        "now(), NULL)",
+        [json.dumps({"line_1_description": "Rebar"})],
+    )
+    con.execute(
+        "INSERT INTO verdicts VALUES ('v-i2', 'o-i2', 'line_1_description', ?, '1', 'v1', true,"
+        " 'judge majority EQUIVALENT (3 of 3)', now())",
+        [JUDGE_A],
+    )
+    result = _slot_accuracy(con, split=Split.PUBLIC, seed=1, judges=JUDGES)
+    per_field = result["slot-a"].per_field if "slot-a" in result else {}
+    assert "line_item_description" not in per_field
 
 
 # -- a judged field counts only once every current target is judged (open item: completeness) --

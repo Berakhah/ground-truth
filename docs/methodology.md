@@ -315,7 +315,9 @@ Only one field type uses a judge: LINE_ITEM_DESCRIPTION, the one `grader: judge`
   for it: the latest verdict wins (latest `computed_at`, the greater verdict id on a tie),
   across deterministic graders for a deterministic field (a rubric that moves a field type to
   another grader counts it once) and per judge for a judge verdict. A deterministic verdict
-  also does not count when its output's latest schema verdict failed.
+  counts only while its output's latest schema verdict is correct: a failed schema verdict
+  excludes it, and so does the absence of any schema verdict (grading does not currently
+  produce that state).
 - **The published `inconclusive` list** (`judge_agreement.json`) gives, per (model slot, judge),
   `count` of verdicts whose reason starts "judge inconclusive: " and `n` of all that judge's
   verdicts for that slot. It is counted over both splits, including retired items and verdicts
