@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import ground_truth.matrix.build as build_module
 from ground_truth.golden.schema import Split
 from ground_truth.graders.judge.aggregate import Sample
 from ground_truth.graders.judge.agreement import JudgeStatus, assess, record_decision
@@ -1183,3 +1184,44 @@ def test_the_listing_carries_a_type_name_and_a_reason_and_nothing_else(con):
     for entry in entries:
         assert set(vars(entry)) == {"field_type", "reason"}
         assert not {"i1", "o-slot-a", "o-slot-b"} & {entry.field_type, entry.reason}
+
+
+# -- JP-9: the completeness helper only reports types that are in play; JP-10: targets once ----
+
+
+def test_a_same_named_field_of_another_type_is_not_reported_as_unjudged(con):
+    """`line_1_description` is judged for i1. i3 declares the same field name as a different
+    type (`free_text`) that no judge counts on and has no judge verdict. The helper selects
+    targets by field name, so it reaches i3's target; the type it reports must still be one of
+    the judged types in play, not whatever type that item happens to declare."""
+    _populate_two_field_types(con, decisions=(("line_item_description", "judge-a", "accepted"),))
+    con.execute(
+        "INSERT INTO items (item_id, split, rubric_version, source, content_hash, created_at) "
+        "VALUES ('i3', 'public', 'v1', 'synthetic', 'h3', now())"
+    )
+    con.execute(
+        "INSERT INTO item_fields VALUES ('i3', 'line_1_description', 'free_text', 'x', NULL, NULL)"
+    )
+    con.execute(
+        "INSERT INTO outputs VALUES ('o3', 'r1', 'i3', 1, '{}', 'call3', 'prov', NULL, 100, "
+        "'ph', now(), NULL)"
+    )
+    assert held_back_field_types(con, split=Split.PUBLIC, judges=JUDGES) == []
+
+
+def test_a_build_selects_judge_targets_once_per_field_name(con, monkeypatch):
+    """`select_judge_targets` reads and parses every output. One headline selection needs the
+    targets for the judged names twice (current targets, completeness); it computes them once."""
+    _two_slots(con, accepted=("judge-a", "judge-b"))
+    _add_item_with_slot_b_unjudged(con)
+    real = build_module.select_judge_targets
+    calls: list[str] = []
+
+    def counting(c, field_name):
+        calls.append(field_name)
+        return real(c, field_name)
+
+    monkeypatch.setattr(build_module, "select_judge_targets", counting)
+    held_back_field_types(con, split=Split.PUBLIC, judges=TWO_JUDGES)
+    assert calls, "the selection never asked for targets"
+    assert len(calls) == len(set(calls)), f"targets selected more than once: {calls}"
