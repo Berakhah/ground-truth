@@ -39,6 +39,16 @@ jobs:
       - run: npm ci --prefix web
       - run: npx --prefix web tsc --noEmit
       - run: npm run build --prefix web
+      - name: no test fixture routes in the exported site
+        # Same scan as publish.yml, run on every push so a removed guard fails here and not only at
+        # a v* tag. It must stay before Playwright: the e2e webServer sets GT_E2E_FIXTURES=1.
+        # Fails closed: a missing web/out or a grep error (rc 2) also fails.
+        run: |
+          test -d web/out || { echo "web/out missing"; exit 1; }
+          rc=0
+          grep -rl "data-gt-fixture" web/out || rc=$?
+          if [ "$rc" -eq 0 ]; then echo "a fixture route reached web/out"; exit 1; fi
+          if [ "$rc" -ne 1 ]; then echo "fixture scan failed (grep rc=$rc)"; exit 1; fi
       - run: npx --prefix web playwright install --with-deps chromium
       - run: npx --prefix web playwright test
 

@@ -83,11 +83,14 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 
 ## Deferred hardening (accepted for now)
 
-- **JP-7:** the publish gate matches the `data-gt-fixture` marker only. A new fixture page with no
-  guard and no marker would pass. Add a note to the publish docs, or a test that every route
-  under `web/app/**/*-example` calls `requireFixtureRoute()`.
-- **JP-8:** the same marker grep is not in `ci.yml`, so a removed guard is caught only at a `v*`
-  tag.
+- **JP-7:** fixed 2026-10-16. `tests/test_fixture_routes.py` requires every
+  `web/app/**/*-example/page.tsx` to call `requireFixtureRoute()` and carry the marker, and the
+  guard to be called nowhere else (checked by adding a rogue unguarded route: it failed). Original
+  finding: the publish gate matches the `data-gt-fixture` marker only, so a new fixture page with
+  no guard and no marker would pass.
+- **JP-8:** fixed 2026-10-16. The same marker scan now runs in the `ci.yml` web job right after the
+  build, before Playwright. Not yet run on GitHub Actions; the first push shows it. Original
+  finding: a removed guard was caught only at a `v*` tag.
 - **JP-9:** no defensive field-type check in the completeness helper.
 - **JP-10:** `select_judge_targets` runs twice per build.
 - **JP-11:** analysis plan v3 was amended in place because `data/results.duckdb` held 0 runs on
