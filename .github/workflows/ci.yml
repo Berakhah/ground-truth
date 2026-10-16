@@ -54,8 +54,13 @@ jobs:
           grep -rl "data-gt-fixture" web/out || rc=$?
           if [ "$rc" -eq 0 ]; then echo "a fixture route reached web/out"; exit 1; fi
           if [ "$rc" -ne 1 ]; then echo "fixture scan failed (grep rc=$rc)"; exit 1; fi
-      - run: npx --prefix web playwright install --with-deps chromium
-      - run: npx --prefix web playwright test
+      - name: playwright browsers
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: e2e and axe
+        # From web/ so playwright.config.ts (baseURL, webServer) is found; `npx --prefix` does not cd.
+        working-directory: web
+        run: npx playwright test
 
   dependency-audit:
     name: dependency scanning (00 SS8)
