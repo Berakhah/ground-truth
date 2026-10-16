@@ -12,6 +12,14 @@ overwritten in place.
 
 ### Changed
 
+- **2026-10-16 -- the leaderboard says which judged field types the headline left out
+  (JP-12).** A judged field type dropped as a whole (judging incomplete, or not every ranked
+  slot's judge accepted on it) used to vanish from the headline with no word to the reader.
+  `leaderboard.json` now carries `held_back_field_types`, a list of `{field_type, reason}`
+  (`matrix.build.held_back_field_types`), and the leaderboard page prints it. The entry is a type
+  name and a fixed reason string: no item, output, hash or count, since it is derived from the
+  private split. A rejected or unassessed judge is not listed; it is already published as its
+  status in `judge_agreement.json`. No headline number changes.
 - **2026-10-16 -- a re-grade that disagrees with a stored deterministic verdict now fails loudly
   (JP-2).** Verdicts are append-only and keyed by (output, field, grader, grader version, rubric
   version); the key carries no outcome, so a re-grade at the same grader version that reached a

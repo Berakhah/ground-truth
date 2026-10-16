@@ -28,6 +28,17 @@ export default function Page() {
             : "All models are distinguishable at this sample size."}
         </p>
 
+        {data.held_back_field_types && data.held_back_field_types.length > 0 ? (
+          <p className="distinguishability" data-testid="held-back">
+            Not in these numbers:{" "}
+            {data.held_back_field_types
+              .map((held) => `${held.field_type} (${held.reason})`)
+              .join("; ")}
+            . Where the rubric has a deterministic grader for a type, it is scored by that
+            grader instead.
+          </p>
+        ) : null}
+
         <div className="table-scroll">
           <table className="leaderboard">
             <caption className="visually-hidden">

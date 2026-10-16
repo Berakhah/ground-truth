@@ -250,10 +250,28 @@ def _unjudged_field_types(
     )
 
 
-def _headline_observations(
+REASON_JUDGE_NOT_ACCEPTED = "not every ranked slot's judge holds an accepted decision on it"
+REASON_JUDGING_INCOMPLETE = "judging incomplete: a current target has no verdict yet"
+
+
+@dataclass(frozen=True)
+class HeldBackFieldType:
+    """A judged field type the headline leaves out, and why (JP-12).
+
+    Published from the private split, so it is a type name and a fixed reason string and nothing
+    else: no item, output, hash or count. Where the rubric has a deterministic grader for the
+    type, the headline falls back to it; the type is still not scored by the judge.
+    """
+
+    field_type: str
+    reason: str
+
+
+def _headline_selection(
     con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
-) -> list[_Observation]:
-    """Every verdict the headline counts for `split` -- the one place that rule lives.
+) -> tuple[list[_Observation], list[HeldBackFieldType]]:
+    """Every verdict the headline counts for `split` -- the one place that rule lives -- and the
+    judged field types it left out as a whole (`HeldBackFieldType`).
 
     `_slot_accuracy` scores these and `headline_verdict_ids` exposes their ids, which the
     publisher writes as `counts_toward_headline` so a recompute from the published verdict
@@ -287,6 +305,7 @@ def _headline_observations(
         for item_id, slot, count in con.execute(_REPLICATES_SQL).fetchall()
     }
     candidates: list[tuple[_Observation, str | None]] = []
+    not_shared: set[str] = set()
     for (
         verdict_id,
         slot,
@@ -306,6 +325,7 @@ def _headline_observations(
             if assigned is None or grader_id != _JUDGE_PREFIX + assigned:
                 continue  # not the slot's currently assigned judge
             if field_type not in shared:
+                not_shared.add(field_type)
                 continue  # some ranked slot's judge is not accepted on it: out for every slot
         candidates.append(
             (
@@ -343,7 +363,30 @@ def _headline_observations(
     # not count (rejected, unassessed, unassigned, held back) nothing is dropped, so the field
     # still falls back to deterministic grading.
     judged_types = {o.field_type for o, name in counted if name is not None}
-    return [o for o, name in counted if name is not None or o.field_type not in judged_types]
+    observations = [
+        o for o, name in counted if name is not None or o.field_type not in judged_types
+    ]
+    # A type is either not shared (skipped above, never a candidate) or held back (a candidate
+    # dropped just now), never both.
+    left_out = [HeldBackFieldType(ft, REASON_JUDGE_NOT_ACCEPTED) for ft in not_shared] + [
+        HeldBackFieldType(ft, REASON_JUDGING_INCOMPLETE) for ft in held_back
+    ]
+    return observations, sorted(left_out, key=lambda h: h.field_type)
+
+
+def _headline_observations(
+    con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
+) -> list[_Observation]:
+    return _headline_selection(con, split=split, judges=judges)[0]
+
+
+def held_back_field_types(
+    con: duckdb.DuckDBPyConnection, *, split: Split, judges: Mapping[str, str | None]
+) -> list[HeldBackFieldType]:
+    """The judged field types the headline for `split` left out, sorted by name; see
+    `_headline_selection`. The publisher writes these into `leaderboard.json` so a reader is
+    told what the headline does not cover instead of inferring it from the field list."""
+    return _headline_selection(con, split=split, judges=judges)[1]
 
 
 def headline_verdict_weights(

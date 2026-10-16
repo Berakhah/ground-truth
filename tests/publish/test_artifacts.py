@@ -314,6 +314,47 @@ def test_published_weights_regenerate_the_weighted_headline(con, tmp_path):
     assert recomputed == pytest.approx(row["accuracy"]["point"], abs=1e-9)
 
 
+def _publish_judged_private_items(con, tmp_path, *, half_judge_priv2: bool) -> tuple[dict, str]:
+    seed(con, "priv1", "private", "999.99", "hash-1")
+    seed(con, "priv2", "private", "888.88", "hash-2")
+    con.execute("UPDATE outputs SET token_count = 500")
+    _judged_private_item_with_three_replicates(con)
+    if half_judge_priv2:
+        # A second description to judge, with no judge verdict on it yet: a sweep still running.
+        con.execute(
+            "INSERT INTO item_fields VALUES ('priv2','line_1_description','line_item_description',"
+            "'Rebar',NULL,NULL)"
+        )
+    out_dir = tmp_path / "out"
+    emit_all(
+        con,
+        out_dir,
+        as_of=datetime(2026, 10, 16, tzinfo=UTC),
+        analysis_seed=1,
+        models_yaml=_models_yaml(tmp_path, judge="judge-a"),
+    )
+    text = (out_dir / "leaderboard.json").read_text(encoding="utf-8")
+    return json.loads(text), text
+
+
+def test_the_leaderboard_lists_no_held_back_types_when_every_judged_type_counts(con, tmp_path):
+    board, _ = _publish_judged_private_items(con, tmp_path, half_judge_priv2=False)
+    assert board["held_back_field_types"] == []
+
+
+def test_the_leaderboard_names_a_judged_type_the_headline_left_out(con, tmp_path):
+    """JP-12: a half-judged type used to drop from the headline with no word to the reader."""
+    board, text = _publish_judged_private_items(con, tmp_path, half_judge_priv2=True)
+    assert board["held_back_field_types"] == [
+        {
+            "field_type": "line_item_description",
+            "reason": "judging incomplete: a current target has no verdict yet",
+        }
+    ]
+    # Published from the private split: a type and a reason, never an item or a hash.
+    assert not any(secret in text for secret in ("priv1", "priv2", "hash-1", "hash-2"))
+
+
 def test_public_verdicts_publish_their_weight(con, tmp_path):
     seed(con, "pub1", "public", "111.11", "hash-pub")
     _verdicts_the_headline_does_not_count(con, "pub1")
