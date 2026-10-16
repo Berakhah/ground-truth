@@ -37,7 +37,9 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 
 ### JP-3: the moved-modal-target test does not protect the hold-back logic
 
-- **Status:** open.
+- **Status:** fixed 2026-10-16. The test now adds a fully judged second item, so the type would
+  count if nothing held it back; it passes as written and fails with the hold-back filter
+  disabled (checked by mutation). The original finding follows.
 - **Where:** `tests/matrix/test_build.py`.
 - **Problem:** the test passes even if the hold-back logic is broken. Only the reassigned-judge
   test exercises it. The behaviour is therefore covered once, not twice.
@@ -45,7 +47,9 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 
 ### JP-4: `docs/methodology.md:315` is narrower than the code
 
-- **Status:** open.
+- **Status:** fixed 2026-10-16. The sentence now says a deterministic verdict counts only while
+  its output's latest schema verdict is correct, so a missing one excludes it too. No code change;
+  the rule was already enforced that way. The original finding follows.
 - **Problem:** the text says a deterministic verdict does not count when the latest schema check
   *failed*. The code also excludes a deterministic verdict with *no* schema verdict at all. Grading
   cannot currently produce that state, so nothing is wrong today, but the document and the code
