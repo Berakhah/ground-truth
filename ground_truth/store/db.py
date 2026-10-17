@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib.util
+import sys
 from pathlib import Path
 
 import duckdb
@@ -104,7 +106,18 @@ _ALTER_JUDGE_DECISIONS = (
 )
 
 
+def _stop_probing_for_absent_pandas() -> None:
+    """DuckDB runs `import pandas` on every execute. Python does not cache a failed import, so"
+    with pandas absent each execute searched every sys.path entry again: about 4 ms against 0.8
+    with the entry below, which made a 300-item grading pass take hours. A `None` entry in
+    `sys.modules` makes the import fail at once. Left alone when pandas is installed.
+    """
+    if "pandas" not in sys.modules and importlib.util.find_spec("pandas") is None:
+        sys.modules["pandas"] = None  # type: ignore[assignment]
+
+
 def connect(path: Path) -> duckdb.DuckDBPyConnection:
+    _stop_probing_for_absent_pandas()
     path.parent.mkdir(parents=True, exist_ok=True)
     return duckdb.connect(str(path))
 
