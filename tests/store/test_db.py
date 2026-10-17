@@ -1,3 +1,5 @@
+import importlib.util
+import sys
 from pathlib import Path
 
 import duckdb
@@ -141,3 +143,18 @@ def test_migrate_rebuilds_an_empty_old_judge_decisions_table(tmp_path):
     assert pk is not None and sorted(pk[0]) == ["field_type", "judge_slot"]
     migrate(c)  # the rebuilt table is left alone on the next run
     c.close()
+
+
+def test_connect_stops_duckdb_searching_the_filesystem_for_an_absent_pandas(tmp_path):
+    """DuckDB tries `import pandas` on every execute. Python does not cache a failed import, so
+    with pandas absent each execute re-searches sys.path (about 4 ms here, ~5x the cost of the
+    statement). A `None` entry in sys.modules makes that import fail at once. Only done when
+    pandas is genuinely absent; an installed pandas is left alone."""
+    present = importlib.util.find_spec("pandas") is not None
+    sys.modules.pop("pandas", None)
+    con = connect(tmp_path / "t.duckdb")
+    con.close()
+    if present:
+        assert "pandas" not in sys.modules or sys.modules["pandas"] is not None
+    else:
+        assert "pandas" in sys.modules and sys.modules["pandas"] is None
