@@ -58,24 +58,29 @@ def _write_verdict(  # noqa: PLR0913, PLR0917 -- one verdict row's key plus the 
     verdict: Verdict,
     conflicts: list[str],
 ) -> None:
-    # A judge verdict is a majority over stored samples, so another sample at the same grader
-    # version can legitimately change it; only a deterministic grader disagreeing with itself is
-    # a conflict. The stored verdict is left alone either way.
-    if not verdict.grader_id.startswith(_JUDGE_GRADER_PREFIX):
-        stored = con.execute(
-            "SELECT correct FROM verdicts WHERE output_id = ? AND field_name = ? "
-            "AND grader_id = ? AND grader_version = ? AND rubric_version = ?",
-            [output_id, field_name, verdict.grader_id, verdict.grader_version, rubric_version],
-        ).fetchone()
-        if stored is not None and bool(stored[0]) != verdict.correct:
+    # The key (output, field, grader, grader version, rubric version) carries no outcome, so look
+    # it up first. A key that exists is left alone: for a judge verdict, a majority over stored
+    # samples, another sample at the same grader version can legitimately change it, so that is not
+    # a conflict; only a deterministic grader disagreeing with itself is. A new key is a plain
+    # INSERT. `INSERT OR IGNORE` here checked every row against the unique index and cost 6-10 ms
+    # a row against ~1 ms for a plain INSERT, 99% of a grading pass (profiled 2026-10-18).
+    stored = con.execute(
+        "SELECT correct FROM verdicts WHERE output_id = ? AND field_name = ? "
+        "AND grader_id = ? AND grader_version = ? AND rubric_version = ?",
+        [output_id, field_name, verdict.grader_id, verdict.grader_version, rubric_version],
+    ).fetchone()
+    if stored is not None:
+        if not verdict.grader_id.startswith(_JUDGE_GRADER_PREFIX) and (
+            bool(stored[0]) != verdict.correct
+        ):
             conflicts.append(
                 f"{output_id} {field_name} ({verdict.grader_id} v{verdict.grader_version}, "
                 f"rubric {rubric_version}): stored correct={bool(stored[0])}, "
                 f"re-grade correct={verdict.correct}"
             )
-            return
+        return  # the stored verdict is left alone either way
     con.execute(
-        "INSERT OR IGNORE INTO verdicts VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO verdicts VALUES (?,?,?,?,?,?,?,?,?)",
         [
             uuid.uuid4().hex,
             output_id,
