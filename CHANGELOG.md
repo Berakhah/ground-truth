@@ -10,8 +10,20 @@ overwritten in place.
 
 ## [Unreleased]
 
+### Added
+
+- 2026-10-18: `python -m ground_truth.simulate [--scenario default|contested]` runs the real sweep,
+  judging, grading, agreement and publish code with a simulated provider into the gitignored
+  `data/simulated/` (never `artifacts/`). `/simulated-example` and `/judge/simulated-example` show it
+  through the real views behind a SIMULATED banner; both 404 unless `GT_E2E_FIXTURES=1` and are caught
+  by the `data-gt-fixture` build scan. Nothing it produces is a measurement of any model.
+
 ### Changed
 
+- 2026-10-18: `emit_all` now writes `distinguishability` (the plain-language statement for every
+  pair of overlapping intervals) and `methodology_url` into `leaderboard.json`. The leaderboard page
+  reads both; only the hand-written placeholder had them, so the first real publish would have
+  crashed the page build. Additive: no published number changes.
 - 2026-10-16 (JP-9, JP-10): the completeness check in `matrix/build.py` now reports a field
   type as held back only when it is one of the judged types in play. Before, a field name shared
   by two items under different types could list the other item's type as "judging incomplete".

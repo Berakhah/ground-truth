@@ -1,11 +1,11 @@
 import { Claim } from "@/components/Claim";
 import { IntervalBar } from "@/components/IntervalBar";
 import { PageHeader } from "@/components/PageHeader";
-import { loadLeaderboard } from "@/lib/artifacts";
+import { loadLeaderboard, type LeaderboardPayload } from "@/lib/artifacts";
 
-export default function Page() {
-  const data = loadLeaderboard();
-
+// Extracted from the default page export so /simulated-example can render a simulated run through
+// the same view (same pattern as JudgeAgreementView in ./judge/page.tsx).
+export function LeaderboardView({ data }: { data: LeaderboardPayload }) {
   return (
     <>
       <PageHeader
@@ -103,4 +103,8 @@ export default function Page() {
       </main>
     </>
   );
+}
+
+export default function Page() {
+  return <LeaderboardView data={loadLeaderboard()} />;
 }
