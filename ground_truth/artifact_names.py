@@ -16,3 +16,5 @@ REGRESSION = "regression.json"
 # artifact they saw. `emit_all` drops it (a re-emit is bytes the gates have not seen), and
 # scripts/reproduce.py --require-release checks it in CI, which never holds the database.
 RELEASE = "release.json"
+# Where the leaderboard page sends a reader for the methodology; the page reads it from the data.
+METHODOLOGY_URL = "/methodology"

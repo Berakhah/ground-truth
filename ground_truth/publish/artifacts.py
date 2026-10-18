@@ -32,12 +32,13 @@ from pathlib import Path
 
 import duckdb
 
-from ground_truth.artifact_names import REGRESSION, RELEASE, TRIAGE_EXAMPLE
+from ground_truth.artifact_names import METHODOLOGY_URL, REGRESSION, RELEASE, TRIAGE_EXAMPLE
 from ground_truth.golden.manifest import write_manifest_from_db
 from ground_truth.golden.schema import Split
 from ground_truth.matrix.build import (
     LeaderboardRow,
     build_leaderboard,
+    distinguishability_statements,
     headline_verdict_weights,
     held_back_field_types,
 )
@@ -413,6 +414,10 @@ def _emit_into(
         leaderboard_path,
         {
             "rows": [leaderboard_row_to_dict(row) for row in rows],
+            # What the leaderboard page reads beside the rows: the plain-language statement for
+            # every pair of intervals that overlap, and where its methodology link points.
+            "distinguishability": distinguishability_statements(rows),
+            "methodology_url": METHODOLOGY_URL,
             # The judged field types the headline left out as a whole, with a fixed reason each
             # (JP-12): a type and a reason, nothing from the private items it was derived from.
             "held_back_field_types": [

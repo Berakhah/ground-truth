@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ground_truth.artifact_names import METHODOLOGY_URL
 from ground_truth.publish.artifacts import finite_or_none, leaderboard_row_to_dict, write_json
 
 if TYPE_CHECKING:
@@ -24,7 +25,6 @@ if TYPE_CHECKING:
     from ground_truth.matrix.build import LeaderboardRow
     from ground_truth.regression.fingerprint import SlotFingerprint
 
-METHODOLOGY_URL = "/methodology"
 
 _REQUIRED_TERMS = frozenset(
     {

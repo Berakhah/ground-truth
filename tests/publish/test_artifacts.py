@@ -827,3 +827,12 @@ def test_cli_entrypoint_writes_artifacts_to_out_dir(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert (out_dir / "leaderboard.json").exists()
+
+
+def test_the_leaderboard_carries_what_the_web_page_reads(con, tmp_path):
+    """The page reads `distinguishability` and `methodology_url`. Both were missing from what
+    `emit_all` wrote (they only existed in the hand-written placeholder), so the first real
+    publish would have crashed the page build on `data.distinguishability.length`."""
+    board, _ = _publish_judged_private_items(con, tmp_path, half_judge_priv2=False)
+    assert board["methodology_url"] == "/methodology"
+    assert board["distinguishability"] == []  # one ranked slot: nothing to compare it with
