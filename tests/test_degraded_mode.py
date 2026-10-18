@@ -22,6 +22,7 @@ from ground_truth.runner import build_prompt, execute_sweep
 from ground_truth.store.db import connect, migrate
 from tests.test_runner import FakeGateway
 
+_MIN_VERDICTS = 100  # ten items' worth of verdicts is comfortably more
 RUBRIC = Path(__file__).resolve().parents[1] / "docs" / "rubric.md"
 
 
@@ -145,6 +146,40 @@ def test_regrading_that_disagrees_with_a_stored_verdict_fails_loudly(
         [output_id],
     ).fetchall()
     assert stored == [(True,)], "the stored verdict must be left as it was, not overwritten"
+
+
+class _CountingConnection:
+    """Delegates to a real connection and keeps every SQL string it was asked to run."""
+
+    def __init__(self, con):
+        self._con = con
+        self.sql: list[str] = []
+
+    def execute(self, query, *args, **kwargs):
+        self.sql.append(" ".join(query.split()).upper())
+        return self._con.execute(query, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._con, name)
+
+
+def test_grading_writes_with_a_plain_insert_and_a_regrade_writes_nothing(
+    populated_with_correct_outputs,
+):
+    """`INSERT OR IGNORE` against the verdicts table's unique index cost 6-10 ms a row however
+    the writes were grouped, 99% of a grading pass (a plain INSERT: ~1 ms). `_write_verdict`
+    already looks the key up first, so a key that exists is skipped there and a new one is a
+    plain INSERT. A re-grade of an unchanged store therefore issues no INSERT at all."""
+    con, items = populated_with_correct_outputs
+    rubric = loaded_rubric(RUBRIC)
+    first = _CountingConnection(con)
+    written = grade_stored_outputs(first, items, rubric)
+    inserts = [q for q in first.sql if q.startswith("INSERT")]
+    assert len(inserts) == written > _MIN_VERDICTS
+    assert not [q for q in inserts if "OR IGNORE" in q]
+    again = _CountingConnection(con)
+    assert grade_stored_outputs(again, items, rubric) == 0
+    assert not [q for q in again.sql if q.startswith("INSERT")]
 
 
 def test_grade_module_imports_no_provider_code():
