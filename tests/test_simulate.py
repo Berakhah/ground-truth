@@ -147,3 +147,32 @@ def test_it_never_reads_the_real_results_store(sim):
     assert not set(json.loads(real).get("item_hashes", [])) & set(
         json.loads(manifest).get("item_hashes", [])
     )
+
+
+@pytest.fixture(scope="module")
+def contested(tmp_path_factory):
+    out = tmp_path_factory.mktemp("contested")
+    run_simulation(out, seed=7, n_items=20, replicates=3, scenario="contested")
+    return out
+
+
+@pytest.mark.slow
+def test_the_contested_scenario_has_two_models_whose_intervals_overlap(contested):
+    board = json.loads((contested / "artifacts" / "leaderboard.json").read_text("utf-8"))
+    acc = {r["slot"]: r["accuracy"] for r in board["rows"]}
+    medium, large = acc["sim-medium"], acc["sim-large"]
+    assert medium["low"] <= large["high"] and large["low"] <= medium["high"]
+
+
+@pytest.mark.slow
+def test_the_contested_scenario_rejects_the_weak_judge_and_holds_the_type_back(contested):
+    agreement = json.loads((contested / "artifacts" / "judge_agreement.json").read_text("utf-8"))
+    status = {d["judge_slot"]: d["status"] for d in agreement["decisions"]}
+    assert status["sim-judge-b"] == "rejected"
+    board = json.loads((contested / "artifacts" / "leaderboard.json").read_text("utf-8"))
+    assert [h["field_type"] for h in board["held_back_field_types"]] == ["line_item_description"]
+
+
+def test_an_unknown_scenario_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="scenario"):
+        run_simulation(tmp_path, seed=1, n_items=6, replicates=3, scenario="nope")
