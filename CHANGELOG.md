@@ -20,6 +20,10 @@ overwritten in place.
 
 ### Changed
 
+- 2026-10-18: grading writes a new verdict with a plain `INSERT` after its existence lookup, not
+  `INSERT OR IGNORE`. The latter cost 6-10 ms a row against ~1 ms and was 99% of a grading pass
+  (30 simulated items: 65-197 s before, 13.6 s after; 60 items: 273-537 s before, 26.8 s after, and now
+  linear). Same verdicts, same conflict rules; a re-grade of an unchanged store writes nothing.
 - 2026-10-18: `emit_all` now writes `distinguishability` (the plain-language statement for every
   pair of overlapping intervals) and `methodology_url` into `leaderboard.json`. The leaderboard page
   reads both; only the hand-written placeholder had them, so the first real publish would have
