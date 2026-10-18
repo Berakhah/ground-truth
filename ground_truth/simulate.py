@@ -118,6 +118,24 @@ PROFILES: dict[str, Profile] = {
         "10.00",
     ),
 }
+# The default scenario separates all three models cleanly. "contested" is the one that shows the
+# behaviours the brand rests on: the two stronger models are not distinguishable at this sample
+# size, and the weaker judge disagrees with the human labels too often to be used.
+_CONTESTED_PROFILES = {
+    **PROFILES,
+    "sim-large": Profile(
+        PROFILES["sim-large"].family,
+        PROFILES["sim-medium"].accuracy,
+        PROFILES["sim-medium"].parse_failure,
+        PROFILES["sim-large"].latency_median_ms,
+        PROFILES["sim-large"].list_price_in_per_1m,
+        PROFILES["sim-large"].list_price_out_per_1m,
+    ),
+}
+SCENARIOS: dict[str, tuple[dict[str, Profile], float]] = {
+    "default": (PROFILES, 0.93),
+    "contested": (_CONTESTED_PROFILES, 0.55),
+}
 # model slot -> judge slot. Each judge's family differs from the model it judges (rule 4).
 JUDGE_OF = {"sim-small": "sim-judge-a", "sim-medium": "sim-judge-b", "sim-large": "sim-judge-a"}
 JUDGE_FAMILY = {"sim-judge-a": "SIM-JUDGE-FAMILY-1", "sim-judge-b": "SIM-JUDGE-FAMILY-2"}
@@ -207,7 +225,15 @@ _JUDGE_PROMPT = re.compile(r"Text A:\n(?P<a>.*?)\n\nText B:\n(?P<b>.*?)\n\nReply
 class SimulatedProviders:
     """`resolve` and `call` with the shapes `execute_sweep` and `run_judging` expect."""
 
-    def __init__(self, items: list[Item], *, seed: int, judge_accuracy: dict[str, float]) -> None:
+    def __init__(
+        self,
+        items: list[Item],
+        *,
+        seed: int,
+        profiles: dict[str, Profile],
+        judge_accuracy: dict[str, float],
+    ) -> None:
+        self._profiles = profiles
         self._documents = {build_prompt(item).value: item for item in items}
         if len(self._documents) != len(items):
             raise ValueError("two items render the same document; the simulator keys on it")
@@ -248,7 +274,7 @@ class SimulatedProviders:
         )
 
     def _model(self, slot: str, document: str) -> tuple[str, int]:
-        profile, rng = PROFILES[slot], self._model_rng
+        profile, rng = self._profiles[slot], self._model_rng
         item = self._documents[document]
         latency = max(1, round(rng.lognormvariate(math.log(profile.latency_median_ms), 0.35)))
         if rng.random() < profile.parse_failure:
@@ -295,12 +321,12 @@ def _price_lines(indent: str, price_in: str, price_out: str) -> list[str]:
     ]
 
 
-def _models_yaml() -> str:
+def _models_yaml(profiles: dict[str, Profile]) -> str:
     lines = [
         "# SIMULATED. Every value is invented: no provider, no model, no price is real.",
         "slots:",
     ]
-    for slot, p in PROFILES.items():
+    for slot, p in profiles.items():
         lines += [
             f"  {slot}:",
             f'    family: "{p.family}"',
@@ -386,14 +412,20 @@ def _count(con: duckdb.DuckDBPyConnection, sql: str) -> int:
     return 0 if row is None else int(row[0])
 
 
-def run_simulation(
+def run_simulation(  # noqa: PLR0913 -- the CLI's options, all keyword-only
     out_dir: Path,
     *,
     seed: int = 1,
     n_items: int = 300,
     replicates: int = 5,
-    judge_b_accuracy: float = 0.93,
+    judge_b_accuracy: float | None = None,
+    scenario: str = "default",
 ) -> SimulationResult:
+    if scenario not in SCENARIOS:
+        raise ValueError(f"unknown scenario {scenario!r}; choose from {sorted(SCENARIOS)}")
+    profiles, default_judge_b = SCENARIOS[scenario]
+    if judge_b_accuracy is None:
+        judge_b_accuracy = default_judge_b
     resolved = out_dir.resolve()
     if resolved == _PUBLISHED.resolve() or _PUBLISHED.resolve() in resolved.parents:
         raise SimulationRefused(
@@ -405,7 +437,7 @@ def run_simulation(
     for stale in (db_path, out_dir / "simulated.duckdb.wal"):
         stale.unlink(missing_ok=True)
     models_path = out_dir / "models.yaml"
-    models_path.write_text(_models_yaml(), encoding="utf-8")
+    models_path.write_text(_models_yaml(profiles), encoding="utf-8")
     (out_dir / SIM_MARKER).write_text(
         "SIMULATED. Every number in this folder comes from a simulated provider, not from any "
         "model. Slot names start `sim-`; the prices are invented. Never publish it, never "
@@ -419,7 +451,10 @@ def run_simulation(
         for n, item in enumerate(generate(n_items, f"sim-{seed}", "v1", salt=f"sim-salt-{seed}"))
     ]
     sim = SimulatedProviders(
-        items, seed=seed, judge_accuracy={"sim-judge-a": 0.96, "sim-judge-b": judge_b_accuracy}
+        items,
+        seed=seed,
+        profiles=profiles,
+        judge_accuracy={"sim-judge-a": 0.96, "sim-judge-b": judge_b_accuracy},
     )
     rubric = loaded_rubric(_RUBRIC_PATH)
     con = connect(db_path)
@@ -430,7 +465,7 @@ def run_simulation(
         execute_sweep(
             con,
             items,
-            list(PROFILES),
+            list(profiles),
             replicates,
             context=CallContext(),
             resolve_fn=sim.resolve,
@@ -473,14 +508,15 @@ def run_simulation(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a simulated sweep (no provider is called).")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--scenario", choices=sorted(SCENARIOS), default="default")
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--items", type=int, default=300)
     parser.add_argument("--replicates", type=int, default=5)
     parser.add_argument(
         "--judge-b-accuracy",
         type=float,
-        default=0.93,
-        help="how often judge B answers correctly; lower it to see a weak judge rejected",
+        default=None,
+        help="how often judge B answers correctly (default: the scenario's)",
     )
     args = parser.parse_args()
     result = run_simulation(
@@ -489,6 +525,7 @@ def main() -> None:
         n_items=args.items,
         replicates=args.replicates,
         judge_b_accuracy=args.judge_b_accuracy,
+        scenario=args.scenario,
     )
     print(f"SIMULATED sweep: {result.n_outputs} outputs -> {result.out_dir}")
 
