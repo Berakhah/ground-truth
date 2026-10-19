@@ -98,7 +98,10 @@ a reproducibility re-run from raw results.
    (including the gitignored private split) on the sweep machine.
 3. `bok_core` is not installed here, and `_bok_shim.remaining()` returns an unbounded quota. A plan
    built against the shim will look fine and then 429.
-4. Judge orchestration is unwired: nothing calls `select_judge_targets` or `sample_judgements` yet.
+4. Judge orchestration exists and is exercised by the simulated pipeline (`run_judging`, per-judge
+   decisions; merged 2026-10-15). What is missing is a live entry point: `schedule.py` does not
+   call `run_judging`. That needs the real judge assignments in `models.yaml` and the observed
+   Cerebras limits from the probe, as the judge-wiring plan's "out of scope" section says.
 5. `models.yaml` is still the placeholder scaffold and must not be run.
 
 Items 3 to 5 remain. Any code for them is `runner/` or `judge/` work, so TDD applies.
