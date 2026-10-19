@@ -13,18 +13,20 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import duckdb
 
 from ground_truth._bok_shim import Quota, remaining
-from ground_truth.golden.schema import Item, Source, Split
+from ground_truth.golden.schema import FieldType, Item, ItemField, Source, Split
 from ground_truth.providers import load_slots
 from ground_truth.runner import execute_sweep, pending_work
 from ground_truth.store.db import connect, migrate
 
 REPO = Path(__file__).resolve().parent.parent
 MODELS_YAML = REPO / "models.yaml"
+CORPUS = REPO / "golden" / "corpus"
 
 # 300 golden items (120 public + 180 private, see golden/build.py) x 6 slots x 5 replicates
 # = 9,000 calls, the number this task opens with. CLAUDE.md rule 6: n>=5 per item, always.
@@ -43,42 +45,87 @@ def plan_batches(
     units: list[WorkUnit],
     quotas: dict[str, Quota],
     slot_providers: dict[str, str],
+    *,
+    tokens_per_call: dict[str, int] | None = None,
+    daily_token_budget: dict[str, int] | None = None,
 ) -> list[list[WorkUnit]]:
-    """Group by slot, then chunk each group to its provider's daily ceiling.
+    """Group by provider, then pack each provider's units into days of its daily pool.
 
-    `slot_providers[slot]` and `quotas[provider]` raise KeyError on anything unconfigured
-    rather than defaulting silently -- planning against a guessed provider risks 429s the
-    caller never sees coming. `rpd is None` means the provider does not publish a daily
-    limit and is treated as unbounded, never as zero (Quota's contract, section 3.3).
-    Batches from different providers stay separate list entries so an overnight run can
-    interleave them instead of draining one provider before starting the next.
+    A "day" is bounded by the provider's `rpd` (calls) and, when `daily_token_budget` names
+    the provider, by its tokens/day too (Groq: 1K RPD but 200K TPD, so tokens bind first).
+    `Quota` carries no token-per-day field, hence the separate arguments; the per-slot
+    `tokens_per_call` comes from the Phase 0/1 probe, never a guess. Slots on one provider
+    share one pool (conservative: if a provider limits per model, this over-plans days, it
+    never 429s). Batches are cut at day boundaries and never mix slots, so consecutive
+    batches of a provider fill a day until the next batch starts one.
+
+    `slot_providers[slot]`, `quotas[provider]` and `tokens_per_call[slot]` (when the provider
+    has a token budget) raise KeyError on anything unconfigured rather than defaulting
+    silently. `rpd is None` means the provider does not publish a daily limit and is treated
+    as unbounded, never as zero (Quota's contract, section 3.3). A call that cannot fit an
+    empty day raises ValueError rather than looping forever.
     """
-    grouped: dict[str, list[WorkUnit]] = {}
+    tokens_per_call = tokens_per_call or {}
+    daily_token_budget = daily_token_budget or {}
+
+    by_provider: dict[str, dict[str, list[WorkUnit]]] = {}
     for unit in units:
-        grouped.setdefault(unit.slot, []).append(unit)
+        provider = slot_providers[unit.slot]
+        by_provider.setdefault(provider, {}).setdefault(unit.slot, []).append(unit)
 
     batches: list[list[WorkUnit]] = []
-    for slot, slot_units in grouped.items():
-        provider = slot_providers[slot]
+    for provider, slots in by_provider.items():
         rpd = quotas[provider].rpd
-        chunk = rpd if rpd is not None else len(slot_units)
-        if chunk <= 0:
+        if rpd is not None and rpd <= 0:
             continue  # a real, published zero-call ceiling: nothing fits today
-        for start in range(0, len(slot_units), chunk):
-            batches.append(slot_units[start : start + chunk])
+        budget = daily_token_budget.get(provider)
+        calls_today = tokens_today = 0
+        for slot, slot_units in slots.items():
+            cost = tokens_per_call[slot] if budget is not None else 0
+            if budget is not None and cost > budget:
+                raise ValueError(f"{slot}: one call ({cost} tokens) can never fit {budget}/day")
+            current: list[WorkUnit] = []
+            for unit in slot_units:
+                full = (rpd is not None and calls_today + 1 > rpd) or (
+                    budget is not None and tokens_today + cost > budget
+                )
+                if full:
+                    if current:
+                        batches.append(current)
+                        current = []
+                    calls_today = tokens_today = 0
+                current.append(unit)
+                calls_today += 1
+                tokens_today += cost
+            if current:
+                batches.append(current)
     return batches
 
 
-def _load_items(con: duckdb.DuckDBPyConnection) -> list[Item]:
-    """The corpus `golden.build` already wrote to `items`. Scheduling plans against the
-    persisted corpus, never regenerates it -- build.py's seeds are secret precisely so the
-    private split can't be recovered, and pending_work/plan_batches only ever read
-    `item.item_id`.
+def _load_items(con: duckdb.DuckDBPyConnection, corpus_dir: Path = CORPUS) -> list[Item]:
+    """The corpus `golden.build` already wrote, read back for a sweep. Scheduling plans
+    against the persisted corpus, never regenerates it -- build.py's seeds are secret
+    precisely so the private split can't be recovered.
 
-    ponytail: fields=[] below, not joined from `item_fields` -- planning and (Step 6, out of
-    scope here) live dispatch never inspect them; build_prompt does. Join item_fields into
-    real ItemField rows here before this main() is ever used for a live, non-dry-run sweep.
+    Fields come from `item_fields` in insertion order (the order `build_prompt` lists the
+    keys in). The DB stores no `layout`, so the document the model sees is the corpus file
+    itself, read verbatim; a missing file raises FileNotFoundError rather than letting a
+    prompt go out with no document.
     """
+    fields: dict[str, list[ItemField]] = {}
+    for item_id, name, ftype, expected, normalised, tolerance in con.execute(
+        "SELECT item_id, field_name, field_type, expected_value, expected_normalised, tolerance "
+        "FROM item_fields ORDER BY rowid"
+    ).fetchall():
+        fields.setdefault(item_id, []).append(
+            ItemField(
+                field_name=name,
+                field_type=FieldType(ftype),
+                expected_value=expected,
+                expected_normalised=normalised,
+                tolerance=Decimal(tolerance) if tolerance is not None else None,
+            )
+        )
     return [
         Item(
             item_id=item_id,
@@ -86,7 +133,8 @@ def _load_items(con: duckdb.DuckDBPyConnection) -> list[Item]:
             rubric_version=rubric_version,
             source=Source(source),
             content_hash=content_hash,
-            fields=[],
+            fields=fields.get(item_id, []),
+            document=(corpus_dir / split / f"{item_id}.txt").read_text(encoding="utf-8"),
         )
         for item_id, split, rubric_version, source, content_hash in con.execute(
             "SELECT item_id, split, rubric_version, source, content_hash FROM items"
