@@ -31,3 +31,7 @@ Starting_Documents/
 
 # Simulated sweeps (ground_truth.simulate): never published, never committed.
 data/simulated/
+
+# Raw Phase 0 probe output (ground_truth.probe): provider headers and bodies. Summarised into
+# docs/providers.md by hand; the raw file is not committed.
+data/probe/
