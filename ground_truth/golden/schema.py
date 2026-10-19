@@ -49,3 +49,6 @@ class Item(BaseModel):
     # write_manifest must not emit it, and the Task 9 leak test proves it does not.
     layout: dict[str, object] = Field(default_factory=dict)
     injected_error: StrictStr | None = None
+    # The rendered corpus file, set only when an Item is read back from the DB, which stores no
+    # `layout`. build_prompt prefers it over re-rendering. Never a label, never emitted.
+    document: StrictStr | None = None

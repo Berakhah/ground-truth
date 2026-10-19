@@ -1,9 +1,11 @@
 import pytest
 
 from ground_truth._bok_shim import CallContext, ProvidersUnavailable, Quota
-from ground_truth.golden.generate import generate
-from ground_truth.runner import execute_sweep, pending_work
-from ground_truth.schedule import WorkUnit, plan_batches
+from ground_truth.golden.build import _insert_items
+from ground_truth.golden.generate import generate, render_document
+from ground_truth.golden.schema import Split
+from ground_truth.runner import build_prompt, execute_sweep, pending_work
+from ground_truth.schedule import WorkUnit, _load_items, plan_batches
 from ground_truth.store.db import connect, migrate
 from tests.test_runner import FakeGateway
 
@@ -149,6 +151,96 @@ def test_batches_never_mix_providers():
     )
     for batch in batches:
         assert len({u.slot for u in batch}) == 1
+
+
+def test_a_daily_token_budget_binds_before_the_request_ceiling():
+    """Groq: 1K RPD but 200K TPD. At 1,500 tokens a call only 133 calls fit in a day."""
+    units = [WorkUnit("s", "slot-a", f"i{i}", 1) for i in range(300)]
+    batches = plan_batches(
+        units,
+        {"prov": Quota(rpm=30, tpm=None, rpd=1000)},
+        {"slot-a": "prov"},
+        tokens_per_call={"slot-a": 1500},
+        daily_token_budget={"prov": 200_000},
+    )
+    assert [len(b) for b in batches] == [133, 133, 34]
+
+
+def test_slots_on_one_provider_share_its_daily_pool():
+    """Two slots on one provider must not each be handed the full daily ceiling."""
+    units = [WorkUnit("s", "slot-a", f"i{i}", 1) for i in range(80)] + [
+        WorkUnit("s", "slot-b", f"i{i}", 1) for i in range(80)
+    ]
+    batches = plan_batches(
+        units,
+        {"prov": Quota(rpm=None, tpm=None, rpd=100)},
+        {"slot-a": "prov", "slot-b": "prov"},
+    )
+    assert [len(b) for b in batches] == [80, 20, 60]
+    assert all(len({u.slot for u in b}) == 1 for b in batches)
+
+
+def test_a_token_budget_without_a_per_call_estimate_raises():
+    units = [WorkUnit("s", "slot-a", "i1", 1)]
+    with pytest.raises(KeyError):
+        plan_batches(
+            units,
+            {"prov": Quota()},
+            {"slot-a": "prov"},
+            daily_token_budget={"prov": 200_000},
+        )
+
+
+def test_a_call_larger_than_the_whole_daily_budget_raises_instead_of_looping():
+    units = [WorkUnit("s", "slot-a", "i1", 1)]
+    with pytest.raises(ValueError, match="never fit"):
+        plan_batches(
+            units,
+            {"prov": Quota()},
+            {"slot-a": "prov"},
+            tokens_per_call={"slot-a": 5000},
+            daily_token_budget={"prov": 4000},
+        )
+
+
+# -- _load_items: the items a live sweep prompts with ---------------------------------------
+#
+# `_load_items` used to return `fields=[]`, so a live `build_prompt` asked for no keys, and an
+# Item read back from the DB carries no `layout`, so it could not render a document either. The
+# document the model sees is the corpus file `golden.build` wrote, read back verbatim.
+
+
+def _built(con, tmp_path, count=3):
+    items = generate(count=count, seed=1, rubric_version="v1")
+    _insert_items(con, items, "2026-10-19")
+    for split in Split:
+        (tmp_path / split.value).mkdir(exist_ok=True)
+    for item in items:
+        path = tmp_path / item.split.value / f"{item.item_id}.txt"
+        path.write_text(render_document(item), encoding="utf-8")
+    return items
+
+
+def test_loaded_items_carry_their_labelled_fields_in_build_order(con, tmp_path):
+    items = _built(con, tmp_path)
+    loaded = {i.item_id: i for i in _load_items(con, tmp_path)}
+    assert set(loaded) == {i.item_id for i in items}
+    for original in items:
+        assert loaded[original.item_id].fields == original.fields
+
+
+def test_a_loaded_item_prompts_exactly_as_the_built_item_does(con, tmp_path):
+    items = _built(con, tmp_path)
+    loaded = {i.item_id: i for i in _load_items(con, tmp_path)}
+    for original in items:
+        assert build_prompt(loaded[original.item_id]) == build_prompt(original)
+
+
+def test_a_missing_corpus_file_raises_rather_than_prompting_without_a_document(con, tmp_path):
+    items = _built(con, tmp_path)
+    (tmp_path / items[0].split.value / f"{items[0].item_id}.txt").unlink()
+    with pytest.raises(FileNotFoundError):
+        _load_items(con, tmp_path)
 
 
 def test_unknown_provider_raises_rather_than_defaulting():
