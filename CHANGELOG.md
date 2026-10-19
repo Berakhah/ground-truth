@@ -12,6 +12,11 @@ overwritten in place.
 
 ### Added
 
+- 2026-10-19: `docs/run-schedule.md`, a draft plan for the real sweep. Limits in it are desk-research
+  figures, not measured; nothing in it is a result.
+- 2026-10-19: `plan_batches` packs a provider's slots into shared daily pools and takes an optional
+  per-provider daily token budget, so token-bound providers (e.g. Groq) are no longer over-planned.
+  `_load_items` now loads each item's labelled fields and its corpus document instead of `fields=[]`.
 - 2026-10-18: `python -m ground_truth.simulate [--scenario default|contested]` runs the real sweep,
   judging, grading, agreement and publish code with a simulated provider into the gitignored
   `data/simulated/` (never `artifacts/`). `/simulated-example` and `/judge/simulated-example` show it
