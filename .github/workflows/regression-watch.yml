@@ -19,38 +19,8 @@ jobs:
       - name: Open issues for any committed regression findings
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          FILE="artifacts/regression.json"
-
-          # H12: the live sweep, regression.detect, and regression.fingerprint never run in
-          # this workflow -- they need the private corpus and provider secrets, neither of
-          # which a public repo's Actions runner has. A human runs them locally and commits
-          # the redacted result as artifacts/regression.json. Until that first local run has
-          # ever been committed, this file legitimately does not exist -- succeed as a no-op
-          # rather than failing the schedule for it.
-          if [ ! -f "$FILE" ]; then
-            echo "No artifacts/regression.json committed yet -- nothing to check."
-            exit 0
-          fi
-
-          # Spec 13.3: a regression finding naming a provider carries a 10-business-day notice
-          # before publication. This workflow opens the issue and stops -- it does not
-          # auto-publish the finding; publishing is a manual step after the notice period.
-          NOTICE="Per spec section 13.3, a regression finding naming a provider carries a 10-business-day notice before publication. This issue is that notice. Do not publish this finding until the notice period has elapsed -- publishing is a separate, manual step."
-
-          jq -c '.alerts[]? | select(.detected == true)' "$FILE" | while IFS= read -r alert; do
-            slot=$(jq -r '.slot' <<<"$alert")
-            field_type=$(jq -r '.field_type' <<<"$alert")
-            statement=$(jq -r '.statement' <<<"$alert")
-            body=$(printf '%s\n\n%s\n' "$statement" "$NOTICE")
-            gh issue create --title "Regression detected: $slot / $field_type" --body "$body"
-          done
-
-          jq -c '.fingerprints[]? | select(.status == "CHANGED" or .status == "NOT_EXPOSED")' "$FILE" \
-            | while IFS= read -r fp; do
-            slot=$(jq -r '.slot' <<<"$fp")
-            status=$(jq -r '.status' <<<"$fp")
-            statement=$(jq -r '.statement' <<<"$fp")
-            gh issue create --title "Fingerprint $status: $slot" --body "$statement"
-          done
+        # The logic lives in scripts/regression_issues.py so it is tested: placeholder data
+        # opens nothing, and an issue already present (open or closed) is never opened twice.
+        # Stdlib only, so no uv sync is needed. A finding naming a provider carries a
+        # 10-business-day notice (spec 13.3); this opens the issue and stops.
+        run: python3 scripts/regression_issues.py
