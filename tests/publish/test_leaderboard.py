@@ -97,3 +97,17 @@ def test_methodology_states_the_population():
     text = METHODOLOGY.read_text(encoding="utf-8").lower()
     for phrase in ("synthetic", "not real pay applications", "external validity"):
         assert phrase in text, f"methodology Scope section must state: {phrase}"
+
+
+def test_methodology_states_the_single_annotator_limitation():
+    """A sceptical buyer's first question about the ground truth. The Scope section must
+    say, before any number does, who produced the labels, that no second labeller exists,
+    and that no inter-rater or intra-rater agreement has been measured yet."""
+    scope = METHODOLOGY.read_text(encoding="utf-8").split("## Definitions")[0].lower()
+    for phrase in (
+        "single-annotator",
+        "inter-rater agreement",
+        "intra-rater agreement",
+        "no second labeller",
+    ):
+        assert phrase in scope, f"methodology Scope section must state: {phrase}"

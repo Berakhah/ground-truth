@@ -12,6 +12,10 @@ overwritten in place.
 
 ### Added
 
+- 2026-10-28: `docs/methodology.md` Scope now states the single-annotator limitation: the rubric has one
+  author, judge-agreement human labels come from one annotator with no second labeller, and
+  inter-rater and intra-rater agreement are unmeasured. Guarded by
+  `test_methodology_states_the_single_annotator_limitation`.
 - 2026-10-19: `docs/run-schedule.md`, a draft plan for the real sweep. Limits in it are desk-research
   figures, not measured; nothing in it is a result.
 - 2026-10-19: `plan_batches` packs a provider's slots into shared daily pools and takes an optional
