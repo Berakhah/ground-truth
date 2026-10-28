@@ -23,7 +23,7 @@ export default function TriagePage() {
 
       {data.placeholder ? (
         <div className="placeholder-banner" role="status" data-testid="placeholder-banner">
-          Synthetic worked example — {data.note ?? "not a real client engagement"}. Every
+          {data.note ?? "Synthetic worked example -- not a real client engagement."} Every
           intent, quote, and figure below is fictional.
         </div>
       ) : null}
