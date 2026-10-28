@@ -18,6 +18,25 @@ against (see "If Ledger Sense did not produce a partner and a labelled corpus" i
 project brief). Treat every number below as "measured on synthetic data, generalisation to
 real invoices unknown," not as a claim about real-world extraction accuracy.
 
+### Who produced the labels (single-annotator limitation)
+
+The ground truth rests on one author, and there is no second labeller to check it. Two cases:
+
+- **Deterministically graded fields.** The expected value is the generation parameter the
+  synthetic item was built from, not a human's reading of a document. There is no annotator
+  to disagree with, but the rubric that decides what counts as a match was written by a
+  **single author**, and its judgement calls (tolerances, accepted variants) have had no
+  independent review.
+- **The judged field (LINE_ITEM_DESCRIPTION).** Human labels for judge agreement come from a
+  **single-annotator** process. No second labeller, such as a Ledger Sense design partner,
+  has labelled any subset.
+
+Consequently, **inter-rater agreement** (two labellers, a subset) and
+**intra-rater agreement** (the same labeller, a blind re-label of a random 20% after a
+two-week gap) are both unmeasured. No agreement figure, and no disagreement rate, exists to publish.
+When they are measured they will be reported here with their intervals, including where the
+disagreement is high, and until then every judge-agreement figure inherits this limitation.
+
 ## Definitions
 
 Every term the published leaderboard and this document rely on, defined once, here --
