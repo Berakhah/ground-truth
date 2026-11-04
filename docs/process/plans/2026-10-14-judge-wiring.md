@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12+, DuckDB, pydantic, pytest; Next.js 15 for one web table.
 
-**Spec:** `docs/superpowers/specs/2025-09-18-ground-truth-design.md` §8 (the judge) and §15 (run economics); audit H8 in `docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`; the decisions recorded in `docs/providers.md` "Lineup decisions".
+**Spec:** `docs/process/specs/2026-08-29-ground-truth-design.md` §8 (the judge) and §15 (run economics); audit H8 in `docs/process/reviews/2026-08-29-ground-truth-audit.md`; the decisions recorded in `docs/providers.md` "Lineup decisions".
 
 ## Decisions this plan implements (human partner, 2026-10-14)
 

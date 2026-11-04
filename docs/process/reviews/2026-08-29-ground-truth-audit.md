@@ -1,7 +1,7 @@
 # Ground Truth — Design and Plan Audit
 
-**Date:** 2026-08-29 · **Scope:** `docs/superpowers/specs/2025-09-18-ground-truth-design.md` and all three phase plans
-**Method:** every numeric claim in the plans was re-derived from first principles or simulated. Nothing below is asserted; each finding states the evidence that produced it. Reproduce with `docs/superpowers/reviews/verify/` (stdlib only, no dependencies).
+**Date:** 2026-08-29 · **Scope:** `docs/process/specs/2026-08-29-ground-truth-design.md` and all three phase plans
+**Method:** every numeric claim in the plans was re-derived from first principles or simulated. Nothing below is asserted; each finding states the evidence that produced it. Reproduce with `docs/process/reviews/verify/` (stdlib only, no dependencies).
 
 ---
 

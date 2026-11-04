@@ -46,7 +46,7 @@ def test_krippendorff_alpha_matches_hand_derivable_two_rater_table():
     the test both failed and mislabelled itself. It matters more than an ordinary wrong
     constant: alpha drives the pre-registered judge rejection threshold, so an implementer
     bending the estimator to reach 0.743 would put every published accept/reject decision
-    on a broken statistic. Evidence: docs/superpowers/reviews/verify/verify_stats.py
+    on a broken statistic. Evidence: docs/process/reviews/verify/verify_stats.py
     """
     ratings = {
         "obs_a": {

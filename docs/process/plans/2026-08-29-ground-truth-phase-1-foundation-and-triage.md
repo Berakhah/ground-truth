@@ -8,14 +8,14 @@
 
 **Tech Stack:** Python 3.12+, `uv`, `ruff`, `mypy --strict`, `pytest`, `hypothesis`, `duckdb`, `scipy`, `pydantic` v2.
 
-**Spec:** `docs/superpowers/specs/2025-09-18-ground-truth-design.md`
+**Spec:** `docs/process/specs/2026-08-29-ground-truth-design.md`
 
 **Phase deliverable:** a triage report that can be sold. This phase stands alone (`00` B5).
 
 ## Review amendments — 2026-08-29 (read before Task 1)
 
-Audit: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**. Evidence is reproducible via
-`docs/superpowers/reviews/verify/` (stdlib only). Fixes are folded into the tasks below; this list
+Audit: **`docs/process/reviews/2026-08-29-ground-truth-audit.md`**. Evidence is reproducible via
+`docs/process/reviews/verify/` (stdlib only). Fixes are folded into the tasks below; this list
 exists so a worker starting at any task knows what changed and why.
 
 | Task | Was | Now |
@@ -72,7 +72,7 @@ Every task's requirements implicitly include this section.
 
 ```bash
 git init
-git add docs/superpowers/specs/2025-09-18-ground-truth-design.md
+git add docs/process/specs/2026-08-29-ground-truth-design.md
 git commit -m "docs: ground truth design spec"
 ```
 
@@ -2609,7 +2609,7 @@ git commit -m "feat: cross-field arithmetic grader catching every injected arith
 - Create: `ground_truth/runner.py`
 - Test: `tests/test_runner.py`
 
-> **Contract alignment (amended 2025-09-18).** `backoffice-kit/docs/INTERFACE-CONTRACT.md` v0.1 is
+> **Contract alignment (amended 2026-08-29).** `backoffice-kit/docs/INTERFACE-CONTRACT.md` v0.1 is
 > authoritative. The shim below mirrors that surface **exactly**, so that swapping `_bok_shim` for
 > the real `bok_core` is an import change and nothing else. A shim that invents its own shapes is a
 > second implementation you will have to port twice.
