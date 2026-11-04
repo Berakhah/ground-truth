@@ -1,6 +1,6 @@
 # Judge-publish blockers: open items at merge (2026-10-15)
 
-Logged when `judge-publish-blockers` merged to main (`9c19864`). The four blockers themselves are
+Logged when `judge-publish-blockers` merged to main (`0a535be`). The four blockers themselves are
 fixed (see CHANGELOG 2026-10-15). These are what the final review and the merge left open. Ids are
 `JP-n` to keep them apart from the 2026-08-29 audit's B/H/M numbering.
 
@@ -65,7 +65,7 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 ### JP-5: Python changes in `matrix/build.py` have had no security review
 
 - **Status:** done 2026-10-16, no findings. A read-only review of
-  `git diff 5b6cab7..eae2971` for `matrix/build.py`, `publish/artifacts.py` and
+  `git diff d2e5d55..7647393` for `matrix/build.py`, `publish/artifacts.py` and
   `scripts/reproduce.py` found no SQL injection (the f-strings interpolate only a literal
   constant; the split is bound), no private-split leak (public and private verdict files each
   use their own split, and the new `counts_toward_headline` and `weight` fields add only a bool
@@ -93,7 +93,7 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
   finding: the publish gate matches the `data-gt-fixture` marker only, so a new fixture page with
   no guard and no marker would pass.
 - **JP-8:** fixed 2026-10-16. The same marker scan now runs in the `ci.yml` web job right after the
-  build, before Playwright. Ran green on GitHub Actions 2026-10-16 (run after `10a0064`), the first fully green `ci` run in the history: the workflow had been failing on a `tsc` and a Playwright step that ran outside `web/`, and on a `float("nan")` hit by the money-path scan. Original
+  build, before Playwright. Ran green on GitHub Actions 2026-10-16 (run after `fd28ad7`), the first fully green `ci` run in the history: the workflow had been failing on a `tsc` and a Playwright step that ran outside `web/`, and on a `float("nan")` hit by the money-path scan. Original
   finding: a removed guard was caught only at a `v*` tag.
 - **JP-9:** fixed 2026-10-16 (reversing the earlier deferral). `_unjudged_field_types` selects
   targets by field name, so a name declared as another type on another item reached its target and

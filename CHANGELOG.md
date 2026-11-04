@@ -212,7 +212,7 @@ overwritten in place.
   `triage.export_example`), a committed `regression.json`, and folder metadata (`.gitkeep`,
   `.DS_Store`), and refuses before running the analysis, changing nothing, if the folder holds
   any other entry it does not write -- a stray file is neither republished nor deleted.
-  Previously (since 5ada687) every publish overwrote the hand-committed regression-watch
+  Previously (since d12d314) every publish overwrote the hand-committed regression-watch
   result with an empty stub; the stub is now written only when none is committed, and the
   reproducibility gate no longer compares that file, which is not regenerated from the
   results database. A failed rollback keeps the original exception and notes the folder

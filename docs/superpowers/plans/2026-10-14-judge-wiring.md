@@ -13,7 +13,7 @@
 ## Decisions this plan implements (human partner, 2026-10-14)
 
 1. **One judge per model slot, n=3 samples, majority vote** (spec §8.1). Two judges are needed, since no available judge family differs from all six slots: Gemma judges slots A–E, and gpt-oss-120b judges the Gemini slot. Both run on Cerebras.
-2. **The judge scores the modal output per (item, slot)** (audit H8). The selector exists: `select_judge_targets`, commit b44445e.
+2. **The judge scores the modal output per (item, slot)** (audit H8). The selector exists: `select_judge_targets`, commit 122580a.
 3. **INCONCLUSIVE (no majority) scores as incorrect,** and the count is published per (slot, judge).
 4. **Agreement is decided and published per judge.** A judge's verdicts reach the headline only with an accepted decision **for that judge**. No decision means not scored (CLAUDE.md rule 3: an unmeasured judge cannot be defended). This replaces `matrix/build.py`'s `jd.status IS NULL` branch, which scored an unassessed judge.
 
