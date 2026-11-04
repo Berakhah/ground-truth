@@ -1,6 +1,6 @@
 # Ground Truth — Design
 
-**Status:** approved 2025-09-18 · **Phase:** weeks 21–26 · **Repo:** `ground-truth`
+**Status:** approved 2026-08-29 · **Phase:** weeks 21–26 · **Repo:** `ground-truth`
 **Sources of truth:** `../Starting_Documents/00-SHARED-FOUNDATION.md`, `../Starting_Documents/04-GROUND-TRUTH.md`, `../ledger-sense/CLAUDE.md`
 **Capacity assumption:** 35–40 h/week, six weeks, one person.
 
@@ -165,7 +165,7 @@ Three witnesses to that claim, in ascending order of strength:
 2. The public git history — `docs/rubric.md`'s commit timestamp precedes the first label commit.
 3. **An OpenTimestamps commitment on `docs/rubric.md`, made at authoring time, with the `.ots` file committed alongside.** Strongest, and the one that actually discharges the claim.
 
-**Why 3 rather than 2 (amended 2025-09-18).** This spec originally rested on git history alone. That is insufficient, and `backoffice-kit`'s §1.4 is right about why: `GIT_COMMITTER_DATE` is settable and history is rewritable, so a sceptic auditing a repo cannot distinguish a genuine history from a fabricated one. For a project whose known weakness is single-annotator ground truth (`04` B1), *"trust me, the timestamps are real"* is precisely the move this programme exists to reject. A public repo proves a push date; OpenTimestamps proves the **content existed at that date**, which is what the claim needs. It is free, needs no account, and is one command — and this project already builds hash publication for the private split, so the mechanism is not new.
+**Why 3 rather than 2 (amended 2026-08-29).** This spec originally rested on git history alone. That is insufficient, and `backoffice-kit`'s §1.4 is right about why: `GIT_COMMITTER_DATE` is settable and history is rewritable, so a sceptic auditing a repo cannot distinguish a genuine history from a fabricated one. For a project whose known weakness is single-annotator ground truth (`04` B1), *"trust me, the timestamps are real"* is precisely the move this programme exists to reject. A public repo proves a push date; OpenTimestamps proves the **content existed at that date**, which is what the claim needs. It is free, needs no account, and is one command — and this project already builds hash publication for the private split, so the mechanism is not new.
 
 `00` §12 Q5 stays *public from commit one* for this repo; the amendment is that repo visibility is now supporting evidence rather than the proof.
 
@@ -264,7 +264,7 @@ Cohen's kappa (two raters, nominal) and Krippendorff's alpha (any number of rate
 > an ordinary wrong constant: alpha drives the pre-registered judge rejection threshold (§8.2), so
 > an implementer bending the estimator to reach 0.743 would put every published accept/reject
 > decision on a broken statistic. Keep **both** anchors — one worked example is not a validation.
-> Evidence: `docs/superpowers/reviews/verify/verify_stats.py`.
+> Evidence: `docs/process/reviews/verify/verify_stats.py`.
 
 Prefer the `krippendorff` PyPI package **only after verifying its licence is permissive** (`00` §3). Nominal alpha is ~40 lines if it is not.
 
@@ -310,7 +310,7 @@ Benjamini–Hochberg via `scipy.stats.false_discovery_control`, wrapped to carry
 > alpha raises, because the constant is calibrated for the pre-registered calendar only.
 >
 > This changes `docs/analysis-plan.md`, which freezes before the first sweep. **Settle it before
-> the freeze.** Evidence: `docs/superpowers/reviews/verify/verify_seq.py`.
+> the freeze.** Evidence: `docs/process/reviews/verify/verify_seq.py`.
 
 > **Superseded 2026-09-28 (analysis plan v2).** The O'Brien–Fleming design above, and the three
 > tests listed under it, are retired; the text is kept as the record of what was decided and why.
@@ -470,7 +470,7 @@ Runs carry `CallContext(commercial=True)`, and the `runs.commercial_context` col
 
 ## 12. The `backoffice-kit` contract
 
-> **Authority note (amended 2025-09-18, after `backoffice-kit` published its contract).**
+> **Authority note (amended 2026-08-29, after `backoffice-kit` published its contract).**
 > `backoffice-kit/docs/INTERFACE-CONTRACT.md` v0.1 is now the authoritative surface. Where this
 > section and that document disagree, **that document wins**. Its §7 row for `ground-truth` is the
 > binding checklist. The table below is retained because it records *why* each interface is
@@ -659,9 +659,9 @@ Coverage floor 75%. Coverage is a floor, not a goal.
 
 ## 20. Review amendments — 2026-08-29
 
-Full evidence, severity and per-finding fixes: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**.
+Full evidence, severity and per-finding fixes: **`docs/process/reviews/2026-08-29-ground-truth-audit.md`**.
 Every numeric claim there was re-derived or simulated; reproduce with
-`docs/superpowers/reviews/verify/` (stdlib only, no dependencies, no network).
+`docs/process/reviews/verify/` (stdlib only, no dependencies, no network).
 
 The architecture survived the review unchanged. The two-phase split, the non-goal AST guards, the
 pre-registration chaining, the fail-closed commercial gate and the decision to publish the judge's

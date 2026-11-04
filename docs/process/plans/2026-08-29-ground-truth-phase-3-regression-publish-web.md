@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12+, `uv`, `ruff`, `mypy --strict`, `pytest`, `duckdb`, `scipy`; Next.js 15 (`output: 'export'`), `bok-ui`, Playwright, `axe-core`.
 
-**Spec:** `docs/superpowers/specs/2025-09-18-ground-truth-design.md`
+**Spec:** `docs/process/specs/2026-08-29-ground-truth-design.md`
 
 **Prerequisite:** Phase 2 exit criteria all met; `git tag phase-2-measurement` exists. **Human labels round 1 was collected at least fourteen days ago** — check the date in `docs/methodology.md` before starting Task 39.
 
@@ -16,8 +16,8 @@
 
 ## Review amendments — 2026-08-29 (read before Task 36)
 
-Audit: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**; evidence reproducible via
-`docs/superpowers/reviews/verify/`.
+Audit: **`docs/process/reviews/2026-08-29-ground-truth-audit.md`**; evidence reproducible via
+`docs/process/reviews/verify/`.
 
 | Task | Was | Now |
 |---|---|---|
@@ -1035,7 +1035,7 @@ Expected: FAIL — module does not exist.
 
 A `## Definitions` section covering every term from `required_terms()`. Be specific exactly where the incumbents are vague: *accurate* means the deterministic grader for that field type returned `correct=True` under rubric version X; *correct* is defined per field type by the rubric, not by judgement; *item* is one synthetic pay application; *replicate* is one of five independent calls for the same (item, slot).
 
-**Audit M1.** Before the definitions, open a `## Scope` section stating the population: the corpus is **synthetic**, **not real pay applications**, generated per `docs/superpowers/plans/...-phase-1-....md` Task 8; every headline number's **external validity** to real invoices is unmeasured and unmeasured-by-design at this stage. "No claim without its sample" needs its twin — no claim without its population.
+**Audit M1.** Before the definitions, open a `## Scope` section stating the population: the corpus is **synthetic**, **not real pay applications**, generated per `docs/process/plans/...-phase-1-....md` Task 8; every headline number's **external validity** to real invoices is unmeasured and unmeasured-by-design at this stage. "No claim without its sample" needs its twin — no claim without its population.
 
 - [ ] **Step 5: Write `CHANGELOG.md`**
 

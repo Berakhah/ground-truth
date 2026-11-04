@@ -83,7 +83,7 @@ Status key: **open** = nothing done yet. Nothing here is fixed.
 - **Status:** resolved 2026-10-16. CLAUDE.md now says Next.js 16.
 - **Decision:** keep `web/` on 16.3.4 rather than pin back to 15. The Playwright and axe suites pass
   on 16.3.4, and a downgrade would put the web package at risk for no benefit. Older specs and plans
-  under `docs/superpowers/` still say 15; they are dated records and were left as written.
+  under `docs/process/` still say 15; they are dated records and were left as written.
 
 ## Deferred hardening (accepted for now)
 

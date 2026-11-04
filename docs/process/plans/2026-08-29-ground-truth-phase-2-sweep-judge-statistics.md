@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12+, `uv`, `ruff`, `mypy --strict`, `pytest`, `hypothesis`, `duckdb`, `scipy`, `numpy`, `scikit-learn`, `pydantic` v2.
 
-**Spec:** `docs/superpowers/specs/2025-09-18-ground-truth-design.md`
+**Spec:** `docs/process/specs/2026-08-29-ground-truth-design.md`
 
 **Prerequisite:** Phase 1 exit criteria all met. `git tag phase-1-triage` exists.
 
@@ -16,8 +16,8 @@
 
 ## Review amendments — 2026-08-29 (read before Task 23)
 
-Audit: **`docs/superpowers/reviews/2026-08-29-ground-truth-audit.md`**. Every numeric claim was
-re-derived or simulated; reproduce with `docs/superpowers/reviews/verify/` (stdlib only). Fixes are
+Audit: **`docs/process/reviews/2026-08-29-ground-truth-audit.md`**. Every numeric claim was
+re-derived or simulated; reproduce with `docs/process/reviews/verify/` (stdlib only). Fixes are
 folded into the tasks below.
 
 | Task | Was | Now |
@@ -69,7 +69,7 @@ Every task's requirements implicitly include this section. Identical to Phase 1'
 - Consumes: `runner.execute_sweep`, `store.db`, `providers.load_slots`, `golden.schema.Item`.
 - Produces: `WorkUnit(sweep_id: str, slot: str, item_id: str, replicate_idx: int)` (frozen); `plan_batches(units: list[WorkUnit], quotas: dict[str, Quota], slot_providers: dict[str, str]) -> list[list[WorkUnit]]`; and in `runner.py`, `pending_work(con, sweep_id: str, items: list[Item], slots: list[str], replicates: int) -> list[WorkUnit]`.
 
-> **Contract alignment (amended 2025-09-18).** Quotas come from
+> **Contract alignment (amended 2026-08-29).** Quotas come from
 > `bok_core.gateway.governor.Quota(rpm, tpm, rpd)`, queried live via `governor.remaining(provider)`,
 > which `INTERFACE-CONTRACT.md` §3.3 exposes as a **public query** specifically so this scheduler can
 > ask before dispatching each batch. Do not define a local budget type — a second quota model that
@@ -687,7 +687,7 @@ def test_krippendorff_alpha_matches_hand_derivable_two_rater_table():
     the test both failed and mislabelled itself. It matters more than an ordinary wrong
     constant: alpha drives the pre-registered judge rejection threshold, so an implementer
     bending the estimator to reach 0.743 would put every published accept/reject decision
-    on a broken statistic. Evidence: docs/superpowers/reviews/verify/verify_stats.py
+    on a broken statistic. Evidence: docs/process/reviews/verify/verify_stats.py
     """
     ratings = {
         "obs_a": {"1": "1", "2": "2", "3": "3", "4": "3", "5": "2", "6": "1", "7": "4",
@@ -1831,7 +1831,7 @@ Expected: FAIL — module does not exist.
 
 > **Corrected 2026-08-29 (audit B3). The original construction did not control alpha, and both
 > null simulations measured the wrong stochastic process.** This was the most consequential defect
-> in the three plans. Evidence: `docs/superpowers/reviews/verify/verify_seq.py`.
+> in the three plans. Evidence: `docs/process/reviews/verify/verify_seq.py`.
 >
 > The boundary was specified as `norm.ppf(1 - alpha/2) / sqrt(t)`. The O'Brien–Fleming boundary is
 > `C / sqrt(t)` where **C is solved so the overall type-I error equals alpha** — it is not

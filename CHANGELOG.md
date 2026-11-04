@@ -99,7 +99,7 @@ overwritten in place.
   2026-10-15, on the local `data/results.duckdb` only).
 
 - **2026-10-15 -- open items left by the judge-publish merge are logged** in
-  `docs/superpowers/reviews/2026-10-15-judge-publish-open-items.md` (JP-1 to JP-12). None is
+  `docs/process/reviews/2026-10-15-judge-publish-open-items.md` (JP-1 to JP-12). None is
   fixed. JP-1 (a field moved to the judge still counts its old deterministic verdicts) can
   affect published numbers.
 
