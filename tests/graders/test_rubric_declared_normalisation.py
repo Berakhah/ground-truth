@@ -1,7 +1,7 @@
 """Final review items 1/2: a structural regression guard, not another hand-typed fixture test.
 
 Both this bug (grade_exact silently ignoring docs/rubric.md's declared `normalisation` for
-ENUM_CATEGORY/COUNT) and its sibling in normalised.py (fixed once already at 9b855bc, for
+ENUM_CATEGORY/COUNT) and its sibling in normalised.py (fixed once already at 87b9f88, for
 DATE/PARTY_NAME) hid for 21+ tasks because nothing graded a real, differently-formatted-but-
 correct pair against the REAL rubric loaded from disk. Hand-typed RubricRule fixtures in
 test_exact.py/test_normalised.py can't catch this class of bug -- they only ever declare the

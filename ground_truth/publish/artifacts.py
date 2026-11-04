@@ -301,7 +301,7 @@ EMITTED = (
 # Carried across the swap when present as a file. The triage example and a committed
 # regression-watch result are written by other emitters (a committed regression.json replaces
 # `_emit_into`'s empty stub -- overwriting it wiped real findings, re-review 2026-09-28, since
-# 5ada687); the rest is folder metadata that must neither block a publish nor be lost.
+# d12d314); the rest is folder metadata that must neither block a publish nor be lost.
 _CARRIED = (TRIAGE_EXAMPLE, REGRESSION, ".gitkeep", ".DS_Store", "Thumbs.db", "desktop.ini")
 
 

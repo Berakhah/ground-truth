@@ -701,7 +701,7 @@ def test_a_publish_backup_left_behind_is_never_committed(path, ignored):
 
 
 def test_a_committed_regression_watch_result_survives_a_publish(con, tmp_path):
-    """Re-review 2026-09-28 (predates this branch, since 5ada687): regression.json is written
+    """Re-review 2026-09-28 (predates this branch, since d12d314): regression.json is written
     by the local regression sweep and committed by hand; emit_all overwrote it with an empty
     stub, so a publish wiped real findings from the site."""
     out_dir = tmp_path / "out"
