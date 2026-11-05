@@ -8,6 +8,20 @@ and is not a platform for arbitrary evals — see [`docs/non-goals.md`](docs/non
 
 Phase 1 has no external services: DuckDB is an embedded local `.duckdb` file (no server), and the provider gateway is shimmed — no real network calls yet.
 
+## How an evaluation runs
+
+```mermaid
+flowchart LR
+    A[Golden corpus] --> B[Grader] --> C["Replicates (n ≥ 5)"] --> D[Statistics] --> E[Calibration] --> F[Leaderboard]
+```
+
+## Status and known limitations
+
+- **No real provider results yet:** the real provider sweep hasn't run because no provider keys are provisioned. Published views show a simulated run, labelled as such.
+- **Synthetic golden set:** there is no real-invoice corpus to validate against, and external validity is unmeasured.
+- **One annotator:** the rubric and the judged field's human labels come from one person, so inter- and intra-rater agreement are unmeasured.
+
+
 ## Reproduce these numbers
 
 Download the published `artifacts/` directory (see [Published artifacts](#published-artifacts) below), then run:
