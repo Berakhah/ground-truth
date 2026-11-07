@@ -10,7 +10,7 @@ Phase 1 has no external services: DuckDB is an embedded local `.duckdb` file (no
 
 ## How this was built
 
-I designed it, wrote the specifications and evaluation criteria, directed the implementation, and reviewed and tested the changes. Claude Code generated a substantial part of the code under my direction. Counted on 7 Nov 2026: 183 of 186 commits were made through my second account, [@Berakhah-sys](https://github.com/Berakhah-sys), and 138 carry a `Co-Authored-By: Claude` trailer. All evaluation data in this repository is synthetic. The first commit originally carried a wrong date; its spec files were named 2025-09-18, yet they cite sources retrieved on 31 Aug 2026. On 4 Nov 2026 I re-dated it to one hour before the second commit (29 Aug 2026); the follow-up commit says so.
+I designed it, wrote the specifications with Claude Code, set the evaluation criteria, directed the implementation, and reviewed and tested the changes. Claude Code generated a substantial part of the code under my direction. Counted on 7 Nov 2026: 183 of 186 commits were made through my second account, [@Berakhah-sys](https://github.com/Berakhah-sys), and 138 carry a `Co-Authored-By: Claude` trailer. All evaluation data in this repository is synthetic. The first commit originally carried a wrong date; its spec files were named 2025-09-18, yet they cite sources retrieved on 31 Aug 2026. On 4 Nov 2026 I re-dated it to one hour before the second commit (29 Aug 2026); the follow-up commit says so.
 
 ## How an evaluation runs
 
