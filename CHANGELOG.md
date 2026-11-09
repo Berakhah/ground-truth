@@ -10,6 +10,20 @@ overwritten in place.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-09
+
+First tagged release. **It contains no real provider results:** `artifacts/leaderboard.json`
+is still the placeholder (`"placeholder": true`), because the provider sweep hasn't run. What
+0.1.0 marks is the harness itself: golden-set schema and rubric, deterministic graders, the judge
+with its bias controls, the statistics module, calibration, regression watch, the triage model,
+and the static leaderboard, all under CI. Everything below was the `Unreleased` section until
+this release.
+
+Also in this release: `.github/workflows/release.yml` (a version tag publishes a GitHub Release
+from this file, only if the tagged commit has a green `ci` run), a README screenshot of the
+placeholder leaderboard, and `SECURITY.md` now names GitHub private vulnerability reporting as
+the only route (the placeholder email address is gone).
+
 ### Added
 
 - 2026-10-28: `docs/methodology.md` Scope now states the single-annotator limitation: the rubric has one
