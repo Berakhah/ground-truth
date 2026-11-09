@@ -6,13 +6,16 @@ An eval and regression harness for one regulated task: field extraction accuracy
 application and invoice documents. Every headline number is recomputable from published
 per-item verdicts by a stdlib-only script that never imports this package.
 
+![Ground Truth leaderboard page with a banner saying the data is a placeholder demo, and two demo slots whose accuracy is shown as 95% intervals (0.920 [0.870, 0.960] and 0.900 [0.840, 0.950], n=180), with list-price cost and p50/p95 latency](docs/assets/hero.png)
+
 [![ci](https://github.com/Berakhah/ground-truth/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Berakhah/ground-truth/actions/workflows/ci.yml)
 [![nightly-smoke](https://github.com/Berakhah/ground-truth/actions/workflows/nightly-smoke.yml/badge.svg?branch=main)](https://github.com/Berakhah/ground-truth/actions/workflows/nightly-smoke.yml)
+[![release](https://img.shields.io/github/v/release/Berakhah/ground-truth)](https://github.com/Berakhah/ground-truth/releases)
 [![license](https://img.shields.io/github/license/Berakhah/ground-truth)](LICENSE)
 
 ## Results
 
-**There are no real provider results yet.** The table and chart below are the shipped
+**There are no real provider results yet.** The screenshot above and the table below are the shipped
 `artifacts/leaderboard.json`, which is marked `"placeholder": true`: two demo slots that show
 the shape of a published row, not a measurement of any model. `scripts/reproduce.py` refuses
 to "reproduce" this file for that reason.
@@ -21,14 +24,6 @@ to "reproduce" this file for that reason.
 |---|---|---|---|---|
 | demo-slot-a | 0.92 [0.87, 0.96] | 180 | $1.25 | 850 / 2100 ms |
 | demo-slot-b | 0.90 [0.84, 0.95] | 180 | $0.40 | 620 / 1500 ms |
-
-```mermaid
-xychart-beta
-    title "PLACEHOLDER data: accuracy point estimate per demo slot"
-    x-axis ["demo-slot-a", "demo-slot-b"]
-    y-axis "accuracy" 0.8 --> 1.0
-    bar [0.92, 0.90]
-```
 
 When the real sweep runs ([docs/run-schedule.md](docs/run-schedule.md)), these rows are
 replaced by the regenerated artifacts and the `placeholder` flag goes away.
